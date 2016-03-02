@@ -31,7 +31,7 @@ for caller in ['block_4k_log', 'block_8k_log', 'block_16k_log', 'block_32k_log',
         caller + '/latency1'
     os.chdir(path)
     function_names = []
-    # function_names.insert(0, 'imaginary_function')
+    function_names.insert(0, 'imaginary_function')
     function_names.append('latency')
     function_call_time = []
     function_call_time_file = open('tpcc', 'r')
