@@ -11,9 +11,9 @@ This tool contains four parts:
 2. SourceAnnotator: the annotator instruments the source code of the software application. It inserts appropriate function calls to call the functions defined in ExectuionTimeTracer to mark the start and end of a function call.
 
    Usage: Compile the source code file and then run it in this way:
-```
-SourceAnnotator [source_code_file] [function_name]
-```
+   ```
+   SourceAnnotator [source_code_file] [function_name]
+   ```
 
    After running this tool, update the value of `NUMBER_OF_FUNCTIONS` in file `trace_tool.cc` of the ExecutionTimeTracer.
 
