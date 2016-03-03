@@ -1,12 +1,14 @@
 #!/bin/sh
 
-echo 'Compiling FactorSelector'
-cd FactorSelector
-javac FactorSelector.java
 echo 'Compiling SourceAnnotator'
-cd ../SourceAnnotator
+cd SourceAnnotator
 javac SourceAnnotator.java
 chmod +x annotate.sh
 cd ..
-chmod +x VarianceBreaker/var_breaker.py
+echo 'Compiling FactorSelector'
+cd FactorSelector
+javac FactorSelector.java
+chmod +x var_breaker.py
+chmod +x select_factor.sh
+cd ..
 echo 'Done'

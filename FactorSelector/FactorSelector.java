@@ -19,7 +19,7 @@ public class FactorSelector
     public static void main(String[] args)
     {
         if (args.length < 4) {
-            System.out.println("Usage: java FactorSelector <variance tree file> <heights file> <k(number of functions to select)> <root function> [selected function 1] [selected function 2]...");
+            System.out.println("Usage: java FactorSelector <variance tree file> <heights file> <k(number of functions to select)> <root function> [selected functions]");
             System.exit(1);
         }
 
@@ -28,12 +28,13 @@ public class FactorSelector
         k = Integer.parseInt(args[2]);
         rootFunction = args[3];
 
-        for (int index = 4; index < args.length; ++index) {
-            selectedFactors.add(args[index]);
+        if (args.length == 5) {
+            selectedFactors = Arrays.asList(args[4].split(","));
+        } else {
+            selectedFactors = new ArrayList<>();
         }
 
         readHeights();
-        setSelectedFactors();
 
         Tree<String> tree = readVarianceTree(varTreeFile);
         List<Node<String>> factors = factorSelection(tree, k, 0.05);
@@ -100,11 +101,6 @@ public class FactorSelector
         Tree<String> tree = new Tree<>();
         tree.setRootElement(root);
         return tree;
-    }
-
-    private static void setSelectedFactors()
-    {
-        selectedFactors = new ArrayList<>();
     }
 
     private static void addChildren(String functionName, Node<String> functionNode, List<String> graph)
