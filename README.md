@@ -2,6 +2,8 @@
 
 VProfiler is a profiling tool that can efficiently and rigorously decompose the variance of the overall execution time of an application by automatically instrumenting its source code, and identifying the major functions that contribute the most to the overall variance. This tool is still at an early version, and it supports only MySQL (C++) and Postgres (C). Depending on the exact setting of the software system, a scrpt can be used to connect the four parts of this tool to make it fully automatic.
 
+This tool currently supports only Linux.
+
 ### Compilation:
 Run script `compile.sh` to compile the code.
 ```
@@ -18,14 +20,14 @@ This tool contains four parts:
    In MySQL, call function `TraceTool::get_instance()->start_new_query()`, `TraceTool::get_instance()->query_end()` and `TraceTool::get_instance()->end_transaction()` at the appropriate location to mark the start, end of a query and end of a transaction. Set `TraceTool::is_commit` to true if the query is a commit query.
 
    In Postgres, call function `TRX_START()`, `TRX_END()` at the appropriate location to mark the start and end of a transaction. Call `COMMIT()` if the query is a commit query.
-   
+
    The data files will be put in folder `latency`. The exact location of this folder depends on the software system being profiled. Make sure that this folder exists before running experiments.
 
 2. SourceAnnotator: the annotator instruments the source code of the software application. It inserts appropriate function calls to call the functions defined in ExectuionTimeTracer to mark the start and end of a function call.
 
    Usage:
    ```
-   ./annotate.sh <source code file> <function name> <location oftrace_tool.cc file>
+   ./annotate.sh <source code file> <function name> <location of trace_tool.cc file>
    ```
 
    This tool updates file `trace_tool.cc`. Use it for further experiments.
