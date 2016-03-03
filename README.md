@@ -15,10 +15,11 @@ This tool contains four parts:
 
    Usage: Add the files to the code base of the application so that the defined functions can be called.
 
-   		  In MySQL, call function `TraceTool::get_instance()->start_new_query()`, `TraceTool::get_instance()->query_end()` and `TraceTool::get_instance()->end_transaction()` at the appropriate location to mark the start, end of a query and end of a transaction. Set `TraceTool::is_commit` to true if the query is a commit query.
-   		  
-   		  In Postgres, call function `TRX_START()`, `TRX_END()` at the appropriate location to mark the start and end of a transaction. Call `COMMIT()` if the query is a commit query.
-   		  The data files will be put in folder `latency`. The exact location of this folder depends on the software system being profiled. Make sure that this folder exists before running experiments.
+   In MySQL, call function `TraceTool::get_instance()->start_new_query()`, `TraceTool::get_instance()->query_end()` and `TraceTool::get_instance()->end_transaction()` at the appropriate location to mark the start, end of a query and end of a transaction. Set `TraceTool::is_commit` to true if the query is a commit query.
+
+   In Postgres, call function `TRX_START()`, `TRX_END()` at the appropriate location to mark the start and end of a transaction. Call `COMMIT()` if the query is a commit query.
+   
+   The data files will be put in folder `latency`. The exact location of this folder depends on the software system being profiled. Make sure that this folder exists before running experiments.
 
 2. SourceAnnotator: the annotator instruments the source code of the software application. It inserts appropriate function calls to call the functions defined in ExectuionTimeTracer to mark the start and end of a function call.
 
