@@ -10,6 +10,7 @@ Run script `compile.sh` to compile the code.
 chmod +x compile.sh
 ./compile.sh
 ```
+The compiled files reside in each of the four folders. `cd` in the corresponding folder before using them.
 
 This tool contains four parts:
 
