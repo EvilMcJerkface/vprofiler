@@ -9,7 +9,7 @@ import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-class CodeChanger {
+class SourceAnnotator {
 	String code = "";
 	Scanner in;
 	String targetf;
@@ -17,6 +17,7 @@ class CodeChanger {
 	String buffer = "";
 	String includes = "", beforeDef, def, func, afterDef, rType;
 	ArrayList<String> funcs = new ArrayList<String>();
+	PrintWriter funcNames;
 	int sc = -1;
 	int funcCnt = 0;
 	Boolean resultVal = false, switchVal = false, bTrace = false,
@@ -24,12 +25,12 @@ class CodeChanger {
 
 	public static void main(String[] args) {
 		if (args.length < 2) {
-			System.err.println("This program takes 2 arguments.");
+			System.err.println("Usage: java SourceAnnotator <file name> <function name>");
 			return;
 		}
 		try {
 			Scanner in = new Scanner(new FileReader(args[0]));
-			CodeChanger cc = new CodeChanger(in, args[1]);
+			SourceAnnotator cc = new SourceAnnotator(in, args[1]);
 			String res = cc.run();
 			cc.printOutput();
 //			System.out.println(res);
@@ -46,17 +47,24 @@ class CodeChanger {
 		}
 	}
 
-	CodeChanger(Scanner in, String targetf) {
+	SourceAnnotator(Scanner in, String targetf) {
 		this.in = in;
 		// this.out = out;
 		this.targetf = targetf;
 		while (in.hasNext()) {
 			code += in.nextLine() + "\n";
 		}
+		try {
+			funcNames = new PrintWriter(new FileWriter(targetf));
+		} catch (FileNotFoundException e) {
+			System.err.println("File not found!");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public void printOutput() {
-		System.out.println(funcCnt);
+		funcNames.println(funcCnt);
 		HashMap<String, Integer> fs = new HashMap<String, Integer>();
 		for (String s : funcs) {
 			if (fs.containsKey(s)) {
@@ -67,17 +75,15 @@ class CodeChanger {
 			} else
 				fs.put(s, 0);
 		}
-		String res = "[";
 		for (String s : funcs) {
 			if (fs.get(s).equals(0)) {
-				res += "'" + s + "', ";
+				funcNames.println(s);
 			} else {
-				res += "'" + s + "-" + fs.get(s) + "', ";
+				funcNames.println(s + '-' + fs.get(s));
 				fs.put(s, fs.get(s) - 1);
 			}
 		}
-		res = res.substring(0, res.length() - 2) + "]";
-		System.out.println(res);
+		funcNames.close();
 	}
 
 	String run() {
@@ -290,11 +296,6 @@ class CodeChanger {
 		}
 		if (inHas)
 			output += "\n" + tabs.substring(0, tabs.length() - 1) + "}";
-		// System.out.println(b);
-		// System.out.println(in);
-		// System.out.println(parts[1]);
-		// System.out.println(st);
-		// System.out.println(e);
 		return output;
 	}
 
@@ -599,7 +600,6 @@ class CodeChanger {
 	}
 
 	private void findSegments() {
-        System.out.println(targetf);
 		Pattern fh = Pattern.compile("(\\w+(\\s|(\\s*\\*)+))\\s*"
 				+ this.targetf + "\\s*\\([^\\)]*\\)\\s*\\{\\s*");
 		Matcher matcher = fh.matcher(code);

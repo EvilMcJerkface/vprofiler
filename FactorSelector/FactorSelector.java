@@ -5,20 +5,38 @@ import java.util.*;
 
 /**
  */
-public class SourceOfVariance
+public class FactorSelector
 {
     private static HashMap<String, String> virtualFunctions = new HashMap<>();
     private static HashMap<String, Integer> heights;
     private static int maxHeight = -1;
     private static List<String> selectedFactors;
+    private static String varTreeFile;
+    private static String heightsFile;
+    private static int k;
+    private static String rootFunction;
 
     public static void main(String[] args)
     {
+        if (args.length < 4) {
+            System.out.println("Usage: java FactorSelector <variance tree file> <heights file> <k(number of functions to select)> <root function> [selected function 1] [selected function 2]...");
+            System.exit(1);
+        }
+
+        varTreeFile = args[0];
+        heightsFile = args[1];
+        k = Integer.parseInt(args[2]);
+        rootFunction = args[3];
+
+        for (int index = 4; index < args.length; ++index) {
+            selectedFactors.add(args[index]);
+        }
+
         readHeights();
         setSelectedFactors();
 
-        Tree<String> tree = readVarianceTree("variance_tree_voltdb");
-        List<Node<String>> factors = factorSelection(tree, 5, 0.05);
+        Tree<String> tree = readVarianceTree(varTreeFile);
+        List<Node<String>> factors = factorSelection(tree, k, 0.05);
 
         for (Node<String> factor : factors)
         {
@@ -32,7 +50,7 @@ public class SourceOfVariance
 
         try
         {
-            BufferedReader reader = new BufferedReader(new FileReader("heights.voltdb"));
+            BufferedReader reader = new BufferedReader(new FileReader(heightsFile));
             String line;
             while((line = reader.readLine()) != null)
             {
@@ -56,12 +74,10 @@ public class SourceOfVariance
 
     private static Tree<String> readVarianceTree(String variance_tree_file)
     {
-        final String rootFunction = "voltdb::VoltDBEngine::executePlanFragments";
-
-        virtualFunctions.put("ha_index_read_map", "index_read");
-        virtualFunctions.put("ha_index_read_idx_map", "index_read");
-        virtualFunctions.put("ha_write_row", "write_row");
-        virtualFunctions.put("ha_update_row", "update_row");
+        // virtualFunctions.put("ha_index_read_map", "index_read");
+        // virtualFunctions.put("ha_index_read_idx_map", "index_read");
+        // virtualFunctions.put("ha_write_row", "write_row");
+        // virtualFunctions.put("ha_update_row", "update_row");
 
         Node<String> root = new Node<>(rootFunction, 1);
         BufferedReader reader;
@@ -130,7 +146,7 @@ public class SourceOfVariance
                     functionNode.addChild(child);
 
                     if (child.getContribution() / functionNode.getContribution() > 0.85 ||
-                            (functionNode.getContribution() - child.getContribution()) < 0.055)
+                            (functionNode.getContribution() - child.getContribution()) < 0.05)
                     {
                         functionNode.setContribution(0);
                     }
@@ -151,7 +167,7 @@ public class SourceOfVariance
     {
         if (!function.contains(","))
         {
-            if (function.contains("imaginary"))
+            if (function.contains("img_"))
             {
                 return parentHeight - 1;
             }
@@ -268,6 +284,6 @@ public class SourceOfVariance
 
     private static double specificness(double height)
     {
-        return Math.pow(maxHeight - height, 3);
+        return Math.pow(maxHeight - height, 2);
     }
 }

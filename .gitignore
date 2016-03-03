@@ -30,6 +30,7 @@ lib*.pc
 *.idea
 CMakeLists.txt
 **/.DS_Store
+**/*.class
 
 # Local excludes in root directory
 /GNUmakefile
