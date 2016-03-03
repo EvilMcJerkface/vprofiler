@@ -50,4 +50,4 @@ This tool contains four parts:
    java FactorSelector <variance tree file> <heights file> <k> <root function> [selected function 1] [selected function 2]...
    ```
 
-   Here `k` is the number of sources of variance you want to find. `root function` is entry point function for query or transaction processing.
+   Here `k` is the number of sources of variance you want to find. `root function` is entry point function for query or transaction processing. `selected function`s are functions that you want to mark as selected major sources of variance if they already provide enough information on why variance occurs.
