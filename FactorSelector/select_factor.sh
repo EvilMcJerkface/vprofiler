@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if [[ "$#" -lt 5 ]]; then
-	echo "Usage: $0 <function name> <dir of data files generated from ExectuionTimeTracer> <heights file> <k> <root function> [selected functions]"
+	echo "Usage: $0 <function name file> <dir of data files generated from ExectuionTimeTracer> <heights file> <k> <root function> [selected functions]"
 fi
 
 echo 'Breaking down variance'
