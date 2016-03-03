@@ -14,7 +14,9 @@ This tool contains four parts:
 1. ExecutionTimeTracer: the tracer collects execution time data for a certain function and all the function called in that function. It also collects latency data. Appropriate functions should be called in order to mark the start and end of a query and transaction. Data files will be generated after each run with all the execution time data for further analysis. The current version of this tool supports only MySQL and Postgres. 
 
    Usage: Add the files to the code base of the application so that the defined functions can be called.
+
    		  In MySQL, call function `TraceTool::get_instance()->start_new_query()`, `TraceTool::get_instance()->query_end()` and `TraceTool::get_instance()->end_transaction()` at the appropriate location to mark the start, end of a query and end of a transaction. Set `TraceTool::is_commit` to true if the query is a commit query.
+   		  
    		  In Postgres, call function `TRX_START()`, `TRX_END()` at the appropriate location to mark the start and end of a transaction. Call `COMMIT()` if the query is a commit query.
    		  The data files will be put in folder `latency`. The exact location of this folder depends on the software system being profiled. Make sure that this folder exists before running experiments.
 
@@ -41,5 +43,7 @@ This tool contains four parts:
 
    Usage:
    ```
-   java FactorSelector <variance tree file> <heights file> <k(number of functions to select)> <root function> [selected function 1] [selected function 2]...
+   java FactorSelector <variance tree file> <heights file> <k> <root function> [selected function 1] [selected function 2]...
    ```
+
+   Here `k` is the number of sources of variance you want to find. `root function` is entry point function for query or transaction processing.
