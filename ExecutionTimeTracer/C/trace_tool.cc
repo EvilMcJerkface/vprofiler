@@ -1,4 +1,4 @@
-#include "vprofiler/trace_tool.h"
+#include "trace_tool.h"
 #include <pthread.h>
 #include <unistd.h>
 #include <algorithm>
