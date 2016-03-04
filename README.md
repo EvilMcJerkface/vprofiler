@@ -4,7 +4,6 @@ VProfiler is a profiling tool that can efficiently and rigorously decompose the 
 
 
 ## Installation Guide
-- - -
 
 ### 0. Package Overview
 
@@ -39,9 +38,11 @@ The execution time tracer needs to be integrated into the target software system
 
    A *session* is one unit of work. Depending on the target system, the definition of a *session* will be different. For example, in a DBMS, a *session* will be a transaction.
 
-### 3. Running Factor Selector
+### 3. Building Factor Selector
 
 To building factor selector, simply do a `make` at the top level folder.
+
+## 3. Usage Guide
 
 The factor selector runs in the following loop:
 
