@@ -1,16 +1,10 @@
 #ifndef MY_TRACE_TOOL_H
 #define MY_TRACE_TOOL_H
 
-#include "../storage/innobase/include/os0sync.h"
-#include "../storage/innobase/include/lock0types.h"
-#include "../storage/innobase/include/buf0buf.h"
 #include <fstream>
-#include <list>
 #include <vector>
-#include <deque>
 #include <pthread.h>
 #include <time.h>
-#include <unordered_map>
 #include <cstdlib>
 #include <string>
 
@@ -29,11 +23,9 @@ typedef unsigned long int ulint;
 typedef unsigned int uint;
 
 using std::ofstream;
-using std::list;
 using std::vector;
 using std::endl;
 using std::string;
-using std::deque;
 
 /** The global transaction id counter */
 extern ulint transaction_id;
@@ -58,6 +50,9 @@ bool TRACE_START();
 This function marks the end of a child function call. */
 bool TRACE_END(
   int index);   /*!< Index of the child function call. */
+
+void SESSION_START();
+void SESSION_END(bool successfully);
 
 /********************************************************************//**
 Transaction types in TPCC workload. */
@@ -105,21 +100,7 @@ public:
                                                  these two doesn't have to be true at the same time). */
     static __thread bool commit_successful; /*!< True if the current transaction successfully commits. */
     static __thread transaction_type type;  /*!< Type of the current transaction. */
-    static long num_trans[TRX_TYPES];       /*!< Number of successfully submitted transactions. */
-    static double mean_latency[TRX_TYPES];  /*!< Mean of total wait time of successfully committed
-                                             transactions*/
-    static pthread_mutex_t var_mutex;
-    
-    vector<long> time_so_far;
-    vector<long> trx_ids;
-    
-    ulint num_waits;
-    ulint total_locks;
-    
-    static deque<buf_page_t *> pages_to_make_young;
-    static deque<ib_uint32_t> space_ids;
-    static deque<ib_uint32_t> page_nos;
-    static pthread_mutex_t buf_page_mutex;
+
     
     /********************************************************************//**
     The Singleton pattern. Used for getting the instance of this class. */
@@ -151,10 +132,6 @@ public:
     {
         return log_file;
     }
-
-    /********************************************************************//**
-    Sumbits the total wait time of a transaction. */
-    void update_ctv(long latency);
     
     /********************************************************************//**
     Start a new query. This may also start a new transaction. */

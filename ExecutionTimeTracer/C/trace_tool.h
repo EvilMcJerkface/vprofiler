@@ -29,13 +29,9 @@ int get_thread_id();
 
 void log_command(const char *command);
 
-void QUERY_START();
+void SESSION_START();
 
-void TRX_START();
-
-void TRX_END();
-
-void COMMIT(int successful);
+void SESSION_END(int successful);
 
 void PATH_SET(int path_count);
 

@@ -17,9 +17,10 @@ using std::string;
 using std::to_string;
 using std::set;
 
-#define TARGET_PATH_COUNT 2
+#define TARGET_PATH_COUNT 0
 #define NUMBER_OF_FUNCTIONS 0
 #define LATENCY
+#define MONITOR
 
 ulint transaction_id = 0;
 
@@ -151,36 +152,29 @@ void QUERY_START() {
     TraceTool::get_instance()->global_last_query = TraceTool::get_time();
 }
 
-void TRX_START() {
+void SESSION_START() {
 #ifdef LATENCY
     TraceTool::get_instance()->start_trx();
 #endif
 }
 
-void TRX_END() {
-#ifdef LATENCY
-    TraceTool::get_instance()->end_trx();
-#endif
-}
-
-void COMMIT(int successful) {
+void SESSION_END(int successful) {
 #ifdef LATENCY
     TraceTool::get_instance()->is_commit = true;
     TraceTool::get_instance()->commit_successful = successful;
+    TraceTool::get_instance()->end_trx();
 #endif
 }
 
 void PATH_INC() {
 #ifdef LATENCY
     TraceTool::get_instance()->path_count++;
-//    TraceTool::get_instance()->log_file << pthread_self() << " increments path_count to " << TraceTool::get_instance()->path_count << endl;
 #endif
 }
 
 void PATH_DEC() {
 #ifdef LATENCY
     TraceTool::get_instance()->path_count--;
-//    TraceTool::get_instance()->log_file << pthread_self() << " decrements path_count to " << TraceTool::get_instance()->path_count << endl;
 #endif
 }
 
@@ -197,7 +191,6 @@ int PATH_GET() {
 }
 
 void TRACE_FUNCTION_START() {
-//    TraceTool::get_instance()->log_file << "Function starts" << endl;
 #ifdef MONITOR
     if (TraceTool::should_monitor()) {
         clock_gettime(CLOCK_REALTIME, &function_start);
@@ -212,7 +205,6 @@ void TRACE_FUNCTION_END() {
         long duration = TraceTool::difftime(function_start, function_end);
         TraceTool::get_instance()->add_record(0, duration);
     }
-//    TraceTool::get_instance()->log_file << "Function ends" << endl;
 #endif
 }
 
@@ -256,11 +248,7 @@ TraceTool *TraceTool::get_instance() {
 
 TraceTool::TraceTool() : function_times() {
     /* Open the log file in append mode so that it won't be overwritten */
-#if defined(MONITOR) || defined(WORK_WAIT)
-    const int number_of_functions = NUMBER_OF_FUNCTIONS + 2;
-#else
     const int number_of_functions = NUMBER_OF_FUNCTIONS + 1;
-#endif
     vector<int> function_time;
     function_time.push_back(0);
     for (int index = 0; index < number_of_functions; index++) {
@@ -274,9 +262,6 @@ TraceTool::TraceTool() : function_times() {
 }
 
 bool TraceTool::should_monitor() {
-//    if (path_count != TARGET_PATH_COUNT) {
-//        log_file << path_count << endl;
-//    }
     return path_count == TARGET_PATH_COUNT;
 }
 
@@ -286,7 +271,6 @@ void *TraceTool::check_write_log(void *arg) {
        dump data to log files. */
     while (true) {
         sleep(5);
-//        log_file << "Checking," << global_last_query.tv_sec << ":" << global_last_query.tv_nsec << "," << transaction_id << endl;
         timespec now = get_time();
         if (now.tv_sec - global_last_query.tv_sec >= 10 && transaction_id > 0) {
             /* Create a new TraceTool instance. */

@@ -9,21 +9,16 @@
 #include <cstdlib>
 #include <cassert>
 
-#define NUM_CORES 2
-#define TARGET_PATH_COUNT 42
+#define TARGET_PATH_COUNT 0
 #define NUMBER_OF_FUNCTIONS 0
 #define LATENCY
+#define MONITOR
 
 #define NEW_ORDER_MARKER "SELECT C_DISCOUNT, C_LAST, C_CREDIT, W_TAX  FROM CUSTOMER, WAREHOUSE WHERE"
 #define PAYMENT_MARKER "UPDATE WAREHOUSE SET W_YTD = W_YTD"
 #define ORDER_STATUS_MARKER "SELECT C_FIRST, C_MIDDLE"
 #define DELIVERY_MARKER "SELECT NO_O_ID FROM NEW_ORDER WHERE NO_D_ID ="
 #define STOCK_LEVEL_MARKER "SELECT D_NEXT_O_ID FROM DISTRICT WHERE D_W_ID ="
-
-#define WRITE1_MARKER "UPDATE Snape SET NAME='Marvin' WHERE ID = 1"
-#define WRITE2_MARKER "UPDATE Snape SET NAME='Severus' WHERE ID = 1"
-#define READ1_MARKER "SELECT AGE FROM Snape WHERE ID = 1"
-#define READ2_MARKER "SELECT NAME FROM Snape WHERE ID = 1"
 
 using std::endl;
 using std::ifstream;
@@ -49,16 +44,6 @@ __thread bool TraceTool::commit_successful = true;
 __thread bool TraceTool::new_transaction = true;
 __thread timespec TraceTool::trans_start;
 __thread transaction_type TraceTool::type = NONE;
-
-long TraceTool::num_trans[TRX_TYPES] = {0};
-double TraceTool::mean_latency[TRX_TYPES] = {0};
-
-deque<buf_page_t *> TraceTool::pages_to_make_young;
-deque<ib_uint32_t> TraceTool::space_ids;
-deque<ib_uint32_t> TraceTool::page_nos;
-
-pthread_mutex_t TraceTool::buf_page_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t TraceTool::var_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static const size_t NEW_ORDER_LENGTH = strlen(NEW_ORDER_MARKER);
 static const size_t PAYMENT_LENGTH = strlen(PAYMENT_MARKER);
@@ -120,6 +105,23 @@ bool TRACE_END(int index)
   return false;
 }
 
+void SESSION_START()
+{
+#ifdef LATENCY
+  TraceTool::get_instance()->new_transaction = true;
+  TraceTool::get_instance()->start_new_query();
+#endif
+}
+
+void SESSION_END(bool successfully)
+{
+#ifdef LATENCY
+  TraceTool::get_instance()->is_commit = true;
+  TraceTool::get_instance()->commit_successful = successfully;
+  TraceTool::get_instance()->end_query();
+#endif
+}
+
 /********************************************************************//**
 Get the current TraceTool instance. */
 TraceTool *TraceTool::get_instance()
@@ -148,11 +150,7 @@ TraceTool::TraceTool() : function_times()
 {
   /* Open the log file in append mode so that it won't be overwritten */
   log_file.open("logs/trace.log");
-#if defined(MONITOR) || defined(WORK_WAIT)
-  const int number_of_functions = NUMBER_OF_FUNCTIONS + 2;
-#else
   const int number_of_functions = NUMBER_OF_FUNCTIONS + 1;
-#endif
   vector<long> function_time;
   function_time.push_back(0);
   for (int index = 0; index < number_of_functions; index++)
@@ -164,8 +162,6 @@ TraceTool::TraceTool() : function_times()
   transaction_start_times.push_back(0);
   transaction_types.reserve(500000);
   transaction_types.push_back(NONE);
-  num_waits = 0;
-  total_locks = 0;
   
   srand(time(0));
 }
@@ -199,9 +195,6 @@ void *TraceTool::check_write_log(void *arg)
       
       /* Reset the global transaction ID. */
       transaction_id = 0;
-      
-      memset(num_trans, 0, TRX_TYPES * sizeof(long));
-      memset(mean_latency, 0, TRX_TYPES * sizeof(double));
       
       /* Dump data in the old instance to log files and
          reclaim memory. */
@@ -297,9 +290,8 @@ void TraceTool::set_query(const char *new_query)
     }
     else
     {
-//      type = NONE;
-//      commit_successful = false;
-      type = NEW_ORDER;
+     type = NONE;
+     commit_successful = false;
     }
     
     pthread_rwlock_rdlock(&data_lock);
@@ -318,21 +310,6 @@ void TraceTool::end_query()
     end_transaction();
   }
 #endif
-}
-
-/********************************************************************//**
-Sumbits the total wait time of a transaction. */
-void TraceTool::update_ctv(long latency)
-{
-  var_mutex_enter();
-  ++num_trans[type];
-  double old_mean = mean_latency[type];
-  mean_latency[type] = old_mean + (latency - old_mean) / num_trans[type];
-  
-  ++num_trans[TRX_TYPES - 1];
-  old_mean = mean_latency[TRX_TYPES - 1];
-  mean_latency[TRX_TYPES - 1] = old_mean + (latency - old_mean) / num_trans[TRX_TYPES - 1];
-  var_mutex_exit();
 }
 
 void TraceTool::end_transaction()
@@ -455,21 +432,6 @@ void TraceTool::write_latency(string dir)
 }
 
 void TraceTool::write_log()
-{
-//  ofstream remaining("remaining");
-//  for (ulint index = 0; index < time_so_far.size(); ++index)
-//  {
-//    long trx_id = trx_ids[index];
-//    long latency = function_times.back()[trx_id];
-//    remaining << "rem" << trx_id << "=" << (latency - time_so_far[index]) << endl;
-//  }
-//  remaining.close();
-//  ofstream num_locks("latency/num_locks");
-//  for (ulint index = 0; index < time_so_far.size(); ++index) {
-//    num_locks << time_so_far[index] << endl;
-//  }
-//  num_locks.close();
-//  time_so_far.clear();
-  
+{ 
   write_latency("latency/");
 }
