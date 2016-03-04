@@ -21,11 +21,11 @@ The execution time tracer is mainly written in C++, but it has both a C++ interf
 * Linux
 
 
-The factor selector is written in Java and Python. To run it, you need the following:
+The factor selector is mainly written in Java and Python. To run it, you need the following:
 
 * Java 1.7+
 * Python 2.7+
-* Linux
+* Linux (for the shell scripts)
 
 ### 2. Integration of Execution Time Tracer
 
@@ -37,7 +37,7 @@ The execution time tracer needs to be integrated into the target software system
 
 3. In the target system, add function call `SESSION_START()` to mark the start of a session, and function call `SESSION_END(successful)` to mark the end of it. If `false` is passed into `SESSION_END`, the session will be ignored.
 
-   A *session* is one unit of work. Depending on the target system, the definition of a *session* will be different. For example, in a DBMS, a *session* will be a transaction.
+   A *session* is one unit of work. Depending on the target system, the definition of a *session* will be different. For example, in a DBMS, a *session* will be a transaction, and so `SESSION_START` should mark the start of a transaction while `SESSION_END` marks the end (commit, abort or rollback) or a transaction.
 
 ### 3. Building Factor Selector
 
