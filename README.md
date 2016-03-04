@@ -25,6 +25,7 @@ The factor selector is written in Java and Python. To run it, you need the follo
 
 * Java 1.7+
 * Python 2.7+
+* Linux
 
 ### 2. Integration of Execution Time Tracer
 
