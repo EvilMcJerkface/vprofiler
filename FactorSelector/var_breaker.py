@@ -26,7 +26,9 @@ def collect_exec_time(function_file, path):
     """ Read function execution time data from file """
     os.chdir(path)
     functions = open(function_file, 'r')
+    functions.readline()
     function_names = [function.strip() for function in functions]
+    # function_names.insert(0, function_file)
     function_names.append('latency')
 
     function_exec_time = []
@@ -56,13 +58,25 @@ def break_down(function_file, path, var_tree_file):
     caller = function_names[0]
     function_names[0] = 'img_' + function_names[0]
 
-    variance_of_latency = np.var(function_exec_time[-1])
+    latency_data = function_exec_time[-1]
+    variance_of_latency = np.var(latency_data)
+    mean_of_latency = np.mean(latency_data)
+    perc_of_latency = np.percentile(latency_data, 99)
+    print mean_of_latency, variance_of_latency, perc_of_latency
+    print np.std(latency_data) / mean_of_latency, perc_of_latency / mean_of_latency
     imaginary_records = function_exec_time[0]
     size = len(imaginary_records)
-    for index in range(1, len(function_names) - 1):
-        records = function_exec_time[index]
-        for index in range(size):
-            imaginary_records[index] -= records[index]
+    for index in range(size):
+        imaginary = imaginary_records[index]
+        for i in range(1, len(function_names) - 1):
+            records = function_exec_time[i]
+            imaginary -= records[index]
+            if imaginary < 0:
+                for exec_time in function_exec_time:
+                    print exec_time[index]
+                print imaginary
+            assert imaginary >= 0
+        imaginary_records[index] = imaginary
 
     if not os.path.exists(var_tree_file):
         tree_file = open(var_tree_file, 'w')
@@ -117,16 +131,17 @@ def main():
     path = ''
     var_tree_file = ''
     for opt, arg in opts:
-        if opt == 'h':
+        if opt == '-h':
             usage()
             sys.exit()
-        if opt == 'f':
+        elif opt == '-f':
             function_file = arg
-        elif opt == 'd':
+        elif opt == '-d':
             path = arg
-        elif opt == 'v':
+        elif opt == '-v':
             var_tree_file = arg
         else:
+            print opt
             assert False, 'Invalid option'
     if function_file == '' or path == '' or var_tree_file == '':
         usage()
