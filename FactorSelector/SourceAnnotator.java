@@ -90,7 +90,7 @@ class SourceAnnotator {
 		code = removeComments(code);
 		findSegments();
 		String res = includes, output = "";
-		res += "\n#include \"trace_tool.h\"\n";
+		res += "\n#include <ngx_trace.h>\n";
 		String s;
 		while ((s = nextStatement()) != null) {
 			output += fix(s);

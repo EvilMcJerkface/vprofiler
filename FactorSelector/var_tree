@@ -1,179 +1,36 @@
-"ap_process_http_async_connection" -> "img_ap_process_http_async_connection" -> "0.125744450946"
-"ap_process_http_async_connection" -> ap_update_child_status",img_ap_process_http_async_connection" -> "0.000650737270621"
-"ap_process_http_async_connection" -> "ap_update_child_status" -> "0.00332336320398"
-"ap_process_http_async_connection" -> ap_process_async_request",img_ap_process_http_async_connection" -> "0.0289732145132"
-"ap_process_http_async_connection" -> ap_process_async_request",ap_update_child_status" -> "0.017963218802"
-"ap_process_http_async_connection" -> "ap_process_async_request" -> "0.801806876764"
 
 
-"ap_process_async_request" -> "img_ap_process_async_request" -> "0.117647976208"
-"ap_process_async_request" -> ap_process_request_internal",img_ap_process_async_request" -> "0.00395412060284"
-"ap_process_async_request" -> "ap_process_request_internal" -> "0.0402924606097"
-"ap_process_async_request" -> ap_invoke_handler",img_ap_process_async_request" -> "0.00470218144927"
-"ap_process_async_request" -> ap_invoke_handler",ap_process_request_internal" -> "0.0275866408495"
-"ap_process_async_request" -> "ap_invoke_handler" -> "0.767617338638"
-"ap_process_async_request" -> ap_process_request_after_handler",img_ap_process_async_request" -> "0.00067190051028"
-"ap_process_async_request" -> ap_process_request_after_handler",ap_process_request_internal" -> "0.00109102389302"
-"ap_process_async_request" -> ap_process_request_after_handler",ap_invoke_handler" -> "0.0158593648232"
-"ap_process_async_request" -> "ap_process_request_after_handler" -> "0.00338250675415"
-
-
-"default_handler" -> "img_default_handler" -> "0.0920537684763"
-"default_handler" -> AP_SENDFILE_ENABLED",img_default_handler" -> "0.00589726948212"
-"default_handler" -> "AP_SENDFILE_ENABLED" -> "0.110190577486"
-"default_handler" -> ap_pass_brigade",img_default_handler" -> "0.0211684068487"
-"default_handler" -> ap_pass_brigade",AP_SENDFILE_ENABLED" -> "0.22225830369"
-"default_handler" -> "ap_pass_brigade" -> "0.408977432668"
-
-
-"ap_pass_brigade" -> "img_ap_pass_brigade" -> "0.000415445258714"
-"ap_pass_brigade" -> byterange",img_ap_pass_brigade" -> "9.929109512e-09"
-"ap_pass_brigade" -> "byterange" -> "2.39212761599e-08"
-"ap_pass_brigade" -> content_length",img_ap_pass_brigade" -> "1.03290037115e-06"
-"ap_pass_brigade" -> content_length",byterange" -> "1.27712879832e-09"
-"ap_pass_brigade" -> "content_length" -> "1.97220601368e-07"
-"ap_pass_brigade" -> http_header",img_ap_pass_brigade" -> "0.000208567809534"
-"ap_pass_brigade" -> http_header",byterange" -> "2.21689485062e-06"
-"ap_pass_brigade" -> "http_header" -> "0.45794233922"
-"ap_pass_brigade" -> outerror",http_header" -> "1.57015176024e-06"
-"ap_pass_brigade" -> "outerror" -> "4.58818822721e-07"
-"ap_pass_brigade" -> core_output",img_ap_pass_brigade" -> "0.000264268976699"
-"ap_pass_brigade" -> core_output",byterange" -> "1.42317116227e-06"
-"ap_pass_brigade" -> core_output",content_length" -> "2.71770638205e-06"
-"ap_pass_brigade" -> core_output",http_header" -> "0.017022864996"
-"ap_pass_brigade" -> core_output",outerror" -> "4.38110740487e-05"
-"ap_pass_brigade" -> "core_output" -> "0.260185643919"
-
-
-"ap_http_header_filter" -> "img_ap_http_header_filter" -> "0.0689249451441"
-"ap_http_header_filter" -> basic_http_header",img_ap_http_header_filter" -> "0.00736513208"
-"ap_http_header_filter" -> "basic_http_header" -> "0.118123767571"
-"ap_http_header_filter" -> outerror",img_ap_http_header_filter" -> "0.00341060713321"
-"ap_http_header_filter" -> outerror",basic_http_header" -> "0.154972721157"
-"ap_http_header_filter" -> "outerror" -> "0.0971996934132"
-
-
-"basic_http_header" -> "img_basic_http_header" -> "0.0450829306437"
-"basic_http_header" -> "apr_brigade_writev" -> "0.117709493728"
-
-
-"ap_http_outerror_filter" -> "img_ap_http_outerror_filter" -> "0.0161231340837"
-"ap_http_outerror_filter" -> "filters" -> "0.111438947788"
-
-
-"ap_core_output_filter" -> "img_ap_core_output_filter" -> "0.0543888678819"
-"ap_core_output_filter" -> setaside_remaining_output",img_ap_core_output_filter" -> "0.00261941024473"
-"ap_core_output_filter" -> "setaside_remaining_output" -> "0.0973133566895"
-
-
-"setaside_remaining_output" -> "img_setaside_remaining_output" -> "0.080322649464"
-"setaside_remaining_output" -> apr_pool_create",img_setaside_remaining_output" -> "9.87496257243e-05"
-"setaside_remaining_output" -> "apr_pool_create" -> "0.0865490222834"
-
-
-"setaside_remaining_output" -> "img_setaside_remaining_output" -> "0.0662808475316"
-"setaside_remaining_output" -> "apr_pool_create" -> "0.103533941162"
-
-
-"setaside_remaining_output" -> "img_setaside_remaining_output" -> "0.0662808475316"
-"setaside_remaining_output" -> "apr_pool_create" -> "0.103533941162"
-
-
-"apr_brigade_writev" -> "img_apr_brigade_writev" -> "0.0880784732653"
-"apr_brigade_writev" -> apr_bucket_transient_create",img_apr_brigade_writev" -> "0.00527595868639"
-"apr_brigade_writev" -> "apr_bucket_transient_create" -> "0.0878484092313"
-
-
-"apr_bucket_transient_create" -> "img_apr_bucket_transient_create" -> "0.188024641305"
-"apr_bucket_transient_create" -> apr_bucket_alloc",img_apr_bucket_transient_create" -> "6.89086520859e-05"
-"apr_bucket_transient_create" -> "apr_bucket_alloc" -> "0.0790355962168"
-
-
-"apr_file_open" -> "img_apr_file_open" -> "0.0774548600579"
-"apr_file_open" -> "apr_pstrdup" -> "0.0924739539702"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+"ngx_http_wait_request_handler" -> "img_ngx_http_wait_request_handler" -> "0.0117219213234"
+"ngx_http_wait_request_handler" -> ngx_log_debug0",img_ngx_http_wait_request_handler" -> "2.36897304659e-05"
+"ngx_http_wait_request_handler" -> "ngx_log_debug0" -> "0.000788437894324"
+"ngx_http_wait_request_handler" -> ngx_http_get_module_srv_conf",img_ngx_http_wait_request_handler" -> "9.55911622076e-06"
+"ngx_http_wait_request_handler" -> "ngx_http_get_module_srv_conf" -> "0.00159592859808"
+"ngx_http_wait_request_handler" -> ngx_create_temp_buf",img_ngx_http_wait_request_handler" -> "4.88492972393e-05"
+"ngx_http_wait_request_handler" -> ngx_create_temp_buf",ngx_log_debug0" -> "3.57445585383e-06"
+"ngx_http_wait_request_handler" -> ngx_create_temp_buf",ngx_http_get_module_srv_conf" -> "1.53979390065e-05"
+"ngx_http_wait_request_handler" -> "ngx_create_temp_buf" -> "0.00726686436522"
+"ngx_http_wait_request_handler" -> recv",img_ngx_http_wait_request_handler" -> "0.000355623970964"
+"ngx_http_wait_request_handler" -> recv",ngx_log_debug0" -> "1.26903441694e-05"
+"ngx_http_wait_request_handler" -> recv",ngx_http_get_module_srv_conf" -> "1.89939363652e-05"
+"ngx_http_wait_request_handler" -> recv",ngx_create_temp_buf" -> "0.000181007732276"
+"ngx_http_wait_request_handler" -> "recv" -> "0.0278264079129"
+"ngx_http_wait_request_handler" -> ngx_reusable_connection-1",img_ngx_http_wait_request_handler" -> "2.10982483681e-05"
+"ngx_http_wait_request_handler" -> ngx_reusable_connection-1",ngx_log_debug0" -> "4.57743418616e-08"
+"ngx_http_wait_request_handler" -> ngx_reusable_connection-1",ngx_http_get_module_srv_conf" -> "1.64208364779e-06"
+"ngx_http_wait_request_handler" -> ngx_reusable_connection-1",ngx_create_temp_buf" -> "4.93729652906e-06"
+"ngx_http_wait_request_handler" -> ngx_reusable_connection-1",recv" -> "7.74185125682e-05"
+"ngx_http_wait_request_handler" -> "ngx_reusable_connection-1" -> "0.00120853547154"
+"ngx_http_wait_request_handler" -> ngx_http_create_request",img_ngx_http_wait_request_handler" -> "4.61669300992e-05"
+"ngx_http_wait_request_handler" -> ngx_http_create_request",ngx_log_debug0" -> "2.36233546829e-06"
+"ngx_http_wait_request_handler" -> ngx_http_create_request",ngx_create_temp_buf" -> "3.32090472258e-05"
+"ngx_http_wait_request_handler" -> ngx_http_create_request",recv" -> "0.000340163240171"
+"ngx_http_wait_request_handler" -> ngx_http_create_request",ngx_reusable_connection-1" -> "1.34950056251e-05"
+"ngx_http_wait_request_handler" -> "ngx_http_create_request" -> "0.0111383887699"
+"ngx_http_wait_request_handler" -> ngx_http_process_request_line",img_ngx_http_wait_request_handler" -> "0.00342953516655"
+"ngx_http_wait_request_handler" -> ngx_http_process_request_line",ngx_log_debug0" -> "0.000256919082861"
+"ngx_http_wait_request_handler" -> ngx_http_process_request_line",ngx_http_get_module_srv_conf" -> "0.000242228300505"
+"ngx_http_wait_request_handler" -> ngx_http_process_request_line",ngx_create_temp_buf" -> "0.000379603973872"
+"ngx_http_wait_request_handler" -> ngx_http_process_request_line",recv" -> "0.00366834283546"
+"ngx_http_wait_request_handler" -> ngx_http_process_request_line",ngx_reusable_connection-1" -> "9.5678077124e-05"
+"ngx_http_wait_request_handler" -> ngx_http_process_request_line",ngx_http_create_request" -> "0.00152447230349"
+"ngx_http_wait_request_handler" -> "ngx_http_process_request_line" -> "0.927495159185"

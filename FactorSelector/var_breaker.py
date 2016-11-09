@@ -28,7 +28,7 @@ def collect_exec_time(function_file, path):
     functions = open(function_file, 'r')
     functions.readline()
     function_names = [function.strip() for function in functions]
-    # function_names.insert(0, function_file)
+    function_names.insert(0, function_file)
     function_names.append('latency')
 
     function_exec_time = []
