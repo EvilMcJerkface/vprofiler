@@ -24,6 +24,14 @@ public class VProfiler {
         traceToolPathOpt.setRequired(true);
         options.addOption(traceToolPathOpt);
 
+        Option dataDirOpt = new Option("d", "dataDir", true, "Path of which to download test results to");
+        dataDirOpt.setRequired(true);
+        options.addOption(dataDirOpt);
+
+        Option heightFileOpt = new Option("h", "heights_file", true, "The path to the generated heights file");
+        heightFileOpt.setRequired(true);
+        options.addOption(heightFileOpt);
+
         Option numFactorsOpt = new Option("k", "numFactors", true, "Number of factors to select");
         numFactorsOpt.setRequired(true);
         options.addOption(numFactorsOpt);

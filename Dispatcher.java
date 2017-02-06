@@ -6,6 +6,8 @@ public class Dispatcher {
     final String compilationScriptPath;
     final String traceToolPath;
     final String topLvlFunc;
+    final String dataDir;
+    final String heightsFile;
 
     final Integer numIterations;
     final Integer numFactors;
@@ -13,13 +15,16 @@ public class Dispatcher {
     // Make this line prettier
     private Dispatcher(String _sourceFilePath, String _execScriptPath, 
                        String _compilationScriptPath, String _traceToolPath, 
-                       String _topLvlFunc, Integer _numIterations, 
+                       String _topLvlFunc, String _dataDir,
+                       String _heightsFile, Integer _numIterations, 
                        Integer _numFactors) {
         sourceFilePath = _sourceFilePath;
         execScriptPath = _execScriptPath;
         compilationScriptPath = _compilationScriptPath;
         traceToolPath = _traceToolPath;
         topLvlFunc = _topLvlFunc;
+        dataDir = _dataDir;
+        heightsFile = _heightsFile;
 
         numIterations = _numIterations;
         numFactors = _numFactors;
@@ -37,19 +42,19 @@ public class Dispatcher {
         buildProcess.waitFor();
 
         pb.command(execScriptPath);
-        for (int i = 0; i < numIterations; i++) {
-            Process execScriptPath = pb.start();
-            execScriptPath.waitFor();
-        }
+        final Process execScript = pb.start();
+        execScript.waitFor();
 
-        // TODO Run factor selection. Need to figure out how exactly that's run first.
+        pb.command("factor_selector.sh", topLvlFunc, dataDir, heightsFile, Integer.toString(numIterations), topLvlFunc);
+        final Process factorSelector = pb.start();
+        factorSelector.waitFor();
     }
 
     /* Creates new Dispatcher from result of command line parsing.  Returns NewDispatcher *
      * object if initialization is successful, throws IllegalArgumentError if failure.    */ 
     public static Dispatcher NewDispatcher(CommandLine cmd) {
         String sourceFile, topLvlFunc, execScript, preNumIter, preFactors, 
-               compScript, traceTool;
+               compScript, traceTool, dataDir, heightPath;
         Integer numFactors, numIter;
         boolean failure;
 
@@ -57,6 +62,8 @@ public class Dispatcher {
         execScript = cmd.getOptionValue("e", null);
         compScript = cmd.getOptionValue("c", null);
         traceTool  = cmd.getOptionValue("t", null);
+        dataDir    = cmd.getOptionValue("d", null);
+        heightPath = cmd.getOptionValue("h", null);
 
         topLvlFunc = cmd.getOptionValue("f", null);
 
@@ -66,7 +73,7 @@ public class Dispatcher {
         /* Check not strictly necessary (all opts set to required earlier),               *
          * but good sanity check.                                                         */
         failure = Utils.AnyNull(sourceFile, execScript, compScript, traceTool, 
-                                topLvlFunc, preNumIter, preFactors);
+                                topLvlFunc, dataDir, heightPath, preNumIter, preFactors);
 
         if (failure) {
             throw new IllegalArgumentException();
@@ -76,6 +83,6 @@ public class Dispatcher {
         numFactors = Integer.parseInt(preFactors);
 
         return new Dispatcher(sourceFile, execScript, compScript, traceTool, 
-                              topLvlFunc, numIter, numFactors);
+                              topLvlFunc, dataDir, heightPath, numIter, numFactors);
     }
 }
