@@ -47,7 +47,7 @@ public class Dispatcher {
         final Process execScript = pb.start();
         execScript.waitFor();
 
-        pb.command("/bin/bash", "factor_selector.sh", topLvlFunc, dataDir, heightsFile, Integer.toString(numFactors), topLvlFunc);
+        pb.command("/bin/bash", "select_factor.sh", topLvlFunc, dataDir, heightsFile, Integer.toString(numFactors), topLvlFunc);
         final Process factorSelector = pb.start();
         factorSelector.waitFor();
     }
