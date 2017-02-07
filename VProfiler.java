@@ -20,15 +20,11 @@ public class VProfiler {
         execScriptOpt.setRequired(true);
         options.addOption(compilationScriptOpt);
 
-        Option traceToolPathOpt = new Option("t", "traceToolPath", true, "Path to trace_tool.cc");
-        traceToolPathOpt.setRequired(true);
-        options.addOption(traceToolPathOpt);
-
         Option dataDirOpt = new Option("d", "dataDir", true, "Path of which to download test results to");
         dataDirOpt.setRequired(true);
         options.addOption(dataDirOpt);
 
-        Option heightFileOpt = new Option("h", "heights_file", true, "The path to the generated heights file");
+        Option heightFileOpt = new Option("h", "heightsFile", true, "The path to the generated heights file");
         heightFileOpt.setRequired(true);
         options.addOption(heightFileOpt);
 
@@ -36,9 +32,9 @@ public class VProfiler {
         numFactorsOpt.setRequired(true);
         options.addOption(numFactorsOpt);
 
-        Option numIterOpt = new Option("n", "numIterations", true, "Number of times to run the execution script");
+      /*Option numIterOpt = new Option("n", "numIterations", true, "Number of times to run the execution script");
         numIterOpt.setRequired(false);
-        options.addOption(numIterOpt);
+        options.addOption(numIterOpt);*/
 
         CommandLineParser clParser = new DefaultParser();
         HelpFormatter helpFormatter = new HelpFormatter();

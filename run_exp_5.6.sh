@@ -94,7 +94,7 @@ restart() {
     ssh ${server} /home/jiamin/zsh/bin/zsh <<EOF
         $set_ld_path;
         $stopmysql;
-        $rebuild;
+        # $rebuild;
         $reset_mysql;
         $reset_files;
         $config_buf;
