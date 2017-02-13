@@ -6,7 +6,7 @@ class VProfFrontendAction : public ASTFrontendAction {
         virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &ci, StringRef file) {
             return std::unique_ptr<ASTConsumer>(new VProfASTConsumer(&ci));
         }
-}
+};
 
 class VProfASTConsumer : public ASTConsumer {
     private:
@@ -22,7 +22,7 @@ class VProfASTConsumer : public ASTConsumer {
         virtual void HandleTranslationUnit(ASTContext &context) {
             visitor->TraverseDecl(context.getTranslationUnitDecl());
         }
-}
+};
 
 class VProfVisitor : public RecursiveASTVisitor {
     private:
@@ -35,6 +35,39 @@ class VProfVisitor : public RecursiveASTVisitor {
         // Hash map of fully qualified function names to the function
         // name to which the key functions should be converted to in the source.
         std::unordered_map<std::string, std::string> functions;
+
+        // FOR DEBUGGING PURPOSES. PRINT SUPPOSED FUNCTION CALL INSTEAD OF WRITING TO FILE
+        void fixFunction(const CallExpr *call, const std::string &functionName) {
+            // Get args
+            std::vector<Expr*> args;
+
+            if (CXXMemberCallExpr *memCall = dynamic_cast<CXXMemberCallExpr*>(call)) {
+                args.append(memCall->getImplicitObjectArgument());
+            }
+
+            for (int i = 0, j = call->getNumArgs(); i < j; i++) {
+                args.append(call->getArg(i));
+            }
+
+            std::string newCall = functions[functionName] + "(";
+            appendNonObjArgs(call, newCall);
+            newCall += ");";
+
+            std::cout << newCall;
+        }
+
+
+        void appendNonObjArgs(std::string &newCall, std::vector<Expr*> &args) {
+            for (Expr *arg : args) {
+                std::string TypeS;
+                llvm::raw_string_ostream s(TypeS);
+                newCall += arg->printPretty(s, 0, rewriter->getLangOpts());
+
+                if (i != (j - 1)) {
+                    newCall += ", ";
+                }
+            }
+        }
 
     public:
         explicit VProfVisitor(CompilerInstance &ci, Rewriter &_rewriter,
@@ -56,7 +89,7 @@ class VProfVisitor : public RecursiveASTVisitor {
 
             // If fname is in list of functions to replace
             if (functions.find(functionName) != functions.end()) {
-                fixFunctionNonMember(call, functionName);
+                fixFunction(call, functionName);
             }
 
             return;
@@ -66,9 +99,7 @@ class VProfVisitor : public RecursiveASTVisitor {
             const std::string functionName = call->getMethodDecl()->getQualifiedNameAsString();
 
             if (functions.find(functionName) != functions.end()) {
-                fixFunctionMember(call, functionName);
+                fixFunction(call, functionName);
             }
         }
-
-        // FOR DEBUGGING PURPOSES. PRINT SUPPOSED FUNCTION CALL INSTEAD OF WRITING TO FILE
-}
+};
