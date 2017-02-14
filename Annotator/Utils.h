@@ -25,3 +25,26 @@ std::vector<std::string> SplitString(const std::string &s, char delim) {
     
     return elems;
 }
+
+
+// Credit to stackoverflow user waqas. Code can be found at 
+// https://www.stackoverflow.com/questions/478898/how-to-execute-a-command-and-get-output-of-command-within-c-using-posix
+std::string exec(const std::string &command) {
+    std::array<char, 128> buffer;
+    std::string result;
+
+    std::shared_ptr<FILE> pipe(popen(command, 'r'), pclose);
+
+    if (!pipe) {
+        throw std::runtime_error("popen(" + command + ", 'r') failed.");
+    }
+
+    while (!feof(pipe.get())) {
+        if (fgets(buffer.data(), 128, pipe.get()) != nullptr) {
+                result += buffer.data();
+        }
+    }
+
+    return result;
+}
+
