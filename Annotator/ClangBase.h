@@ -1,5 +1,23 @@
+// Clang libs
+#include "FrontendAction.h"
+#include "ASTConsumer.h"
+#include "RecursiveASTVisitor.h"
+#include "CompilerInstance.h"
+#include "Rewriter.h"
+#include "ASTContext.h"
+#include "Expr.h"
+#include "ExprCXX.h"
+#include "Type.h"
+#include "Decl.h"
+
+// LLVM libs
+#include "raw_ostream.h"
+
+// STL libs
 #include <memory>
 #include <unordered_map>
+#include <string>
+#include <vector>
 
 class VProfFrontendAction : public ASTFrontendAction {
     public:
@@ -37,37 +55,9 @@ class VProfVisitor : public RecursiveASTVisitor {
         std::unordered_map<std::string, std::string> functions;
 
         // FOR DEBUGGING PURPOSES. PRINT SUPPOSED FUNCTION CALL INSTEAD OF WRITING TO FILE
-        void fixFunction(const CallExpr *call, const std::string &functionName) {
-            // Get args
-            std::vector<Expr*> args;
+        void fixFunction(const CallExpr *call, const std::string &functionName);
 
-            if (CXXMemberCallExpr *memCall = dynamic_cast<CXXMemberCallExpr*>(call)) {
-                args.append(memCall->getImplicitObjectArgument());
-            }
-
-            for (int i = 0, j = call->getNumArgs(); i < j; i++) {
-                args.append(call->getArg(i));
-            }
-
-            std::string newCall = functions[functionName] + "(";
-            appendNonObjArgs(call, newCall);
-            newCall += ");";
-
-            std::cout << newCall;
-        }
-
-
-        void appendNonObjArgs(std::string &newCall, std::vector<Expr*> &args) {
-            for (Expr *arg : args) {
-                std::string TypeS;
-                llvm::raw_string_ostream s(TypeS);
-                newCall += arg->printPretty(s, 0, rewriter->getLangOpts());
-
-                if (i != (j - 1)) {
-                    newCall += ", ";
-                }
-            }
-        }
+        void appendNonObjArgs(std::string &newCall, std::vector<Expr*> &args);
 
     public:
         explicit VProfVisitor(CompilerInstance &ci, Rewriter &_rewriter,
@@ -80,26 +70,9 @@ class VProfVisitor : public RecursiveASTVisitor {
 
         }
 
-        virtual void VisitCallExpr(const CallExpr *call) {
-            // Exit if call is to a function pointer
-            if (!(const FunctionDecl *decl = call->getDirectCallee())) {
-                return;
-            }
-            const std::string functionName = decl->getQualifiedNameAsString();
+        // Override trigger for when a CallExpr is found in the AST
+        virtual void VisitCallExpr(const CallExpr *call);
 
-            // If fname is in list of functions to replace
-            if (functions.find(functionName) != functions.end()) {
-                fixFunction(call, functionName);
-            }
-
-            return;
-        }
-
-        virtual void VisitCXXMemberCallExpr(const CXXMemberCallExpr *call) {
-            const std::string functionName = call->getMethodDecl()->getQualifiedNameAsString();
-
-            if (functions.find(functionName) != functions.end()) {
-                fixFunction(call, functionName);
-            }
-        }
+        // Override trigger for when a CXXMemberCallExpr is found in the AST
+        virtual void VisitCXXMemberCallExpr(const CXXMemberCallExpr *call);
 };
