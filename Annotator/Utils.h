@@ -1,6 +1,11 @@
+#ifndef UTILS_H
+#define UTILS_H
+
 #include <string>
 #include <sstream>
 #include <vector>
+#include <array>
+#include <memory>
 
 // Credit to Evan Teran on stackoverflow for this solution. Find it at
 // https://www.stackoverflow.com/questions/236129/split-a-string-in-c.
@@ -33,10 +38,10 @@ std::string exec(const std::string &command) {
     std::array<char, 128> buffer;
     std::string result;
 
-    std::shared_ptr<FILE> pipe(popen(command, 'r'), pclose);
+    std::shared_ptr<FILE> pipe(popen(command.c_str(), "r"), pclose);
 
     if (!pipe) {
-        throw std::runtime_error("popen(" + command + ", 'r') failed.");
+        throw std::runtime_error("popen(" + command + ", \"r\") failed.");
     }
 
     while (!feof(pipe.get())) {
@@ -48,3 +53,4 @@ std::string exec(const std::string &command) {
     return result;
 }
 
+#endif

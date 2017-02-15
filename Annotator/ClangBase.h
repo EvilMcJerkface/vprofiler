@@ -1,17 +1,20 @@
+#ifndef CLANGBASE_H
+#define CLANGBASE_H
+
 // Clang libs
-#include "FrontendAction.h"
-#include "ASTConsumer.h"
-#include "RecursiveASTVisitor.h"
-#include "CompilerInstance.h"
-#include "Rewriter.h"
-#include "ASTContext.h"
-#include "Expr.h"
-#include "ExprCXX.h"
-#include "Type.h"
-#include "Decl.h"
+#include "clang/Frontend/FrontendAction.h"
+#include "clang/Frontend/CompilerInstance.h"
+#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/AST/ASTConsumer.h"
+#include "clang/AST/ASTContext.h"
+#include "clang/AST/Expr.h"
+#include "clang/AST/ExprCXX.h"
+#include "clang/AST/Type.h"
+#include "clang/AST/Decl.h"
+#include "clang/Rewrite/Core/Rewriter.h"
 
 // LLVM libs
-#include "raw_ostream.h"
+//#include "llvm/Support/raw_ostream.h"
 
 // STL libs
 #include <memory>
@@ -19,50 +22,28 @@
 #include <string>
 #include <vector>
 
-class VProfFrontendAction : public ASTFrontendAction {
-    public:
-        virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &ci, StringRef file) {
-            return std::unique_ptr<ASTConsumer>(new VProfASTConsumer(&ci));
-        }
-};
-
-class VProfASTConsumer : public ASTConsumer {
-    private:
-        std::unique_ptr<VProfVisitor> visitor;
-    public:
-        // Override ctor to pass hash map of fully qualified function names to the function
-        // name to which the key functions should be converted to in the source.
-        explicit VProfConsumer(CompilerInstance &ci, Rewriter &rewriter,
-                               std::unordered_map<std::string, std::string> &functions): 
-                               visitor(ci, rewriter, functions) {}
-
-
-        virtual void HandleTranslationUnit(ASTContext &context) {
-            visitor->TraverseDecl(context.getTranslationUnitDecl());
-        }
-};
-
-class VProfVisitor : public RecursiveASTVisitor {
+class VProfVisitor : public clang::RecursiveASTVisitor<VProfVisitor> {
     private:
         // Context storing additional state
-        std::unique_ptr<ASTContext> astContext;
+        std::unique_ptr<clang::ASTContext> astContext;
 
         // Client to rewrite source
-        Rewriter rewriter;
+        clang::Rewriter rewriter;
 
         // Hash map of fully qualified function names to the function
         // name to which the key functions should be converted to in the source.
         std::unordered_map<std::string, std::string> functions;
 
         // FOR DEBUGGING PURPOSES. PRINT SUPPOSED FUNCTION CALL INSTEAD OF WRITING TO FILE
-        void fixFunction(const CallExpr *call, const std::string &functionName);
+        void fixFunction(const clang::CallExpr *call, const std::string &functionName,
+                         bool  isMemberCall);
 
-        void appendNonObjArgs(std::string &newCall, std::vector<Expr*> &args);
+        void appendNonObjArgs(std::string &newCall, std::vector<const clang::Expr*> &args);
 
     public:
-        explicit VProfVisitor(CompilerInstance &ci, Rewriter &_rewriter,
+        explicit VProfVisitor(clang::CompilerInstance *ci, clang::Rewriter &_rewriter,
                               std::unordered_map<std::string, std::string> &_functions):
-                              astContext(std::make_unique(&ci->GetASTContext())), 
+                              astContext(std::unique_ptr<clang::ASTContext>(&ci->getASTContext())), 
                               rewriter(_rewriter), functions(_functions) {
 
             rewriter.setSourceMgr(astContext->getSourceManager(),
@@ -71,8 +52,34 @@ class VProfVisitor : public RecursiveASTVisitor {
         }
 
         // Override trigger for when a CallExpr is found in the AST
-        virtual void VisitCallExpr(const CallExpr *call);
+        virtual bool VisitCallExpr(const clang::CallExpr *call);
 
         // Override trigger for when a CXXMemberCallExpr is found in the AST
-        virtual void VisitCXXMemberCallExpr(const CXXMemberCallExpr *call);
+        virtual bool VisitCXXMemberCallExpr(const clang::CXXMemberCallExpr *call);
 };
+
+class VProfASTConsumer : public clang::ASTConsumer {
+    private:
+        std::unique_ptr<VProfVisitor> visitor;
+    public:
+        // Override ctor to pass hash map of fully qualified function names to the function
+        // name to which the key functions should be converted to in the source.
+        explicit VProfASTConsumer(clang::CompilerInstance &ci, clang::Rewriter &rewriter,
+                               std::unordered_map<std::string, std::string> &functions): 
+                               visitor(std::unique_ptr<VProfVisitor>(new VProfVisitor(&ci, rewriter, functions))) {}
+
+
+        virtual void HandleTranslationUnit(clang::ASTContext &context) {
+            visitor->TraverseDecl(context.getTranslationUnitDecl());
+        }
+};
+
+/* Don't think this is needed
+ * class VProfFrontendAction : public clang::ASTFrontendAction {
+    public:
+        virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &ci, llvm::StringRef file) {
+            return std::unique_ptr<VProfASTConsumer>(new VProfASTConsumer(&ci));
+        }
+};*/
+
+#endif

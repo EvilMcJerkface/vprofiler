@@ -12,6 +12,7 @@ FunctionFileReader::Parse() {
     // Should eventually trim the line to help user not input bad data
     while (std::getline(infile, line)) {
         qualifiedNames.push_back(line);
+        funcMap[line] = line + "_vprofiler";
     }
 
     std::vector<std::string> nameComponents;
@@ -21,7 +22,6 @@ FunctionFileReader::Parse() {
         unqualifiedName = nameComponents[nameComponents.size() - 1];
 
         unqualifiedNames.push_back(unqualifiedName);
-        funcMap[unqualifiedName] = unqualifiedName + "_vprofiler";
     }
 
     beenParsed = true;

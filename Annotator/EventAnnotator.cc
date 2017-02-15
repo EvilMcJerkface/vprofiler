@@ -1,5 +1,7 @@
 // VProf libs
 #include "FunctionFileReader.h"
+#include "FileFinder.h"
+#include "CodeTransformer.h"
 
 // STL libs
 #include <string>
@@ -54,9 +56,9 @@ int main(int argc, char **argv) {
         fileFinder.BuildCScopeDB();
     }
     string potentialFiles = fileFinder.FindFunctionsPotentialFiles(
-                            funcFileReader.getUnqualifiedFunctionNames());
+                            funcFileReader.GetUnqualifiedFunctionNames());
 
-    CodeTransformer::CreateCodeTransformer(funcFileReader.getFunctionMap());
+    CodeTransformer::CreateCodeTransformer(funcFileReader.GetFunctionMap());
 
     for (std::string &potentialFile : potentialFiles) {
         CodeTransformer::GetInstance()->TransformFile(potentialFile);
