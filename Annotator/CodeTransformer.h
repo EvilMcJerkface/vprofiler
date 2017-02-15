@@ -9,6 +9,9 @@
 #include <unordered_map>
 #include <string>
 
+// VProf libs
+#include "ClangBase.h"
+
 class CodeTransformer {
     public:
         static unique_ptr<CodeTransformer> GetInstance();
