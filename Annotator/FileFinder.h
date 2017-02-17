@@ -1,5 +1,15 @@
+#include "Utils.h"
+
+// STL headers
 #include <vector>
 #include <string>
+#include <algorithm>
+#include <sstream>
+#include <stdexcept>
+#include <memory>
+#include <cstdio>
+#include <iostream>
+#include <array>
 
 class FileFinder {
     public:

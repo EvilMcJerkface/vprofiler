@@ -1,6 +1,13 @@
+// VProf libs
+#include "Utils.h"
+
+// STL libs
 #include <memory>
 #include <unordered_map>
 #include <string>
+#include <vector>
+#include <fstream>
+#include <stdexcept>
 
 class FunctionFileReader {
     public:
@@ -29,4 +36,4 @@ class FunctionFileReader {
         std::vector<std::string> qualifiedNames;
 
         bool beenParsed;
-}
+};

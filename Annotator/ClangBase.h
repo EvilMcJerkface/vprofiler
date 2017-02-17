@@ -42,14 +42,9 @@ class VProfVisitor : public clang::RecursiveASTVisitor<VProfVisitor> {
 
     public:
         explicit VProfVisitor(clang::CompilerInstance *ci, clang::Rewriter &_rewriter,
-                              std::unordered_map<std::string, std::string> &_functions):
-                              astContext(std::unique_ptr<clang::ASTContext>(&ci->getASTContext())), 
-                              rewriter(_rewriter), functions(_functions) {
+                              std::unordered_map<std::string, std::string> &_functions);
 
-            rewriter.setSourceMgr(astContext->getSourceManager(),
-                                  astContext->getLangOpts());
-
-        }
+        ~VProfVisitor(); 
 
         // Override trigger for when a CallExpr is found in the AST
         virtual bool VisitCallExpr(const clang::CallExpr *call);
@@ -68,6 +63,7 @@ class VProfASTConsumer : public clang::ASTConsumer {
                                std::unordered_map<std::string, std::string> &functions): 
                                visitor(std::unique_ptr<VProfVisitor>(new VProfVisitor(&ci, rewriter, functions))) {}
 
+        //virtual ~VProfASTConsumer() {}
 
         virtual void HandleTranslationUnit(clang::ASTContext &context) {
             visitor->TraverseDecl(context.getTranslationUnitDecl());

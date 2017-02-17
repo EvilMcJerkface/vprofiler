@@ -1,17 +1,4 @@
-// VProf headers
 #include "FileFinder.h"
-#include "Utils.h"
-
-// STL headers
-#include <vector>
-#include <string>
-#include <algorithm>
-#include <sstream>
-#include <stdexcept>
-#include <memory>
-#include <cstdio>
-#include <iostream>
-#include <array>
 
 std::string FileFinder::cdCommand() {
     return std::string("cd " + sourceBaseDir);
@@ -46,7 +33,7 @@ std::vector<std::string> FileFinder::parseCScopeOutput(const std::string &output
 std::vector<std::string> FileFinder::FindFunctionPotentialFiles(const std::string &functionName) {
     std::string query = buildQuery(functionName);
 
-    std::string output = exec(query); 
+    std::string output = execute(query); 
 
     return parseCScopeOutput(output);
 }
@@ -54,7 +41,7 @@ std::vector<std::string> FileFinder::FindFunctionPotentialFiles(const std::strin
 std::vector<std::string> FileFinder::FindFunctionsPotentialFiles(const std::vector<std::string> &functions) {
     std::vector<std::string> result;
 
-    for (std::string &function : functions) {
+    for (const std::string &function : functions) {
         std::vector<std::string> functionResult = FindFunctionPotentialFiles(function);
 
         result.insert(result.end(), functionResult.begin(), functionResult.end());
@@ -67,5 +54,5 @@ std::vector<std::string> FileFinder::FindFunctionsPotentialFiles(const std::vect
 FileFinder::FileFinder(const std::string _sourceBaseDir): sourceBaseDir(_sourceBaseDir) {}
 
 void FileFinder::BuildCScopeDB() {
-    exec(cdCommand() + " && cscope -R");
+    execute(cdCommand() + " && cscope -R");
 }

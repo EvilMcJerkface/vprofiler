@@ -73,3 +73,15 @@ bool VProfVisitor::VisitCXXMemberCallExpr(const CXXMemberCallExpr *call) {
 
     return true;
 }
+
+VProfVisitor::VProfVisitor(clang::CompilerInstance *ci, clang::Rewriter &_rewriter,
+                      std::unordered_map<std::string, std::string> &_functions):
+                      astContext(std::unique_ptr<clang::ASTContext>(&ci->getASTContext())), 
+                      rewriter(_rewriter), functions(_functions) {
+
+    rewriter.setSourceMgr(astContext->getSourceManager(),
+                          astContext->getLangOpts());
+
+}
+
+VProfVisitor::~VProfVisitor() {}

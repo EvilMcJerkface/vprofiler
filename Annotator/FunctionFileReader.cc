@@ -1,12 +1,7 @@
 #include "FunctionFileReader.h"
-#include "Utils.h"
 
-#include <fstream>
-#include <string>
-#include <stdexcept>
-
-FunctionFileReader::Parse() {
-    std::ifstream infile(filename);
+void FunctionFileReader::Parse() {
+    std::ifstream infile(filename.c_str());
     std::string line; 
 
     // Should eventually trim the line to help user not input bad data

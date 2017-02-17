@@ -2,7 +2,8 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Parse/ParseAST.h"
 #include "clang/Basic/TargetOptions.h"
-#include "clang/Rewrite/Rewriter.h"
+#include "clang/Basic/TargetInfo.h"
+#include "clang/Rewrite/Core/Rewriter.h"
 
 // STL libs
 #include <vector>
@@ -14,7 +15,7 @@
 
 class CodeTransformer {
     public:
-        static unique_ptr<CodeTransformer> GetInstance();
+        static CodeTransformer* GetInstance();
         // Engine class which runs clang related source translation
 
         // Runs the source translation on a single source file.
@@ -23,12 +24,14 @@ class CodeTransformer {
         // Creates the singleton instance of CodeTranslator.  
         // functionNames maps fully qualified function names which 
         // the user would like profiled to their VProfiler equivalent.
-        static void CodeTransformer::CreateCodeTransformer(std::unordered_map<std::string, 
-                                                         std::string> &functionNames);
+        static void CreateCodeTransformer(const std::unordered_map<std::string, std::string> &functionNames);
 
     private:
+        // Copy ctor
+        CodeTransformer(const CodeTransformer *other);
+
         // Ctor only called in GetInstance
-        CodeTransformer(std::unordered_map<std::string, std::string> &functionNames);
+        CodeTransformer(const std::unordered_map<std::string, std::string> &functionNames);
 
         // Singleton pattern
         static std::unique_ptr<CodeTransformer> singleton;
@@ -38,11 +41,11 @@ class CodeTransformer {
         std::unordered_map<std::string, std::string> functionNames;
 
         // Clang internals
-        CompilerInstance compiler;
-        Rewriter rewriter;
-        FileManager fileManager;
-        SourceManager sourceManager;
+        clang::CompilerInstance compiler;
+        clang::Rewriter rewriter;
+        clang::FileManager *fileManager;
+        clang::SourceManager *sourceManager;
 
         // VProf clang overrides
-        VProfASTConsumer astConsumer;
+        std::unique_ptr<VProfASTConsumer> astConsumer;
 };

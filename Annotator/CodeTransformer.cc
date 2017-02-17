@@ -2,51 +2,56 @@
 
 #include "CodeTransformer.h"
 
-unique_ptr<CodeTransformer> CodeTransformer::singleton = nullptr;
+using namespace clang;
 
-bool CodeTransformer::Run(std::string &filename) { 
-    const FileEntry *file = fileManager.getFile(filename);
-    sourceManager.createMainFileID(file);
+std::unique_ptr<CodeTransformer> CodeTransformer::singleton = nullptr;
+
+bool CodeTransformer::TransformFile(std::string &filename) { 
+    const FileEntry *file = fileManager->getFile(filename);
+    sourceManager->setMainFileID(sourceManager->createFileID(file, SourceLocation(), SrcMgr::C_User));
 
     compiler.getDiagnosticClient().BeginSourceFile(
              compiler.getLangOpts(),
              &compiler.getPreprocessor());
 
-    ParseAST(compiler.getPreprocessor(), &vprofConsumer, 
+    ParseAST(compiler.getPreprocessor(), astConsumer.get(), 
              compiler.getASTContext());
+
+    return true;
 }
 
 // Returns nullptr if CodeTransformer::CreateCodeTransformer was not called previously
-static unique_ptr<CodeTransformer> CodeTransformer::GetInstance() {
-    if (singleton == nullptr) {
-        throw std::logic_error("CodeTransformer::GetInstance called before CodeTransformer::CreateCodeTransformer was invoked.");
+CodeTransformer* CodeTransformer::GetInstance() {
+    return singleton.get();
+}
+
+void CodeTransformer::CreateCodeTransformer(const std::unordered_map<std::string, std::string> &functionNames) {
+    if (!singleton) { 
+        singleton = std::unique_ptr<CodeTransformer>(new CodeTransformer(functionNames));
     }
-    return singleton;
 }
 
-static void CodeTransformer::CreateCodeTransformer(std::unordered_map<std::string, std::string> &functionNames) {
-    singleton = make_unique<CodeTransformer>(functionNames);
-}
+CodeTransformer::CodeTransformer(const std::unordered_map<std::string, std::string> &functions) {
+    functionNames = functions;
 
-CodeTransformer::CodeTransformer(std::unordered_map<std::string, std::string> &_functionNames) {
-    functionNames = _functionNames;
+    compiler.createDiagnostics(nullptr, false);
 
-    compiler.createDiagnostics(0, 0);
-
-    TargetOptions options;
-    options.Triple = llvm::sys::getDefaultTargetTriple();
+    std::shared_ptr<TargetOptions> options = std::make_shared<TargetOptions>();
+    options->Triple = llvm::sys::getDefaultTargetTriple();
     TargetInfo *targInfo = TargetInfo::CreateTargetInfo(
         compiler.getDiagnostics(), options);
     compiler.setTarget(targInfo);
 
     compiler.createFileManager();
-    fileManager = compiler.getFileManager();
+    fileManager = &compiler.getFileManager();
 
-    compiler.createSourceManager(fileManager);
-    sourceManager = compiler.getSourceManager();
+    compiler.createSourceManager(*fileManager);
+    sourceManager = &compiler.getSourceManager();
 
-    compiler.createPreprocessor();
+    compiler.createPreprocessor(clang::TU_Complete);
     compiler.createASTContext();
 
-    rewrite.setSourceMgr(sourceManager, compiler.getLangOpts());
+    rewriter.setSourceMgr(*sourceManager, compiler.getLangOpts());
+
+    astConsumer = std::unique_ptr<VProfASTConsumer>(new VProfASTConsumer(compiler, rewriter, functionNames));
 }

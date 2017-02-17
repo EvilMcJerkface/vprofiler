@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
     if (!cscopeDBCompiled) { 
         fileFinder.BuildCScopeDB();
     }
-    string potentialFiles = fileFinder.FindFunctionsPotentialFiles(
+    vector<string> potentialFiles = fileFinder.FindFunctionsPotentialFiles(
                             funcFileReader.GetUnqualifiedFunctionNames());
 
     CodeTransformer::CreateCodeTransformer(funcFileReader.GetFunctionMap());
