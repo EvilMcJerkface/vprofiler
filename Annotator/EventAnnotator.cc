@@ -11,7 +11,6 @@
 using namespace std;
 
 int main(int argc, char **argv) {
-    cout << "Starting at 14";
     int c;
     string functionFilename;
     string sourceBaseDir;
@@ -49,6 +48,11 @@ int main(int argc, char **argv) {
         }
     }
 
+    if (sourceBaseDir == "" || functionFilename == "") {    
+        cout << usageStr;
+        return 1;
+    }
+
     FunctionFileReader funcFileReader(functionFilename);
     funcFileReader.Parse();
 
@@ -59,15 +63,14 @@ int main(int argc, char **argv) {
     vector<string> potentialFiles = fileFinder.FindFunctionsPotentialFiles(
                             funcFileReader.GetUnqualifiedFunctionNames());
 
-    //CodeTransformer::CreateCodeTransformer(funcFileReader.GetFunctionMap());
+    CodeTransformer::CreateCodeTransformer(funcFileReader.GetFunctionMap());
     
-    CodeTransformer ct(funcFileReader.GetFunctionMap());
+    //CodeTransformer ct(funcFileReader.GetFunctionMap());
 
     for (std::string &potentialFile : potentialFiles) {
-        //CodeTransformer::GetInstance()->TransformFile(potentialFile);
-        ct.TransformFile(potentialFile);
+        CodeTransformer::GetInstance()->TransformFile(potentialFile);
+        //ct.TransformFile(potentialFile);
     }
 
-    cout << "\nreturning";
     return 0;
 }

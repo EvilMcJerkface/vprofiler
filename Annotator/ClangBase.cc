@@ -30,9 +30,10 @@ void VProfVisitor::fixFunction(const CallExpr *call, const std::string &function
     }
 
     appendNonObjArgs(newCall, args);
-    newCall += ");";
+    newCall += ")";
 
-    std::cout << newCall;
+    rewriter->ReplaceText(SourceRange(call->getLocStart(), 
+                          call->getRParenLoc()), newCall);
 }
 
 void VProfVisitor::appendNonObjArgs(std::string &newCall, std::vector<const Expr*> &args) {
@@ -58,17 +59,6 @@ bool VProfVisitor::VisitCallExpr(const CallExpr *call) {
 
     // If fname is in list of functions to replace
     if (functions.find(functionName) != functions.end()) {
-        std::string TypeS;
-        llvm::raw_string_ostream s(TypeS);
-        std::cout << functionName + " source locations";
-        call->getLocStart().print(s, rewriter->getSourceMgr());
-        std::cout << s.str();
-        std::string Typeo;
-        llvm::raw_string_ostream o(Typeo);
-        call->getLocEnd().print(o, rewriter->getSourceMgr());
-        std::cout << o.str();
-        std::cout << std::endl;
-
         fixFunction(call, functionName, false);
     }
 

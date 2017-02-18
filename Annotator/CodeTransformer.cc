@@ -7,6 +7,8 @@ using namespace clang;
 std::unique_ptr<CodeTransformer> CodeTransformer::singleton = nullptr;
 
 bool CodeTransformer::TransformFile(std::string &filename) { 
+    CreateCompiler();
+
     const FileEntry *file = fileManager->getFile(filename);
     sourceManager->setMainFileID(sourceManager->createFileID(file, SourceLocation(), SrcMgr::C_User));
 
@@ -18,6 +20,20 @@ bool CodeTransformer::TransformFile(std::string &filename) {
              compiler->getASTContext());
 
     compiler->getDiagnosticClient().EndSourceFile();
+
+    std::string outFilename = filename;
+    outFilename.insert(outFilename.find("."), "_vprof");
+
+    std::error_code OutErrInfo;
+    std::error_code ok;
+
+    llvm::raw_fd_ostream outputFile(llvm::StringRef(outFilename), OutErrInfo, llvm::sys::fs::F_None); 
+
+    if (OutErrInfo == ok) {
+        const RewriteBuffer *RewriteBuf = rewriter->getRewriteBufferFor(sourceManager->getMainFileID());
+
+        outputFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
+    }
 
     return true;
 }
@@ -33,9 +49,9 @@ void CodeTransformer::CreateCodeTransformer(const std::unordered_map<std::string
     }
 }
 
-CodeTransformer::CodeTransformer(const std::unordered_map<std::string, std::string> &functions):
-compiler(std::make_shared<CompilerInstance>()), rewriter(std::make_shared<Rewriter>()){
-    functionNames = functions;
+void CodeTransformer::CreateCompiler() {
+    compiler = std::make_shared<CompilerInstance>();
+    rewriter = std::make_shared<Rewriter>();
 
     compiler->createDiagnostics(nullptr, false);
 
@@ -59,4 +75,9 @@ compiler(std::make_shared<CompilerInstance>()), rewriter(std::make_shared<Rewrit
     rewriter->setSourceMgr(*sourceManager, compiler->getLangOpts());
 
     astConsumer = std::unique_ptr<VProfASTConsumer>(new VProfASTConsumer(compiler, rewriter, functionNames));
+}
+
+CodeTransformer::CodeTransformer(const std::unordered_map<std::string, std::string> &functions):
+compiler(std::make_shared<CompilerInstance>()), rewriter(std::make_shared<Rewriter>()){
+    functionNames = functions;
 }
