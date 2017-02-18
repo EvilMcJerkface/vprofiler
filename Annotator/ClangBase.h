@@ -28,7 +28,7 @@ class VProfVisitor : public clang::RecursiveASTVisitor<VProfVisitor> {
         std::unique_ptr<clang::ASTContext> astContext;
 
         // Client to rewrite source
-        clang::Rewriter rewriter;
+        std::shared_ptr<clang::Rewriter> rewriter;
 
         // Hash map of fully qualified function names to the function
         // name to which the key functions should be converted to in the source.
@@ -41,7 +41,7 @@ class VProfVisitor : public clang::RecursiveASTVisitor<VProfVisitor> {
         void appendNonObjArgs(std::string &newCall, std::vector<const clang::Expr*> &args);
 
     public:
-        explicit VProfVisitor(clang::CompilerInstance *ci, clang::Rewriter &_rewriter,
+        explicit VProfVisitor(std::shared_ptr<clang::CompilerInstance> ci, std::shared_ptr<clang::Rewriter> _rewriter,
                               std::unordered_map<std::string, std::string> &_functions);
 
         ~VProfVisitor(); 
@@ -59,9 +59,9 @@ class VProfASTConsumer : public clang::ASTConsumer {
     public:
         // Override ctor to pass hash map of fully qualified function names to the function
         // name to which the key functions should be converted to in the source.
-        explicit VProfASTConsumer(clang::CompilerInstance &ci, clang::Rewriter &rewriter,
+        explicit VProfASTConsumer(std::shared_ptr<clang::CompilerInstance> ci, std::shared_ptr<clang::Rewriter> rewriter,
                                std::unordered_map<std::string, std::string> &functions): 
-                               visitor(std::unique_ptr<VProfVisitor>(new VProfVisitor(&ci, rewriter, functions))) {}
+                               visitor(std::unique_ptr<VProfVisitor>(new VProfVisitor(ci, rewriter, functions))) {}
 
         //virtual ~VProfASTConsumer() {}
 

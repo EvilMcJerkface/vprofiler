@@ -6,6 +6,7 @@ LLVM_BIN_PATH := ../build/bin
 
 LLVM_CXXFLAGS := $(shell $(LLVM_BIN_PATH)/llvm-config --cxxflags)
 LLVM_LDFLAGS  := $(shell $(LLVM_BIN_PATH)/llvm-config --ldflags --libs --system-libs)
+#LLVM_LDFLAGS  := $(shell $(LLVM_BIN_PATH)/llvm-config --ldflags)
 
 CLANG_INCLUDES := \
 	-I/home/jrectorb/repos/vprofiler/llvm/tools/clang/include \
@@ -44,10 +45,10 @@ all: ClangBase.o CodeTransformer.o FileFinder.o FunctionFileReader.o Utils.o Eve
 	#$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) $^ $(CLANG_LIBS) $(LLVM_LDFLAGS) -o $@
 
 CodeTransformer.o: CodeTransformer.cc
-	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ $(CLANG_LIBS) $(LLVM_LDFLAGS) -o $@
+	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ -o $@
 
 ClangBase.o: ClangBase.cc
-	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ $(CLANG_LIBS) $(LLVM_LDFLAGS) -o $@
+	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ -o $@
 
 FileFinder.o: FileFinder.cc
 	$(CXX) $(CXXFLAGS) -c $^ -o $@

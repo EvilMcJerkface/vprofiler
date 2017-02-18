@@ -39,7 +39,7 @@ void VProfVisitor::appendNonObjArgs(std::string &newCall, std::vector<const Expr
     for (int i = 0, j = args.size(); i < j; i++) {
         std::string TypeS;
         llvm::raw_string_ostream s(TypeS);
-        args[i]->printPretty(s, 0, rewriter.getLangOpts());
+        args[i]->printPretty(s, 0, rewriter->getLangOpts());
         newCall += s.str();
 
         if (i != (j - 1)) {
@@ -51,13 +51,24 @@ void VProfVisitor::appendNonObjArgs(std::string &newCall, std::vector<const Expr
 bool VProfVisitor::VisitCallExpr(const CallExpr *call) {
     const FunctionDecl *decl = call->getDirectCallee();
     // Exit if call is to a function pointer
-    if (!decl) {
+    if (!decl || isa<clang::CXXMemberCallExpr>(call)) {
         return true;
     }
     const std::string functionName = decl->getQualifiedNameAsString();
 
     // If fname is in list of functions to replace
     if (functions.find(functionName) != functions.end()) {
+        std::string TypeS;
+        llvm::raw_string_ostream s(TypeS);
+        std::cout << functionName + " source locations";
+        call->getLocStart().print(s, rewriter->getSourceMgr());
+        std::cout << s.str();
+        std::string Typeo;
+        llvm::raw_string_ostream o(Typeo);
+        call->getLocEnd().print(o, rewriter->getSourceMgr());
+        std::cout << o.str();
+        std::cout << std::endl;
+
         fixFunction(call, functionName, false);
     }
 
@@ -74,12 +85,13 @@ bool VProfVisitor::VisitCXXMemberCallExpr(const CXXMemberCallExpr *call) {
     return true;
 }
 
-VProfVisitor::VProfVisitor(clang::CompilerInstance *ci, clang::Rewriter &_rewriter,
-                      std::unordered_map<std::string, std::string> &_functions):
-                      astContext(std::unique_ptr<clang::ASTContext>(&ci->getASTContext())), 
-                      rewriter(_rewriter), functions(_functions) {
+VProfVisitor::VProfVisitor(std::shared_ptr<clang::CompilerInstance> ci, 
+                           std::shared_ptr<clang::Rewriter> _rewriter,
+                           std::unordered_map<std::string, std::string> &_functions):
+                           astContext(std::unique_ptr<clang::ASTContext>(&ci->getASTContext())), 
+                           rewriter(_rewriter), functions(_functions) {
 
-    rewriter.setSourceMgr(astContext->getSourceManager(),
+    rewriter->setSourceMgr(astContext->getSourceManager(),
                           astContext->getLangOpts());
 
 }

@@ -21,6 +21,9 @@ class CodeTransformer {
         // Runs the source translation on a single source file.
         bool TransformFile(std::string &filename);
         
+        // Ctor only called in GetInstance
+        CodeTransformer(const std::unordered_map<std::string, std::string> &functionNames);
+        
         // Creates the singleton instance of CodeTranslator.  
         // functionNames maps fully qualified function names which 
         // the user would like profiled to their VProfiler equivalent.
@@ -30,9 +33,6 @@ class CodeTransformer {
         // Copy ctor
         CodeTransformer(const CodeTransformer *other);
 
-        // Ctor only called in GetInstance
-        CodeTransformer(const std::unordered_map<std::string, std::string> &functionNames);
-
         // Singleton pattern
         static std::unique_ptr<CodeTransformer> singleton;
 
@@ -41,8 +41,8 @@ class CodeTransformer {
         std::unordered_map<std::string, std::string> functionNames;
 
         // Clang internals
-        clang::CompilerInstance compiler;
-        clang::Rewriter rewriter;
+        std::shared_ptr<clang::CompilerInstance> compiler;
+        std::shared_ptr<clang::Rewriter> rewriter;
         clang::FileManager *fileManager;
         clang::SourceManager *sourceManager;
 

@@ -20,7 +20,7 @@ std::vector<std::string> FileFinder::parseCScopeOutput(const std::string &output
 
     while (getline(ss, line)) {
         // The filename is in index 0
-        filenames.push_back(SplitString(line, ' ')[0]);
+        filenames.push_back(sourceBaseDir + SplitString(line, ' ')[0]);
     }
 
     // Ensure files are unique
@@ -49,10 +49,12 @@ std::vector<std::string> FileFinder::FindFunctionsPotentialFiles(const std::vect
 
     std::sort(result.begin(), result.end());
     result.erase(std::unique(result.begin(), result.end()), result.end());
+
+    return result;
 }
 
 FileFinder::FileFinder(const std::string _sourceBaseDir): sourceBaseDir(_sourceBaseDir) {}
 
 void FileFinder::BuildCScopeDB() {
-    execute(cdCommand() + " && cscope -R");
+    execute(cdCommand() + " && cscope -R -L");
 }

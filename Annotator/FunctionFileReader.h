@@ -8,6 +8,7 @@
 #include <vector>
 #include <fstream>
 #include <stdexcept>
+#include <algorithm>
 
 class FunctionFileReader {
     public:
