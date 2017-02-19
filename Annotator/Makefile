@@ -2,15 +2,10 @@ CXX := g++
 CXXFLAGS := -fno-rtti -O0 -g -std=c++11
 PLUGIN_CXXFLAGS := -fpic
 
-LLVM_BIN_PATH := ../build/bin
+LLVM_CXXFLAGS := $(shell llvm-config --cxxflags)
+LLVM_LDFLAGS  := $(shell llvm-config --ldflags --libs --system-libs)
 
-LLVM_CXXFLAGS := $(shell $(LLVM_BIN_PATH)/llvm-config --cxxflags)
-LLVM_LDFLAGS  := $(shell $(LLVM_BIN_PATH)/llvm-config --ldflags --libs --system-libs)
-#LLVM_LDFLAGS  := $(shell $(LLVM_BIN_PATH)/llvm-config --ldflags)
-
-CLANG_INCLUDES := \
-	-I/home/jrectorb/repos/vprofiler/llvm/tools/clang/include \
-	-I/home/jrectorb/repos/vprofiler/build/tools/clang/include
+CLANG_INCLUDES := $(shell llvm-config --includedir)
 
 CLANG_LIBS := \
 	-Wl,--start-group \
@@ -40,9 +35,6 @@ CLANG_LIBS := \
 .PHONY: all
 all: ClangBase.o CodeTransformer.o FileFinder.o FunctionFileReader.o Utils.o EventAnnotator.cc
 	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) $^ $(CLANG_LIBS) $(LLVM_LDFLAGS) -o EventAnnotator
-
-#ClangBase: ClangBase.cc ClangBase.h
-	#$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) $^ $(CLANG_LIBS) $(LLVM_LDFLAGS) -o $@
 
 CodeTransformer.o: CodeTransformer.cc
 	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ -o $@
