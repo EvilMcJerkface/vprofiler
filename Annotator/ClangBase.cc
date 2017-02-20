@@ -78,7 +78,7 @@ bool VProfVisitor::VisitCXXMemberCallExpr(const CXXMemberCallExpr *call) {
 VProfVisitor::VProfVisitor(std::shared_ptr<clang::CompilerInstance> ci, 
                            std::shared_ptr<clang::Rewriter> _rewriter,
                            std::unordered_map<std::string, std::string> &_functions):
-                           astContext(std::unique_ptr<clang::ASTContext>(&ci->getASTContext())), 
+                           astContext(&ci->getASTContext()), 
                            rewriter(_rewriter), functions(_functions) {
 
     rewriter->setSourceMgr(astContext->getSourceManager(),

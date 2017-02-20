@@ -25,7 +25,7 @@
 class VProfVisitor : public clang::RecursiveASTVisitor<VProfVisitor> {
     private:
         // Context storing additional state
-        std::unique_ptr<clang::ASTContext> astContext;
+        clang::ASTContext *astContext;
 
         // Client to rewrite source
         std::shared_ptr<clang::Rewriter> rewriter;

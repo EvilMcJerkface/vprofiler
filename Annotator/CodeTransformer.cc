@@ -50,8 +50,15 @@ void CodeTransformer::CreateCodeTransformer(const std::unordered_map<std::string
 }
 
 void CodeTransformer::CreateCompiler() {
-    compiler = std::make_shared<CompilerInstance>();
-    rewriter = std::make_shared<Rewriter>();
+    compiler->createPreprocessor(clang::TU_Complete);
+    compiler->createASTContext();
+
+    astConsumer = std::unique_ptr<VProfASTConsumer>(new VProfASTConsumer(compiler, rewriter, functionNames));
+}
+
+CodeTransformer::CodeTransformer(const std::unordered_map<std::string, std::string> &functions):
+compiler(std::make_shared<CompilerInstance>()), rewriter(std::make_shared<Rewriter>()){
+    functionNames = functions;
 
     compiler->createDiagnostics(nullptr, false);
 
@@ -69,15 +76,5 @@ void CodeTransformer::CreateCompiler() {
     compiler->createSourceManager(*fileManager);
     sourceManager = &compiler->getSourceManager();
 
-    compiler->createPreprocessor(clang::TU_Complete);
-    compiler->createASTContext();
-
     rewriter->setSourceMgr(*sourceManager, compiler->getLangOpts());
-
-    astConsumer = std::unique_ptr<VProfASTConsumer>(new VProfASTConsumer(compiler, rewriter, functionNames));
-}
-
-CodeTransformer::CodeTransformer(const std::unordered_map<std::string, std::string> &functions):
-compiler(std::make_shared<CompilerInstance>()), rewriter(std::make_shared<Rewriter>()){
-    functionNames = functions;
 }

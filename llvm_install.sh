@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Enter the number corresponding to the llvm/clang version to install"
+echo "Enter the number corresponding to the llvm/clang version to install:"
 
 echo "[1] FreeBSD10 AMD64"
 echo "[2] FreeBSD10 i386"
@@ -10,6 +10,8 @@ echo "[5] x86_64 Debian 8"
 echo "[6] x86_64 Ubuntu 16.04"
 echo "[7] MIPS"
 echo "[8] MIPSel"
+echo ""
+echo ""
 echo "Input selection: "
 
 read VERSION
@@ -44,6 +46,10 @@ else
     exit 1
 fi
 
+echo "Extracting from tar"
 tar xf clang*
+
 cd clang*
+
+echo "Copying to /usr/local/"
 sudo cp -R * /usr/local/
