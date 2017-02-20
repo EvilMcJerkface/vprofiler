@@ -32,6 +32,7 @@ bool CodeTransformer::TransformFile(std::string &filename) {
     if (OutErrInfo == ok) {
         const RewriteBuffer *RewriteBuf = rewriter->getRewriteBufferFor(sourceManager->getMainFileID());
 
+        outputFile << "// VProfiler included header\n#include \"VProfilerEventWrappers.h\"\n\n";
         outputFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
     }
 
