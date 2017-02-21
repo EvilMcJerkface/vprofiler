@@ -91,12 +91,4 @@ class VProfASTConsumer : public clang::ASTConsumer {
         }
 };
 
-/* Don't think this is needed
- * class VProfFrontendAction : public clang::ASTFrontendAction {
-    public:
-        virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &ci, llvm::StringRef file) {
-            return std::unique_ptr<VProfASTConsumer>(new VProfASTConsumer(&ci));
-        }
-};*/
-
 #endif
