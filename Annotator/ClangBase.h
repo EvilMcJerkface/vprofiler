@@ -24,6 +24,7 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <sstream>
 
 class VProfVisitor : public clang::RecursiveASTVisitor<VProfVisitor> {
     private:
@@ -53,6 +54,8 @@ class VProfVisitor : public clang::RecursiveASTVisitor<VProfVisitor> {
 
         // Creates the wrapper prototype based on function decl.
         void createNewPrototype(const clang::FunctionDecl *decl);
+
+        std::string getEntireParamDeclAsString(const ParmVarDecl *decl);
 
     public:
         // Not sure how I should break the last line up style-wise

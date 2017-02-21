@@ -1,14 +1,20 @@
 #include <string>
+#include <vector>
 
 // Should put whether this is a CXXMethodDecl in here. Should also 
 // ensure variable name of function parameters are included in the
 // functionPrototype.  Also, a vector of these variable names would
 // be useful later in the annotation process.
 
-struct FunctionPrototype {
-    std::string functionPrototype;
-    std::string staticCallName;
-    std::string nonStaticCallName;
+class FunctionPrototype {
+    public:
+        FunctionPrototype():
+        functionPrototype(""), innerCallPrefix(""), paramVars(), returnType("") {}
 
-    bool        hasNonVoidReturn;
+        std::string functionPrototype;
+        std::string innerCallPrefix;
+
+        std::vector<std::string> paramVars;
+
+        std::string returnType;
 };

@@ -13,8 +13,18 @@ void FunctionFileReader::Parse() {
 
     std::vector<std::string> nameComponents;
     std::string unqualifiedName;
-    for (std::string &func : qualifiedNames) {
-        nameComponents = SplitString(func, ':');
+    for (int i = 0; i < qualifiedNames.size(); i++) {
+        LogInformation newLogInfo;
+        std::vector<std::string> separateWords = SplitString(qualifiedNames[i], ' ');
+
+        // Fill logInfoMap
+        newLogInfo.isMessageBased = separateWords.size() > 1 
+                                    && separateWords[1] == "message_based";
+        newLogInfo.functionID = i;
+        logInfoMap[qualifiedNames[i]] = newLogInfo;
+
+        // Fill unqualified names
+        nameComponents = SplitString(separateWords[0], ':');
         unqualifiedName = nameComponents[nameComponents.size() - 1];
 
         unqualifiedNames.push_back(unqualifiedName);

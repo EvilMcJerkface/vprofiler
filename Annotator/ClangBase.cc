@@ -50,6 +50,13 @@ bool VProfVisitor::shouldCreateNewPrototype(const std::string &functionName) {
     return prototypeMap->find(functionName) == prototypeMap->end();
 }
 
+std::string VProfVisitor::getEntireParamDeclAsString(const ParmVarDecl *decl) {
+    std::stringstream ss;
+    decl->dump(ss);
+
+    return ss.str();
+}
+
 void VProfVisitor::createNewPrototype(const FunctionDecl *decl, 
                                       const std::string &functionName,
                                       bool isMemberFunc) {
@@ -64,16 +71,16 @@ void VProfVisitor::createNewPrototype(const FunctionDecl *decl,
     if (isMemberFunc) {
         const CXXMethodDecl *methodDecl = static_cast<const CXXMethodDecl*>(decl);
         if (methodDecl->isStatic()) {
-            newPrototype.isStatic = methodDecl->getQualifiedNameAsString();
+            newPrototype.innerCallPrefix = methodDecl->getQualifiedNameAsString();
         }
         else {
-            newPrototype.nonStaticCallName = methodDecl->getNameAsString();
+            newPrototype.innerCallPrefix = "obj->" + methodDecl->getNameAsString();
             newPrototype.functionPrototype += methodDecl->getThisType().getAsString() + "* obj";
         }
     }
     // Is there a more succinct way to write this?
     else {
-        newPrototype.nonStaticCallName = methodDecl->getNameAsString();
+        newPrototype.innerCallPrefix = methodDecl->getNameAsString();
     }
 
     for (unsigned int i = 0, j = decl->getNumParams(); i < j; i++) {
@@ -81,7 +88,10 @@ void VProfVisitor::createNewPrototype(const FunctionDecl *decl,
             newPrototype.functionPrototype +=", "
         }
 
-        newPrototype.functionPrototype += decl->getParamDecl(i)->getNameAsString();
+        const ParmVarDecl* paramDecl = decl->getParamDecl(i);
+        newPrototype.functionPrototype += getEntireDeclAsString(paramDecl);
+
+        paramVars.push_back(paramDecl->getNameAsString() + (paramDecl->isParameterPack() ? "..." : ""));
 
         if (i != (j - 1)) {
             newPrototype.functionPrototype += ", ";

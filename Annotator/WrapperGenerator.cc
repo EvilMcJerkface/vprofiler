@@ -33,12 +33,42 @@ void WrapperGenerator::GenerateImplementations() {
     implementationFile << "#include \"VProfEventWrappers.h\"\n\n";
 
     for (auto kv : *prototypeMap) {
-        implementationFile << kv.second.functionPrototype + " {\n";
-        implementationFile << "TraceTool::LogEvent(" + kv.second.eventID + ");\n";
+        if (kv.second.returnType != "void") {
+            implementationFile << kv.second.returnType + " result;\n";
+        }
 
-        // Not quite right.
-        implementationFile << kv.second.staticCallName != "" ? 
-                              kv.second.staticCallName :
-                              kv.second.nonStaticCallName << + "(";
+        implementationFile << kv.second.functionPrototype + " {\n";
+        implementationFile << "EventTraceTool::LogEventStart(" + 
+                              to_string(logInfoMap[kv.first].functionID) + ", " 
+                              + (logInfoMap[kv.first].isMessageBased ? "true" : "false")  
+                              + ");\n";
+
+        if (kv.second.returnType != "void") {
+            implementationFile << "result = ";
+        }
+        implementationFile << kv.second.innerCallPrefix + "(";
+
+        for (int i = 0, j = kv.second.paramVars.size(); i < j; i++) {
+            implementationFile << kv.second.paramVars[i];
+
+            if (i != (j - 1)) {
+                implementationFile << ", ";
+            }
+        }
+
+        implementationFile <<");\n";
+
+        implementationFile << "EventTraceTool::LogEventEnd(" + 
+                              to_string(logInfoMap[kv.first].functionID) + ", " 
+                              + (logInfoMap[kv.first].isMessageBased ? "true" : "false")  
+                              + ");\n";
+
+        if (kv.second.returnType != "void") {
+            implementationFile << "return result;\n";
+        }
+
+        implementationFile << "}\n\n";
     }
+
+    implementationFile.close();
 }

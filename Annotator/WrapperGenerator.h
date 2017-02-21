@@ -1,5 +1,6 @@
 // VProf libs
 #include "FunctionPrototype.h"
+#include "FunctionFileReader.h"
 
 // STL libs
 #include <unordered_map>
@@ -12,6 +13,8 @@ class WrapperGenerator {
         // Map from fully qualified names to instrument to a FunctionPrototype object
         // containing all information needed to form the wrapper.
         std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> prototypeMap;
+
+        std::shared_ptr<std::unordered_map<std::string, LogInformation>> logInfoMap;
 
         // File handle for header file.
         std::ofstream headerFile;
