@@ -64,6 +64,7 @@ class SourceAnnotator {
 	}
 
 	public void printOutput() {
+        System.out.println(funcCnt);
 		funcNames.println(funcCnt);
 		HashMap<String, Integer> fs = new HashMap<String, Integer>();
 		for (String s : funcs) {
@@ -90,7 +91,7 @@ class SourceAnnotator {
 		code = removeComments(code);
 		findSegments();
 		String res = includes, output = "";
-		res += "\n#include \"trace_tool.h\"\n";
+		res += "\n#include <ngx_trace.h>\n";
 		String s;
 		while ((s = nextStatement()) != null) {
 			output += fix(s);
@@ -514,9 +515,9 @@ class SourceAnnotator {
 
 	private boolean hasFunction(String s) {
 		Pattern fh = Pattern
-				.compile("(^|\\W+)(?!for|if|while|else|ut_ad|ereport|UNIV_UNLIKELY|UNIV_EXPECT|UNIV_MEM_INVALID|UNIV_LIKELY|catch|TRX_START|TRX_END|PATH_INC|PATH_DEC|COMMIT|APLOGNO|ap_log_error|ap_log_cerror|ap_log_rerror|ap_log_perror|PATH_INC|PATH_DEC|ap_pass_brigade)(\\w+)\\s*\\(");
+				.compile("(^|\\W+)(?!for|if|while|else|TraceTool|ut_ad|ereport|UNIV_UNLIKELY|UNIV_EXPECT|UNIV_MEM_INVALID|UNIV_LIKELY|catch|TRX_START|TRX_END|PATH_INC|PATH_DEC|COMMIT|APLOGNO|ap_log_error|ap_log_cerror|ap_log_rerror|ap_log_perror|PATH_INC|PATH_DEC|ap_pass_brigade|SESSION_START|SESSION_END)(\\w+)\\s*\\(");
 		Matcher matcher = fh.matcher(s);
-		return matcher.find();
+		return matcher.find() && !s.contains("get_instance()");
 	}
 
 	private String nextStatement() {

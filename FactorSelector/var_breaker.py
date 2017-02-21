@@ -28,7 +28,7 @@ def collect_exec_time(function_file, path):
     functions = open(function_file, 'r')
     functions.readline()
     function_names = [function.strip() for function in functions]
-    # function_names.insert(0, function_file)
+    function_names.insert(0, function_file)
     function_names.append('latency')
 
     function_exec_time = []
@@ -59,12 +59,15 @@ def break_down(function_file, path, var_tree_file):
     function_names[0] = 'img_' + function_names[0]
 
     latency_data = function_exec_time[-1]
+    imaginary_records = function_exec_time[0]
     variance_of_latency = np.var(latency_data)
+    std_of_latency = np.std(latency_data)
     mean_of_latency = np.mean(latency_data)
     perc_of_latency = np.percentile(latency_data, 99)
-    print mean_of_latency, variance_of_latency, perc_of_latency
-    print np.std(latency_data) / mean_of_latency, perc_of_latency / mean_of_latency
-    imaginary_records = function_exec_time[0]
+    print 'Num requests: ' + str(len(latency_data))
+    print mean_of_latency, std_of_latency, variance_of_latency, perc_of_latency
+    print std_of_latency / mean_of_latency, perc_of_latency / mean_of_latency
+    print np.var(imaginary_records) / np.var(latency_data)
     size = len(imaginary_records)
     for index in range(size):
         imaginary = imaginary_records[index]
@@ -95,7 +98,7 @@ def break_down(function_file, path, var_tree_file):
                 variance = np.var(function_exec_time[index1])
                 sum_of_variance += variance
                 variance_break_down.append((function_name1, variance))
-                if variance / variance_of_latency > 0:
+                if variance / variance_of_latency > 2e-3:
                     tree_file.write('"' + caller + '" -> "' + function_name1 +
                                     '" -> "' + str(variance / variance_of_latency) + '"\n')
             else:
@@ -104,7 +107,7 @@ def break_down(function_file, path, var_tree_file):
                 sum_of_variance += covariance
                 variance_break_down.append(
                     (function_name1 + ',' + function_name2, 2 * covariance))
-                if 2 * covariance / variance_of_latency > 0:
+                if 2 * covariance / variance_of_latency > 1e-3:
                     tree_file.write('"' + caller + '" -> ' + function_name1 + '",' +
                                     function_name2 + '" -> "' +
                                     str(2 * covariance / variance_of_latency) + '"\n')
