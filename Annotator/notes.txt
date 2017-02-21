@@ -1,0 +1,3 @@
+Users currently have to provide the templated type in the function file.  Should we implement something like
+...<*>... where the user can put in a wildcard (or eventually maybe a regex) that can match to certain template
+instantiations.

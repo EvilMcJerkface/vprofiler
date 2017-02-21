@@ -49,6 +49,9 @@ void VProfVisitor::appendNonObjArgs(std::string &newCall, std::vector<const Expr
     }
 }
 
+void VProfVisitor::createNewPrototype(const FunctionDecl *decl) {
+}
+
 bool VProfVisitor::VisitCallExpr(const CallExpr *call) {
     const FunctionDecl *decl = call->getDirectCallee();
     // Exit if call is to a function pointer
@@ -70,6 +73,20 @@ bool VProfVisitor::VisitCXXMemberCallExpr(const CXXMemberCallExpr *call) {
 
     if (functions.find(functionName) != functions.end()) {
         fixFunction(call, functionName, true);
+    }
+
+    return true;
+}
+
+bool VProfVisitor::VisitFunctionDecl(const FunctionDecl *decl) {
+    const std::string functionName = decl->getQualifiedNameAsString();
+
+    // Check if
+    // (1) the function is one we are profiling
+    // (2) if the new prototype has already been created
+    if (functions.find(functionName) != functions.end()
+        && prototypeMap->find(functionName) == prototypeMap->end()) {
+        createNewPrototype(decl);
     }
 
     return true;
