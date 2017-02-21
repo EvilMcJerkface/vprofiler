@@ -1,8 +1,5 @@
 #include "ClangBase.h"
 
-// REMOVE THIS INCLUDE AFTER TESTING
-#include <iostream>
-
 using namespace clang;
 
 void VProfVisitor::fixFunction(const CallExpr *call, const std::string &functionName,
@@ -37,7 +34,7 @@ void VProfVisitor::fixFunction(const CallExpr *call, const std::string &function
 }
 
 void VProfVisitor::appendNonObjArgs(std::string &newCall, std::vector<const Expr*> &args) {
-    for (int i = 0, j = args.size(); i < j; i++) {
+    for (unsigned int i = 0, j = args.size(); i < j; i++) {
         std::string TypeS;
         llvm::raw_string_ostream s(TypeS);
         args[i]->printPretty(s, 0, rewriter->getLangOpts());
@@ -49,7 +46,51 @@ void VProfVisitor::appendNonObjArgs(std::string &newCall, std::vector<const Expr
     }
 }
 
-void VProfVisitor::createNewPrototype(const FunctionDecl *decl) {
+bool VProfVisitor::shouldCreateNewPrototype(const std::string &functionName) {
+    return prototypeMap->find(functionName) == prototypeMap->end();
+}
+
+void VProfVisitor::createNewPrototype(const FunctionDecl *decl, 
+                                      const std::string &functionName,
+                                      bool isMemberFunc) {
+    FunctionPrototype newPrototype;
+    newPrototype.staticCallName = "";
+    newPrototype.nonStaticCallName = "";
+
+    const std::string returnType = decl->getReturnType()->getAsString();
+    newPrototype.functionPrototype += returnType + " " + functions[functionName] + "(";
+    newPrototype.hasNonVoidReturn = returnType != "void";
+
+    if (isMemberFunc) {
+        const CXXMethodDecl *methodDecl = static_cast<const CXXMethodDecl*>(decl);
+        if (methodDecl->isStatic()) {
+            newPrototype.isStatic = methodDecl->getQualifiedNameAsString();
+        }
+        else {
+            newPrototype.nonStaticCallName = methodDecl->getNameAsString();
+            newPrototype.functionPrototype += methodDecl->getThisType().getAsString() + "* obj";
+        }
+    }
+    // Is there a more succinct way to write this?
+    else {
+        newPrototype.nonStaticCallName = methodDecl->getNameAsString();
+    }
+
+    for (unsigned int i = 0, j = decl->getNumParams(); i < j; i++) {
+        if (!newPrototype.isStatic && i == 0) {
+            newPrototype.functionPrototype +=", "
+        }
+
+        newPrototype.functionPrototype += decl->getParamDecl(i)->getNameAsString();
+
+        if (i != (j - 1)) {
+            newPrototype.functionPrototype += ", ";
+        }
+    }
+
+    newPrototype.functionPrototype += ")";
+
+    prototypeMap[functionName] = newPrototype;
 }
 
 bool VProfVisitor::VisitCallExpr(const CallExpr *call) {
@@ -63,6 +104,10 @@ bool VProfVisitor::VisitCallExpr(const CallExpr *call) {
     // If fname is in list of functions to replace
     if (functions.find(functionName) != functions.end()) {
         fixFunction(call, functionName, false);
+
+        if (shouldCreatePrototype(functionName)) {
+            createNewPrototype(functionName, false);
+        }
     }
 
     return true;
@@ -73,20 +118,10 @@ bool VProfVisitor::VisitCXXMemberCallExpr(const CXXMemberCallExpr *call) {
 
     if (functions.find(functionName) != functions.end()) {
         fixFunction(call, functionName, true);
-    }
 
-    return true;
-}
-
-bool VProfVisitor::VisitFunctionDecl(const FunctionDecl *decl) {
-    const std::string functionName = decl->getQualifiedNameAsString();
-
-    // Check if
-    // (1) the function is one we are profiling
-    // (2) if the new prototype has already been created
-    if (functions.find(functionName) != functions.end()
-        && prototypeMap->find(functionName) == prototypeMap->end()) {
-        createNewPrototype(decl);
+        if (shouldCreatePrototype(functionName)) {
+            createNewPrototype(functionName, true);
+        }
     }
 
     return true;
@@ -94,9 +129,12 @@ bool VProfVisitor::VisitFunctionDecl(const FunctionDecl *decl) {
 
 VProfVisitor::VProfVisitor(std::shared_ptr<clang::CompilerInstance> ci, 
                            std::shared_ptr<clang::Rewriter> _rewriter,
-                           std::unordered_map<std::string, std::string> &_functions):
+                           std::unordered_map<std::string, std::string> &_functions,
+                           std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> _protoMap):
                            astContext(&ci->getASTContext()), 
-                           rewriter(_rewriter), functions(_functions) {
+                           rewriter(_rewriter), 
+                           functions(_functions), 
+                           prototypeMap(_protoMap) {
 
     rewriter->setSourceMgr(astContext->getSourceManager(),
                           astContext->getLangOpts());

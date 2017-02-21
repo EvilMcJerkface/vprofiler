@@ -1,11 +1,16 @@
-CXX := g++
+BUILD_PREFIX := ../build/bin
+
+CXX := $(BUILD_PREFIX)/clang++
 CXXFLAGS := -fno-rtti -O0 -g -std=c++11
 PLUGIN_CXXFLAGS := -fpic
 
-LLVM_CXXFLAGS := $(shell llvm-config --cxxflags)
-LLVM_LDFLAGS  := $(shell llvm-config --ldflags --libs --system-libs)
+LLVM_CXXFLAGS := $(shell $(BUILD_PREFIX)/llvm-config --cxxflags)
+LLVM_LDFLAGS  := $(shell $(BUILD_PREFIX)/llvm-config --ldflags --libs --system-libs)
 
-CLANG_INCLUDES := $(shell llvm-config --includedir)
+LLVM_INCLUDES := $(shell $(BUILD_PREFIX)/llvm-config --includedir)
+CLANG_INCLUDES := -I../llvm/tools/clang/include \
+				  -I../build/tools/clang/include
+
 
 CLANG_LIBS := \
 	-Wl,--start-group \
@@ -53,4 +58,4 @@ Utils.o: Utils.cc
 
 .PHONY: clean
 clean: 
-	rm *.o -rf
+	rm *.gch *.o EventAnnotator CodeTransformer FileFinder FunctionFileReader Utils -rf

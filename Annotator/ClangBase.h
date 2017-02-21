@@ -16,6 +16,9 @@
 // LLVM libs
 //#include "llvm/Support/raw_ostream.h"
 
+// VProf libs
+#include "FunctionPrototype.h"
+
 // STL libs
 #include <memory>
 #include <unordered_map>
@@ -39,12 +42,14 @@ class VProfVisitor : public clang::RecursiveASTVisitor<VProfVisitor> {
         // a source file, newPrototypes should have an entry for each function
         // provided by the user which is in the expanded source file (i.e. after 
         // #includes are processed).
-        std::shared_ptr<std::unordered_map<std::string, std::string>> prototypeMap;
+        std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> prototypeMap;
 
         void fixFunction(const clang::CallExpr *call, const std::string &functionName,
                          bool  isMemberCall);
 
         void appendNonObjArgs(std::string &newCall, std::vector<const clang::Expr*> &args);
+
+        bool shouldCreatePrototype(const std::string &functionName);
 
         // Creates the wrapper prototype based on function decl.
         void createNewPrototype(const clang::FunctionDecl *decl);
@@ -54,7 +59,7 @@ class VProfVisitor : public clang::RecursiveASTVisitor<VProfVisitor> {
         explicit VProfVisitor(std::shared_ptr<clang::CompilerInstance> ci, 
                               std::shared_ptr<clang::Rewriter> _rewriter,
                               std::unordered_map<std::string, std::string> &_functions,
-                              std::shared_ptr<std::unordered_map<std::string, std::string>> 
+                              std::shared_ptr<std::unordered_map<std::string, FunctionProtoype>> 
                               prototypeMap);
 
         ~VProfVisitor(); 
@@ -64,9 +69,6 @@ class VProfVisitor : public clang::RecursiveASTVisitor<VProfVisitor> {
 
         // Override trigger for when a CXXMemberCallExpr is found in the AST
         virtual bool VisitCXXMemberCallExpr(const clang::CXXMemberCallExpr *call);
-
-        // Override trigger for when a FunctionDecl is found in the AST
-        virtual bool VisitFunctionDecl(const clang::FunctionDecl *decl);
 };
 
 class VProfASTConsumer : public clang::ASTConsumer {
