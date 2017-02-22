@@ -29,11 +29,19 @@ using namespace llvm;
 using namespace clang::tooling;
 
 cl::OptionCategory VProfOptions("VProfiler options");
-static cl::opt<string> FunctionFileOpt("f", 
-                                       cl::desc("Specify filename containing fully "
-                                            "qualified function names to profile"),
-                                       cl::value_desc("Filename"),
-                                       cl::Required);
+cl::opt<string> FunctionFileOpt("f", 
+                                cl::desc("Specify filename containing fully "
+                                         "qualified function names to profile"),
+                                cl::value_desc("Filename"),
+                                cl::Required,
+                                cl::ValueRequired);
+
+cl::opt<string> SourceBaseDir("s",
+                              cl::desc("Specifies the root directory of the "
+                                       "source tree."),
+                              cl::value_desc("Source_Base_Dir"),
+                              cl::Required,
+                              cl::ValueRequired);
 
 
 int main(int argc, const char **argv) {
@@ -42,15 +50,18 @@ int main(int argc, const char **argv) {
     FunctionFileReader funcFileReader(FunctionFileOpt);
     funcFileReader.Parse();
 
+    FileFinder fileFinder(SourceBaseDir);
+    fileFinder.BuildCScopeDB();
+
     ClangTool EventAnnotatorTool(OptionsParser.getCompilations(),
-                                 OptionsParser.getSourcePathList());
+                                 fileFinder.FindFunctionsPotentialFiles(funcFileReader.GetUnqualifiedFunctionNames()));
 
     shared_ptr<unordered_map<string, FunctionPrototype>> prototypeMap = make_shared<unordered_map<string, FunctionPrototype>>();
 
     EventAnnotatorTool.run(newVProfFrontendActionFactory(funcFileReader.GetFunctionMap(),
                                                          prototypeMap).get());
     
-    WrapperGenerator wrapperGenerator(prototypeMap);
+    WrapperGenerator wrapperGenerator(prototypeMap, funcFileReader.GetLogInfoMap());
     wrapperGenerator.GenerateWrappers();
 
     return 0;

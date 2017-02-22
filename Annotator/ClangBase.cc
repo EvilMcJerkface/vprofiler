@@ -46,17 +46,24 @@ void VProfVisitor::appendNonObjArgs(std::string &newCall, std::vector<const Expr
     }
 }
 
+std::string VProfVisitor::getContainingFilename(const FunctionDecl *decl) {
+    SourceManager *sourceMgr = &rewriter->getSourceMgr();
+
+    return sourceMgr->getFilename(decl->getLocation()).str();
+}
+
 bool VProfVisitor::shouldCreateNewPrototype(const std::string &functionName) {
     return prototypeMap->find(functionName) == prototypeMap->end();
 }
 
+// TODO change name to getParamDeclAsString
 std::string VProfVisitor::getEntireParamDeclAsString(const ParmVarDecl *decl) {
     // To satisfy compiler (should this return param instead?).
-    std::string param;
-    llvm::raw_string_ostream ss(param);
-    decl->dump(ss);
+    //std::string param;
+    //llvm::raw_string_ostream ss(param);
+    //decl->dump(ss);
 
-    return ss.str();
+    return decl->getType().getAsString() + " " + decl->getNameAsString();
 }
 
 void VProfVisitor::createNewPrototype(const FunctionDecl *decl, 
@@ -64,23 +71,22 @@ void VProfVisitor::createNewPrototype(const FunctionDecl *decl,
                                       bool isMemberFunc) {
     FunctionPrototype newPrototype;
 
-    llvm::raw_string_ostream ss(newPrototype.returnType);
-    decl->getReturnType()->dump(ss);
-    std::string returnType = ss.str();
-    // Is this necessary?
-    newPrototype.returnType = ss.str();
-    newPrototype.functionPrototype += returnType + " " + (*functions)[functionName] + "(";
+    newPrototype.filename = getContainingFilename(decl);
 
-    bool isStaticAndCXXMethod = false;
+    newPrototype.returnType = decl->getReturnType().getAsString();
+    newPrototype.functionPrototype += newPrototype.returnType + " " + (*functions)[functionName] + "(";
+
+    bool isCXXMethodAndNotStatic = false;
     if (isMemberFunc) {
         const CXXMethodDecl *methodDecl = static_cast<const CXXMethodDecl*>(decl);
         if (methodDecl->isStatic()) {
-            isStaticAndCXXMethod = true;
             newPrototype.innerCallPrefix = methodDecl->getQualifiedNameAsString();
         }
         else {
+            isCXXMethodAndNotStatic = true;
+
             newPrototype.innerCallPrefix = "obj->" + methodDecl->getNameAsString();
-            newPrototype.functionPrototype += methodDecl->getThisType(*astContext).getAsString() + "* obj";
+            newPrototype.functionPrototype += methodDecl->getThisType(*astContext).getAsString() + " obj";
         }
     }
     // Is there a more succinct way to write this?
@@ -89,7 +95,7 @@ void VProfVisitor::createNewPrototype(const FunctionDecl *decl,
     }
 
     for (unsigned int i = 0, j = decl->getNumParams(); i < j; i++) {
-        if (!isStaticAndCXXMethod && i == 0) {
+        if (isCXXMethodAndNotStatic && i == 0) {
             newPrototype.functionPrototype +=", ";
         }
 
@@ -174,7 +180,7 @@ VProfASTConsumer::~VProfASTConsumer() {
         if (OutErrInfo == ok) {
             const RewriteBuffer *RewriteBuf = rewriter->getRewriteBufferFor(fileID);
 
-            outputFile << "// VProfiler included header\n#include \"VProfilerEventWrappers.h\"\n\n";
+            outputFile << "// VProfiler included header\n#include \"VProfEventWrappers.h\"\n\n";
             outputFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
         }
     }

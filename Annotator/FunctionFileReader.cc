@@ -8,6 +8,8 @@ void FunctionFileReader::Parse() {
     while (std::getline(infile, line)) {
         qualifiedNames->push_back(line);
         std::replace(line.begin(), line.end(), ':', '_');
+        std::replace(line.begin(), line.end(), '<', '_');
+        std::replace(line.begin(), line.end(), '>', '_');
         (*funcMap)[(*qualifiedNames)[qualifiedNames->size() - 1]] = line + "_vprofiler";
     }
 

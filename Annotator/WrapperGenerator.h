@@ -7,6 +7,8 @@
 #include <string>
 #include <memory>
 #include <fstream>
+#include <algorithm>
+#include <vector>
 
 class WrapperGenerator {
     private:
@@ -22,9 +24,13 @@ class WrapperGenerator {
         // File handle for implementation file.
         std::ofstream implementationFile;
 
+        std::vector<std::string> getFilenames();
+
     public:
         WrapperGenerator(std::shared_ptr<std::unordered_map<std::string, 
                          FunctionPrototype>> _prototypeMap,
+                         std::shared_ptr<std::unordered_map<std::string, 
+                         LogInformation>> _logInfoMap,
                          std::string pathPrefix="");
 
         void GenerateHeader();

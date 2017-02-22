@@ -38,10 +38,10 @@ std::vector<std::string> FileFinder::FindFunctionPotentialFiles(const std::strin
     return parseCScopeOutput(output);
 }
 
-std::vector<std::string> FileFinder::FindFunctionsPotentialFiles(const std::vector<std::string> &functions) {
+std::vector<std::string> FileFinder::FindFunctionsPotentialFiles(const std::shared_ptr<std::vector<std::string>> functions) {
     std::vector<std::string> result;
 
-    for (const std::string &function : functions) {
+    for (const std::string &function : *functions) {
         std::vector<std::string> functionResult = FindFunctionPotentialFiles(function);
 
         result.insert(result.end(), functionResult.begin(), functionResult.end());

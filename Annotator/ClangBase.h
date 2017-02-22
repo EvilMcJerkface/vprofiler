@@ -59,6 +59,8 @@ class VProfVisitor : public clang::RecursiveASTVisitor<VProfVisitor> {
 
         std::string getEntireParamDeclAsString(const clang::ParmVarDecl *decl);
 
+        std::string getContainingFilename(const clang::FunctionDecl *decl);
+
         bool shouldCreateNewPrototype(const std::string &functionName);
 
     public:

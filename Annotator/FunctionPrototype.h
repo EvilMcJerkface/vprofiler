@@ -12,7 +12,8 @@
 class FunctionPrototype {
     public:
         FunctionPrototype():
-        functionPrototype(""), innerCallPrefix(""), paramVars(), returnType("") {}
+        functionPrototype(""), innerCallPrefix(""), 
+        paramVars(), returnType(""), filename("") {}
 
         std::string functionPrototype;
         std::string innerCallPrefix;
@@ -20,6 +21,8 @@ class FunctionPrototype {
         std::vector<std::string> paramVars;
 
         std::string returnType;
+
+        std::string filename;
 };
 
 #endif
