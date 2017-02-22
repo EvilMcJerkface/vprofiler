@@ -11,15 +11,9 @@
 
 // VProf libs
 #include "FunctionPrototype.h"
+#include "VProfFrontendAction.h"
 
-// This is absurdly long, but not sure how to break lines up to make more
-// readable
-std::unique_ptr<VProfFrontendActionFactory> newVProfFrontendActionFactory(std::shared_ptr<std::unordered_map<std::string, std::string>> functionNameMap,
-                                                                          std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> prototypeMap) {
-    return std::unique_ptr<VProfFrontendActionFactory>(new VProfFrontendActionFactory(functionNameMap, prototypeMap));
-}
-
-class VProfFrontendActionFactory : public FrontendActionFactory {
+class VProfFrontendActionFactory : public clang::tooling::FrontendActionFactory {
     private:
         // Maps qualified function name to vprof wrapper name.
         std::shared_ptr<std::unordered_map<std::string, std::string>> functionNameMap;
@@ -39,5 +33,12 @@ class VProfFrontendActionFactory : public FrontendActionFactory {
             return new VProfFrontendAction(functionNameMap, prototypeMap);
         }
 };
+
+// This is absurdly long, but not sure how to break lines up to make more
+// readable
+std::unique_ptr<VProfFrontendActionFactory> newVProfFrontendActionFactory(std::shared_ptr<std::unordered_map<std::string, std::string>> functionNameMap,
+                                                                          std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> prototypeMap) {
+    return std::unique_ptr<VProfFrontendActionFactory>(new VProfFrontendActionFactory(functionNameMap, prototypeMap));
+}
 
 #endif

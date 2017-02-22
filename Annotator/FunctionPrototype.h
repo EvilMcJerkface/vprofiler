@@ -1,3 +1,6 @@
+#ifndef FUNCTIONPROTOTYPE_H
+#define FUNCTIONPROTOTYPE_H
+
 #include <string>
 #include <vector>
 
@@ -18,3 +21,5 @@ class FunctionPrototype {
 
         std::string returnType;
 };
+
+#endif

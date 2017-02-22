@@ -1,6 +1,7 @@
 BUILD_PREFIX := ../build/bin
 
-CXX := $(BUILD_PREFIX)/clang++
+#CXX := $(BUILD_PREFIX)/clang++
+CXX := g++
 CXXFLAGS := -fno-rtti -O0 -g -std=c++11
 PLUGIN_CXXFLAGS := -fpic
 
@@ -38,11 +39,11 @@ CLANG_LIBS := \
 	-Wl,--end-group
 
 .PHONY: all
-all: ClangBase.o CodeTransformer.o FileFinder.o FunctionFileReader.o Utils.o EventAnnotator.cc
+all: ClangBase.o FileFinder.o FunctionFileReader.o WrapperGenerator.o Utils.o EventAnnotator.cc
 	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) $^ $(CLANG_LIBS) $(LLVM_LDFLAGS) -o EventAnnotator
 
-CodeTransformer.o: CodeTransformer.cc
-	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ -o $@
+#CodeTransformer.o: CodeTransformer.cc
+	#$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ -o $@
 
 ClangBase.o: ClangBase.cc
 	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ -o $@
@@ -51,6 +52,9 @@ FileFinder.o: FileFinder.cc
 	$(CXX) $(CXXFLAGS) -c $^ -o $@
 
 FunctionFileReader.o: FunctionFileReader.cc 
+	$(CXX) $(CXXFLAGS) -c $^ -o $@
+
+WrapperGenerator.o: WrapperGenerator.cc
 	$(CXX) $(CXXFLAGS) -c $^ -o $@
 
 Utils.o: Utils.cc

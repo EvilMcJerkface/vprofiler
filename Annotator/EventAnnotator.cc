@@ -2,10 +2,12 @@
 #include "FunctionFileReader.h"
 #include "FileFinder.h"
 #include "VProfFrontendActionFactory.h"
+#include "WrapperGenerator.h"
 
 // Clang libs
 #include "llvm/Support/CommandLine.h"
 #include "clang/Tooling/Tooling.h"
+#include "clang/Tooling/CommonOptionsParser.h"
 
 // STL libs
 #include <string>
@@ -23,21 +25,18 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 using namespace std;
-using namespace cl;
 using namespace llvm;
 using namespace clang::tooling;
 
-OptionCategory VProfOptions("VProfiler options");
-static opt<string> FunctionFileOpt("f", 
-                                   desc("Specify filename containing fully "
-                                        "qualified function names to profile"),
-                                   value_desc("Filename"),
-                                   Required);
+cl::OptionCategory VProfOptions("VProfiler options");
+static cl::opt<string> FunctionFileOpt("f", 
+                                       cl::desc("Specify filename containing fully "
+                                            "qualified function names to profile"),
+                                       cl::value_desc("Filename"),
+                                       cl::Required);
 
 
-int main(int argc, char **argv) {
-    bool cscopeDBCompiled = false;
-
+int main(int argc, const char **argv) {
     CommonOptionsParser OptionsParser(argc, argv, VProfOptions);
 
     FunctionFileReader funcFileReader(FunctionFileOpt);
@@ -49,7 +48,7 @@ int main(int argc, char **argv) {
     shared_ptr<unordered_map<string, FunctionPrototype>> prototypeMap = make_shared<unordered_map<string, FunctionPrototype>>();
 
     EventAnnotatorTool.run(newVProfFrontendActionFactory(funcFileReader.GetFunctionMap(),
-                                                         prototypeMap));
+                                                         prototypeMap).get());
     
     WrapperGenerator wrapperGenerator(prototypeMap);
     wrapperGenerator.GenerateWrappers();

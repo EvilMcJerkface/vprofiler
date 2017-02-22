@@ -1,3 +1,6 @@
+#ifndef FUNCTIONFILEREADER_H
+#define FUNCTIONFILEREADER_H
+
 // VProf libs
 #include "Utils.h"
 
@@ -19,7 +22,7 @@ class FunctionFileReader {
     public:
         FunctionFileReader(const std::string _filename): 
         filename(_filename),
-        funcMap(std::make_shared<std::unordered_map<std::string, std::string>()), 
+        funcMap(std::make_shared<std::unordered_map<std::string, std::string>>()), 
         logInfoMap(std::make_shared<std::unordered_map<std::string, LogInformation>>()), 
         unqualifiedNames(std::make_shared<std::vector<std::string>>()), 
         qualifiedNames(std::make_shared<std::vector<std::string>>()),
@@ -52,3 +55,5 @@ class FunctionFileReader {
 
         bool beenParsed;
 };
+
+#endif

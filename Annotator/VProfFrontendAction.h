@@ -2,8 +2,8 @@
 #define VPROFFRONTENDACTION_H
 
 // Clang libs
-#include "clang/Frontend/FrontendAction"
-#include "clang/Rewrite/Core/Rewrite.h"
+#include "clang/Frontend/FrontendAction.h"
+#include "clang/Rewrite/Core/Rewriter.h"
 
 #include <unordered_map>
 #include <string>
@@ -39,7 +39,8 @@ class VProfFrontendAction : public clang::ASTFrontendAction {
             return std::unique_ptr<VProfASTConsumer>(new VProfASTConsumer(ci,
                                                                           rewriter,
                                                                           functionNameMap,
-                                                                          prototypeMap));
+                                                                          prototypeMap,
+                                                                          file.str()));
         }
 };
 

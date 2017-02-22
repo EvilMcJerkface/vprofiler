@@ -5,7 +5,7 @@ using namespace clang;
 void VProfVisitor::fixFunction(const CallExpr *call, const std::string &functionName,
                                bool isMemberCall) {
     // Get args
-    std::string newCall = functions[functionName] + "(";
+    std::string newCall = (*functions)[functionName] + "(";
     std::vector<const Expr*> args;
 
     if (isMemberCall) {
@@ -51,7 +51,9 @@ bool VProfVisitor::shouldCreateNewPrototype(const std::string &functionName) {
 }
 
 std::string VProfVisitor::getEntireParamDeclAsString(const ParmVarDecl *decl) {
-    std::stringstream ss;
+    // To satisfy compiler (should this return param instead?).
+    std::string param;
+    llvm::raw_string_ostream ss(param);
     decl->dump(ss);
 
     return ss.str();
@@ -61,37 +63,40 @@ void VProfVisitor::createNewPrototype(const FunctionDecl *decl,
                                       const std::string &functionName,
                                       bool isMemberFunc) {
     FunctionPrototype newPrototype;
-    newPrototype.staticCallName = "";
-    newPrototype.nonStaticCallName = "";
 
-    const std::string returnType = decl->getReturnType()->getAsString();
-    newPrototype.functionPrototype += returnType + " " + functions[functionName] + "(";
-    newPrototype.hasNonVoidReturn = returnType != "void";
+    llvm::raw_string_ostream ss(newPrototype.returnType);
+    decl->getReturnType()->dump(ss);
+    std::string returnType = ss.str();
+    // Is this necessary?
+    newPrototype.returnType = ss.str();
+    newPrototype.functionPrototype += returnType + " " + (*functions)[functionName] + "(";
 
+    bool isStaticAndCXXMethod = false;
     if (isMemberFunc) {
         const CXXMethodDecl *methodDecl = static_cast<const CXXMethodDecl*>(decl);
         if (methodDecl->isStatic()) {
+            isStaticAndCXXMethod = true;
             newPrototype.innerCallPrefix = methodDecl->getQualifiedNameAsString();
         }
         else {
             newPrototype.innerCallPrefix = "obj->" + methodDecl->getNameAsString();
-            newPrototype.functionPrototype += methodDecl->getThisType().getAsString() + "* obj";
+            newPrototype.functionPrototype += methodDecl->getThisType(*astContext).getAsString() + "* obj";
         }
     }
     // Is there a more succinct way to write this?
     else {
-        newPrototype.innerCallPrefix = methodDecl->getNameAsString();
+        newPrototype.innerCallPrefix = decl->getNameAsString();
     }
 
     for (unsigned int i = 0, j = decl->getNumParams(); i < j; i++) {
-        if (!newPrototype.isStatic && i == 0) {
-            newPrototype.functionPrototype +=", "
+        if (!isStaticAndCXXMethod && i == 0) {
+            newPrototype.functionPrototype +=", ";
         }
 
         const ParmVarDecl* paramDecl = decl->getParamDecl(i);
-        newPrototype.functionPrototype += getEntireDeclAsString(paramDecl);
+        newPrototype.functionPrototype += getEntireParamDeclAsString(paramDecl);
 
-        paramVars.push_back(paramDecl->getNameAsString() + (paramDecl->isParameterPack() ? "..." : ""));
+        newPrototype.paramVars.push_back(paramDecl->getNameAsString() + (paramDecl->isParameterPack() ? "..." : ""));
 
         if (i != (j - 1)) {
             newPrototype.functionPrototype += ", ";
@@ -100,7 +105,7 @@ void VProfVisitor::createNewPrototype(const FunctionDecl *decl,
 
     newPrototype.functionPrototype += ")";
 
-    prototypeMap[functionName] = newPrototype;
+    (*prototypeMap)[functionName] = newPrototype;
 }
 
 bool VProfVisitor::VisitCallExpr(const CallExpr *call) {
@@ -112,11 +117,12 @@ bool VProfVisitor::VisitCallExpr(const CallExpr *call) {
     const std::string functionName = decl->getQualifiedNameAsString();
 
     // If fname is in list of functions to replace
-    if (functions.find(functionName) != functions.end()) {
+    if (functions->find(functionName) != functions->end()) {
+        *shouldFlush = true;
         fixFunction(call, functionName, false);
 
-        if (shouldCreatePrototype(functionName)) {
-            createNewPrototype(functionName, false);
+        if (shouldCreateNewPrototype(functionName)) {
+            createNewPrototype(decl, functionName, false);
         }
     }
 
@@ -126,25 +132,28 @@ bool VProfVisitor::VisitCallExpr(const CallExpr *call) {
 bool VProfVisitor::VisitCXXMemberCallExpr(const CXXMemberCallExpr *call) {
     const std::string functionName = call->getMethodDecl()->getQualifiedNameAsString();
 
-    if (functions.find(functionName) != functions.end()) {
+    if (functions->find(functionName) != functions->end()) {
+        *shouldFlush = true;
         fixFunction(call, functionName, true);
 
-        if (shouldCreatePrototype(functionName)) {
-            createNewPrototype(functionName, true);
+        if (shouldCreateNewPrototype(functionName)) {
+            createNewPrototype(call->getMethodDecl(), functionName, true);
         }
     }
 
     return true;
 }
 
-VProfVisitor::VProfVisitor(std::shared_ptr<clang::CompilerInstance> ci, 
+VProfVisitor::VProfVisitor(clang::CompilerInstance &ci, 
                            std::shared_ptr<clang::Rewriter> _rewriter,
-                           std::unordered_map<std::string, std::string> &_functions,
-                           std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> _protoMap):
-                           astContext(&ci->getASTContext()), 
+                           std::shared_ptr<std::unordered_map<std::string, std::string>> _functions,
+                           std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> _protoMap,
+                           std::shared_ptr<bool> _shouldFlush):
+                           astContext(&ci.getASTContext()), 
                            rewriter(_rewriter), 
                            functions(_functions), 
-                           prototypeMap(_protoMap) {
+                           prototypeMap(_protoMap),
+                           shouldFlush(_shouldFlush) {
 
     rewriter->setSourceMgr(astContext->getSourceManager(),
                           astContext->getLangOpts());
@@ -153,19 +162,21 @@ VProfVisitor::VProfVisitor(std::shared_ptr<clang::CompilerInstance> ci,
 
 // TODO put some exception in here if write fails
 VProfASTConsumer::~VProfASTConsumer() {
-    filename.insert(filename.find("."), "_vprof");
+    if (*shouldFlush) {
+        filename.insert(filename.find("."), "_vprof");
 
-    std::error_code OutErrInfo;
-    std::error_code ok;
+        std::error_code OutErrInfo;
+        std::error_code ok;
 
-    llvm::raw_fd_ostream outputFile(llvm::StringRef(outFilename), 
-                                    OutErrInfo, llvm::sys::fs::F_None); 
+        llvm::raw_fd_ostream outputFile(llvm::StringRef(filename), 
+                                        OutErrInfo, llvm::sys::fs::F_None); 
 
-    if (OutErrInfo == ok) {
-        const RewriteBuffer *RewriteBuf = rewriter->getRewriteBufferFor(sourceManager->getMainFileID());
+        if (OutErrInfo == ok) {
+            const RewriteBuffer *RewriteBuf = rewriter->getRewriteBufferFor(fileID);
 
-        outputFile << "// VProfiler included header\n#include \"VProfilerEventWrappers.h\"\n\n";
-        outputFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
+            outputFile << "// VProfiler included header\n#include \"VProfilerEventWrappers.h\"\n\n";
+            outputFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
+        }
     }
 }
 

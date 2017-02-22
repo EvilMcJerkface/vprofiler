@@ -4,7 +4,7 @@ using namespace std;
 
 WrapperGenerator::WrapperGenerator(shared_ptr<unordered_map<string, 
                                    FunctionPrototype>> _prototypeMap,
-                                   string pathPrefix=""):
+                                   string pathPrefix):
                                    prototypeMap(_prototypeMap) {
     headerFile.open(pathPrefix + "VProfEventWrappers.h");
     implementationFile.open(pathPrefix + "VProfEventWrappers.cpp");
@@ -39,8 +39,8 @@ void WrapperGenerator::GenerateImplementations() {
 
         implementationFile << kv.second.functionPrototype + " {\n";
         implementationFile << "EventTraceTool::LogEventStart(" + 
-                              to_string(logInfoMap[kv.first].functionID) + ", " 
-                              + (logInfoMap[kv.first].isMessageBased ? "true" : "false")  
+                              to_string((*logInfoMap)[kv.first].functionID) + ", " 
+                              + ((*logInfoMap)[kv.first].isMessageBased ? "true" : "false")  
                               + ");\n";
 
         if (kv.second.returnType != "void") {
@@ -59,8 +59,8 @@ void WrapperGenerator::GenerateImplementations() {
         implementationFile <<");\n";
 
         implementationFile << "EventTraceTool::LogEventEnd(" + 
-                              to_string(logInfoMap[kv.first].functionID) + ", " 
-                              + (logInfoMap[kv.first].isMessageBased ? "true" : "false")  
+                              to_string((*logInfoMap)[kv.first].functionID) + ", " 
+                              + ((*logInfoMap)[kv.first].isMessageBased ? "true" : "false")  
                               + ");\n";
 
         if (kv.second.returnType != "void") {

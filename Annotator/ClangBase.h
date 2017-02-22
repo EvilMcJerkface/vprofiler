@@ -45,25 +45,30 @@ class VProfVisitor : public clang::RecursiveASTVisitor<VProfVisitor> {
         // #includes are processed).
         std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> prototypeMap;
 
+        std::shared_ptr<bool> shouldFlush;
+
         void fixFunction(const clang::CallExpr *call, const std::string &functionName,
                          bool  isMemberCall);
 
         void appendNonObjArgs(std::string &newCall, std::vector<const clang::Expr*> &args);
 
-        bool shouldCreatePrototype(const std::string &functionName);
-
         // Creates the wrapper prototype based on function decl.
-        void createNewPrototype(const clang::FunctionDecl *decl);
+        void createNewPrototype(const clang::FunctionDecl *decl,
+                                const std::string &functionName,
+                                bool isMemberFunc);
 
-        std::string getEntireParamDeclAsString(const ParmVarDecl *decl);
+        std::string getEntireParamDeclAsString(const clang::ParmVarDecl *decl);
+
+        bool shouldCreateNewPrototype(const std::string &functionName);
 
     public:
         // Not sure how I should break the last line up style-wise
-        explicit VProfVisitor(std::shared_ptr<clang::CompilerInstance> ci, 
+        explicit VProfVisitor(clang::CompilerInstance &ci, 
                               std::shared_ptr<clang::Rewriter> _rewriter,
                               std::shared_ptr<std::unordered_map<std::string, std::string>> _functions,
-                              std::shared_ptr<std::unordered_map<std::string, FunctionProtoype>> 
-                              prototypeMap);
+                              std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> 
+                              _prototypeMap,
+                              std::shared_ptr<bool> _shouldFlush);
 
         ~VProfVisitor(); 
 
@@ -74,6 +79,7 @@ class VProfVisitor : public clang::RecursiveASTVisitor<VProfVisitor> {
         virtual bool VisitCXXMemberCallExpr(const clang::CXXMemberCallExpr *call);
 };
 
+// TODO add dirty bit which specifies whether rewriter needs to be flushed
 class VProfASTConsumer : public clang::ASTConsumer {
     private:
         std::unique_ptr<VProfVisitor> visitor;
@@ -84,21 +90,34 @@ class VProfASTConsumer : public clang::ASTConsumer {
 
         std::string filename;
 
+        std::shared_ptr<bool> shouldFlush;
+
+        clang::FileID fileID;
+
     public:
         // Override ctor to pass hash map of fully qualified function names to the function
         // name to which the key functions should be converted to in the source.
-        explicit VProfASTConsumer(std::shared_ptr<clang::CompilerInstance> ci, 
+        explicit VProfASTConsumer(clang::CompilerInstance &ci, 
                                   std::shared_ptr<clang::Rewriter> _rewriter,
                                   std::shared_ptr<std::unordered_map<std::string, std::string>> _functions,
-                                  std::shared_ptr<std::unordered_map<std::string, FunctionProtoype>> prototypeMap,
+                                  std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> prototypeMap,
                                   std::string _filename): 
-                                  visitor(std::unique_ptr<VProfVisitor>(new VProfVisitor(ci, 
-                                                                                         rewriter, 
-                                                                                         functions, 
-                                                                                         prototypeMap))),
                                   rewriter(_rewriter),
                                   functions(_functions),
-                                  filename(_filename) {}
+                                  filename(_filename),  
+                                  shouldFlush(std::make_shared<bool>(false)) {
+            
+            visitor = std::unique_ptr<VProfVisitor>(new VProfVisitor(ci, 
+                                                                     rewriter, 
+                                                                     functions, 
+                                                                     prototypeMap,
+                                                                     shouldFlush));
+
+            fileID = ci.getSourceManager().getMainFileID();
+        }
+
+        // Destructor flushes rewriter changes to files
+        ~VProfASTConsumer();
 
         virtual void HandleTranslationUnit(clang::ASTContext &context) {
             visitor->TraverseDecl(context.getTranslationUnitDecl());
