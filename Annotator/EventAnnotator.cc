@@ -1,76 +1,58 @@
 // VProf libs
 #include "FunctionFileReader.h"
 #include "FileFinder.h"
-#include "CodeTransformer.h"
+#include "VProfFrontendActionFactory.h"
+
+// Clang libs
+#include "llvm/Support/CommandLine.h"
+#include "clang/Tooling/Tooling.h"
 
 // STL libs
 #include <string>
 #include <iostream>
 #include <getopt.h>
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * TODO reimplement only creating AST for files with the functions in them.  *
+ * FileFinder fileFinder(sourceBaseDir);                                     *
+ * if (!cscopeDBCompiled) {                                                  *
+ *     fileFinder.BuildCScopeDB();                                           *
+ * }                                                                         *
+ * vector<string> potentialFiles = fileFinder.FindFunctionsPotentialFiles(   *
+ *                         funcFileReader.GetUnqualifiedFunctionNames());    *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 using namespace std;
+using namespace cl;
+using namespace llvm;
+using namespace clang::tooling;
+
+OptionCategory VProfOptions("VProfiler options");
+static opt<string> FunctionFileOpt("f", 
+                                   desc("Specify filename containing fully "
+                                        "qualified function names to profile"),
+                                   value_desc("Filename"),
+                                   Required);
+
 
 int main(int argc, char **argv) {
-    int c;
-    string functionFilename;
-    string sourceBaseDir;
     bool cscopeDBCompiled = false;
 
-    string usageStr = "Event Annotator usage:\n -f is the path to a file \
-                       containing one fully qualified function name per \
-                       line.\n  Use -c to indicate that cscope -R need not be run.\
-                       -s indicates the base directory of the source to be profiled.";
+    CommonOptionsParser OptionsParser(argc, argv, VProfOptions);
 
-    opterr = 0;
-
-    // Add breaking if functionFilename and sourceBaseDir are never set.
-    while ((c = getopt(argc, argv, "hf:s:c")) != -1) {
-        switch (c) {
-            case 'h':
-                cout << usageStr;
-                return 1;
-
-            case 'f':
-                functionFilename = optarg;
-                break;
-
-            case 's':
-                sourceBaseDir = optarg;
-                break;
-
-            case 'c':
-                cscopeDBCompiled = true;
-                break;
-
-            default:
-                cout << "Unrecognized option " + optopt << endl << usageStr;
-                return 1;
-        }
-    }
-
-    if (sourceBaseDir == "" || functionFilename == "") {    
-        cout << usageStr;
-        return 1;
-    }
-
-    FunctionFileReader funcFileReader(functionFilename);
+    FunctionFileReader funcFileReader(FunctionFileOpt);
     funcFileReader.Parse();
 
-    FileFinder fileFinder(sourceBaseDir);
-    if (!cscopeDBCompiled) { 
-        fileFinder.BuildCScopeDB();
-    }
-    vector<string> potentialFiles = fileFinder.FindFunctionsPotentialFiles(
-                            funcFileReader.GetUnqualifiedFunctionNames());
+    ClangTool EventAnnotatorTool(OptionsParser.getCompilations(),
+                                 OptionsParser.getSourcePathList());
 
-    CodeTransformer::CreateCodeTransformer(funcFileReader.GetFunctionMap());
+    shared_ptr<unordered_map<string, FunctionPrototype>> prototypeMap = make_shared<unordered_map<string, FunctionPrototype>>();
+
+    EventAnnotatorTool.run(newVProfFrontendActionFactory(funcFileReader.GetFunctionMap(),
+                                                         prototypeMap));
     
-    //CodeTransformer ct(funcFileReader.GetFunctionMap());
-
-    for (std::string &potentialFile : potentialFiles) {
-        CodeTransformer::GetInstance()->TransformFile(potentialFile);
-        //ct.TransformFile(potentialFile);
-    }
+    WrapperGenerator wrapperGenerator(prototypeMap);
+    wrapperGenerator.GenerateWrappers();
 
     return 0;
 }

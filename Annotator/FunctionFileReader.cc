@@ -6,34 +6,34 @@ void FunctionFileReader::Parse() {
 
     // Should eventually trim the line to help user not input bad data
     while (std::getline(infile, line)) {
-        qualifiedNames.push_back(line);
+        qualifiedNames->push_back(line);
         std::replace(line.begin(), line.end(), ':', '_');
-        funcMap[qualifiedNames[qualifiedNames.size() - 1]] = line + "_vprofiler";
+        (*funcMap)[(*qualifiedNames)[qualifiedNames->size() - 1]] = line + "_vprofiler";
     }
 
     std::vector<std::string> nameComponents;
     std::string unqualifiedName;
-    for (int i = 0; i < qualifiedNames.size(); i++) {
+    for (int i = 0; i < qualifiedNames->size(); i++) {
         LogInformation newLogInfo;
-        std::vector<std::string> separateWords = SplitString(qualifiedNames[i], ' ');
+        std::vector<std::string> separateWords = SplitString((*qualifiedNames)[i], ' ');
 
         // Fill logInfoMap
         newLogInfo.isMessageBased = separateWords.size() > 1 
                                     && separateWords[1] == "message_based";
         newLogInfo.functionID = i;
-        logInfoMap[qualifiedNames[i]] = newLogInfo;
+        (*logInfoMap)[(*qualifiedNames)[i]] = newLogInfo;
 
         // Fill unqualified names
         nameComponents = SplitString(separateWords[0], ':');
         unqualifiedName = nameComponents[nameComponents.size() - 1];
 
-        unqualifiedNames.push_back(unqualifiedName);
+        unqualifiedNames->push_back(unqualifiedName);
     }
 
     beenParsed = true;
 }
 
-std::unordered_map<std::string, std::string> FunctionFileReader::GetFunctionMap() { 
+std::shared_ptr<std::unordered_map<std::string, std::string>> FunctionFileReader::GetFunctionMap() { 
     if (!beenParsed) {
         throw std::logic_error("FunctionFileReader::GetFunctionMap called before function file was parsed.");
     }
@@ -41,7 +41,15 @@ std::unordered_map<std::string, std::string> FunctionFileReader::GetFunctionMap(
     return funcMap;
 }
 
-std::vector<std::string> FunctionFileReader::GetQualifiedFunctionNames() {
+std::shared_ptr<std::unordered_map<std::string, LogInformation>> FunctionFileReader::GetLogInfoMap() { 
+    if (!beenParsed) {
+        throw std::logic_error("FunctionFileReader::GetFunctionMap called before function file was parsed.");
+    }
+
+    return logInfoMap;
+}
+
+std::shared_ptr<std::vector<std::string>> FunctionFileReader::GetQualifiedFunctionNames() {
     if (!beenParsed) {
         throw std::logic_error("FunctionFileReader::GetQualifiedFunctionNames called before function file was parsed.");
     }
@@ -49,7 +57,7 @@ std::vector<std::string> FunctionFileReader::GetQualifiedFunctionNames() {
     return qualifiedNames;
 }
 
-std::vector<std::string> FunctionFileReader::GetUnqualifiedFunctionNames() {
+std::shared_ptr<std::vector<std::string>> FunctionFileReader::GetUnqualifiedFunctionNames() {
     if (!beenParsed) {
         throw std::logic_error("FunctionFileReader::GetUnqualifiedFunctionNames called before function file was parsed.");
     }

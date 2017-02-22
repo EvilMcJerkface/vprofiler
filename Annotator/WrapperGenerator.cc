@@ -72,3 +72,8 @@ void WrapperGenerator::GenerateImplementations() {
 
     implementationFile.close();
 }
+
+void WrapperGenerator::GenerateWrappers() {
+    GenerateHeader();
+    GenerateImplementations();
+}

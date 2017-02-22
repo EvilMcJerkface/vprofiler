@@ -151,4 +151,22 @@ VProfVisitor::VProfVisitor(std::shared_ptr<clang::CompilerInstance> ci,
 
 }
 
+// TODO put some exception in here if write fails
+VProfASTConsumer::~VProfASTConsumer() {
+    filename.insert(filename.find("."), "_vprof");
+
+    std::error_code OutErrInfo;
+    std::error_code ok;
+
+    llvm::raw_fd_ostream outputFile(llvm::StringRef(outFilename), 
+                                    OutErrInfo, llvm::sys::fs::F_None); 
+
+    if (OutErrInfo == ok) {
+        const RewriteBuffer *RewriteBuf = rewriter->getRewriteBufferFor(sourceManager->getMainFileID());
+
+        outputFile << "// VProfiler included header\n#include \"VProfilerEventWrappers.h\"\n\n";
+        outputFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
+    }
+}
+
 VProfVisitor::~VProfVisitor() {}

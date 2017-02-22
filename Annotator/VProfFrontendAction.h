@@ -19,6 +19,7 @@ class VProfFrontendAction : public clang::ASTFrontendAction {
 
         // Maps qualified function name to FunctionPrototype object.
         std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> prototypeMap;
+
     public:
         VProfFrontendAction(std::shared_ptr<std::unordered_map<std::string, 
                                    std::string>> _functionNameMap,
@@ -26,6 +27,9 @@ class VProfFrontendAction : public clang::ASTFrontendAction {
                                    FunctionPrototype>> _prototypeMap):
                                    functionNameMap(_functionNameMap),
                                    prototypeMap(_prototypeMap) {}
+
+        ~VProfFrontendAction() {
+        }
 
         virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &ci,
                                                                       llvm::StringRef file) {

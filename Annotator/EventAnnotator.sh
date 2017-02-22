@@ -20,7 +20,6 @@ if [ ! -f ${CLANG_BIN_DIR}/EventAnnotator ]; then
         exit 1
     fi
 
-
     cp EventAnnotator $CLANG_BIN_DIR
 fi
 
