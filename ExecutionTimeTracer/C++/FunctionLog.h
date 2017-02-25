@@ -16,6 +16,13 @@ class FunctionLog {
             functionEnd = val;
         }
 
+        friend std::ostream& operator<<(std::ostream &os, const FunctionLog &funcLog) {
+            os << threadID << ',' << std::to_string(semIntervalID) << ',' 
+               << functionStart << ',' << functionEnd << '\n';
+
+            return os;
+        }
+
     private:
         std::thread::id threadID;
         unsigned int semIntervalID;
@@ -23,3 +30,4 @@ class FunctionLog {
         timespec functionStart;
         timespec functionEnd;
 };
+

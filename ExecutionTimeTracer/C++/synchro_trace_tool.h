@@ -5,6 +5,7 @@
 #include <vector>
 #include <fstream>
 #include <mutex>
+#include <shared_mutex>
 #include <unordered_map>
 
 class SynchronizationTraceTool {
@@ -13,6 +14,8 @@ class SynchronizationTraceTool {
         static void SynchronizationCallStart(unsigned int funcID, Operations op, T *obj);
 
         static void SynchronizationCallEnd();
+
+        static void Teardown();
 
     private:
         static SynchronizationTraceTool *instance;
@@ -25,16 +28,18 @@ class SynchronizationTraceTool {
 
         std::vector<std::vector<OperationLog>> *opLogs;
         std::vector<FunctionLog> *funcLogs;
+        std::shared_mutex logMutex;
 
         std::unordered_map<std::thread::id, unsigned long int> threadSemanticIntervals;
 
         static void maybeCreateInstance();
 
         SynchronizationTool();
+        ~SynchronizationTool();
 
         static void writeLogWorker();
-        static void writeLog(std::vector<std::vector<OperationLog>> oldOpLogs,
-                             std::vector<FunctionLog> oldFuncLogs);
+        static void writeLog(std::vector<OperationLog> opLogs,
+                             std::vector<FunctionLog> funcLogs);
 }
 
 #endif

@@ -66,8 +66,8 @@ class OperationLog {
         }
 
         friend std::ostream& operator<<(std::ostream &os, const OperationLog &log) {
-            os << log.getThreadID() << ", " << log.getSemIntervalID() << ", "
-               << log.getObj() << ", " << op;
+            os << log.getThreadID() << ',' << log.getSemIntervalID() << ','
+               << log.getObj() << ',' << op << '\n';
 
             return os;
         }
