@@ -3,19 +3,21 @@
 
 // VProf libs
 #include "Utils.h"
+// Include wherever op is
 
 // STL libs
 #include <memory>
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <set>
 #include <fstream>
 #include <stdexcept>
 #include <algorithm>
 
 struct LogInformation {
     unsigned int functionID;
-    bool isMessageBased; 
+    Operation op;
 };
 
 class FunctionFileReader {
@@ -26,7 +28,10 @@ class FunctionFileReader {
         logInfoMap(std::make_shared<std::unordered_map<std::string, LogInformation>>()), 
         unqualifiedNames(std::make_shared<std::vector<std::string>>()), 
         qualifiedNames(std::make_shared<std::vector<std::string>>()),
-        beenParsed(false) {}
+        beenParsed(false), operationStrings({ "MUTEX_LOCK", "MUTEX_UNLOCK", "CV_WAIT",
+                                              "CV_BROADCAST", "CV_SIGNAL", "QUEUE_ENQUEUE",
+                                              "QUEUE_DEQUEUE", "MESSAGE_SEND", 
+                                              "MESSAGE_RECEIVE" }) {}
         
         // Parse the file
         void Parse();
@@ -52,6 +57,8 @@ class FunctionFileReader {
         std::shared_ptr<std::unordered_map<std::string, LogInformation>> logInfoMap;
         std::shared_ptr<std::vector<std::string>> unqualifiedNames;
         std::shared_ptr<std::vector<std::string>> qualifiedNames;
+
+        std::set<std::string> operationStrings;
 
         bool beenParsed;
 };

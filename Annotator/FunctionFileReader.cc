@@ -19,9 +19,22 @@ void FunctionFileReader::Parse() {
         LogInformation newLogInfo;
         std::vector<std::string> separateWords = SplitString((*qualifiedNames)[i], ' ');
 
+        if (separateWords.size() != 2) {
+            throw runtime_error("Did not find pattern <fully qualified function name>" 
+                                " <function type> for function " + separateWords[0]);
+        }
+
+        transform(separateWords[1].begin(), separateWords[1].end(),
+                  separateWords[1].begin(), ::toupper);
+
+        if (operationStrings.find(separateWords[1]) == operationStrings.end()) {
+            throw runtime_error("Function type " + separateWords[1] + " not "
+                                "for function " + separateWords[0]);
+        }
+
         // Fill logInfoMap
-        newLogInfo.isMessageBased = separateWords.size() > 1 
-                                    && separateWords[1] == "message_based";
+        newLogInfo.op = separateWords[1];
+
         newLogInfo.functionID = i;
         (*logInfoMap)[(*qualifiedNames)[i]] = newLogInfo;
 

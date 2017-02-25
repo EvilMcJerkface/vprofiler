@@ -58,7 +58,7 @@ void WrapperGenerator::GenerateImplementations() {
             implementationFile << kv.second.returnType + " result;\n\t";
         }
 
-        implementationFile << "EventTraceTool::LogEventStart(" + 
+        implementationFile << "SynchronizationTraceTool::LogEventStart(" + 
                               to_string((*logInfoMap)[kv.first].functionID) + ", " 
                               + ((*logInfoMap)[kv.first].isMessageBased ? "true" : "false")  
                               + ");\n\t";
