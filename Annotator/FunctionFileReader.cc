@@ -19,16 +19,16 @@ void FunctionFileReader::Parse() {
         std::vector<std::string> separateWords = SplitString((*qualifiedNames)[i], ' ');
 
         if (separateWords.size() != 2) {
-            throw runtime_error("Did not find pattern <fully qualified function name>" 
-                                " <function type> for function " + separateWords[0]);
+            throw std::runtime_error("Did not find pattern <fully qualified function name>" 
+                                     " <function type> for function " + separateWords[0]);
         }
 
         transform(separateWords[1].begin(), separateWords[1].end(),
                   separateWords[1].begin(), ::toupper);
 
         if (operationStrings.find(separateWords[1]) == operationStrings.end()) {
-            throw runtime_error("Function type " + separateWords[1] + " not "
-                                "for function " + separateWords[0]);
+            throw std::runtime_error("Function type " + separateWords[1] + " not "
+                                     "for function " + separateWords[0]);
         }
 
         (*opMap)[(*qualifiedNames)[i]] = separateWords[1];

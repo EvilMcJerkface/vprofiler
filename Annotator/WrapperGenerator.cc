@@ -59,7 +59,7 @@ void WrapperGenerator::GenerateImplementations() {
         }
 
         implementationFile << "SynchronizationTraceTool::SynchronizationCallStart(" + 
-                              (*operationMap)[kv.first] + ", obj);\n\t";
+                              (*operationMap)[kv.first] + ", static_cast<void*>(obj));\n\t";
 
         if (kv.second.returnType != "void") {
             implementationFile << "result = ";

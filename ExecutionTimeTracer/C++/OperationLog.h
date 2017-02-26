@@ -1,3 +1,6 @@
+#ifndef OPERATION_LOG_H
+#define OPERATION_LOG_H
+
 #include "trace_tool.h"
 
 #include <thread>
@@ -12,40 +15,6 @@ enum Operation  { MUTEX_LOCK,
                   QUEUE_DEQUEUE,
                   MESSAGE_SEND,
                   MESSAGE_RECEIVE };
-
-std::ostream& operator<<(std::ostream &os, const Operation &op) {
-    switch (op) {
-        case MUTEX_LOCK:
-            os << "ML";
-            break;
-        case MUTEX_UNLOCK:
-            os << "MU";
-            break;
-        case CV_WAIT:
-            os << "CVW";
-            break;
-        case CV_BROADCAST:
-            os << "CVB";
-            break;
-        case CV_SIGNAL:
-            os << "CVS";
-            break;
-        case QUEUE_ENQUEUE:
-            os << "QE";
-            break;
-        case QUEUE_DEQUEUE:
-            os << "QD";
-            break;
-        case MESSAGE_SEND:
-            os << "MS";
-            break;
-        case MESSAGE_RECEIVE:
-            os << "MR";
-            break;
-    }
-
-    return os;
-}
 
 class OperationLog {
     public:
@@ -79,3 +48,5 @@ class OperationLog {
         const void* obj;
         Operation op;
 };
+
+#endif

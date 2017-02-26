@@ -3,7 +3,7 @@
 
 // VProf libs
 #include "Utils.h"
-// Include wherever op is
+#include "../ExecutionTimeTracer/C++/OperationLog.h"
 
 // STL libs
 #include <memory>
@@ -28,10 +28,10 @@ class FunctionFileReader {
         opMap(std::make_shared<std::unordered_map<std::string, std::string>>()), 
         unqualifiedNames(std::make_shared<std::vector<std::string>>()), 
         qualifiedNames(std::make_shared<std::vector<std::string>>()),
-        beenParsed(false), operationStrings({ "MUTEX_LOCK", "MUTEX_UNLOCK", "CV_WAIT",
-                                              "CV_BROADCAST", "CV_SIGNAL", "QUEUE_ENQUEUE",
-                                              "QUEUE_DEQUEUE", "MESSAGE_SEND", 
-                                              "MESSAGE_RECEIVE" }) {}
+        operationStrings({ "MUTEX_LOCK", "MUTEX_UNLOCK", "CV_WAIT",
+                           "CV_BROADCAST", "CV_SIGNAL", "QUEUE_ENQUEUE",
+                           "QUEUE_DEQUEUE", "MESSAGE_SEND", "MESSAGE_RECEIVE" }),
+        beenParsed(false) {}
         
         // Parse the file
         void Parse();

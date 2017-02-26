@@ -61,7 +61,7 @@ int main(int argc, const char **argv) {
     EventAnnotatorTool.run(newVProfFrontendActionFactory(funcFileReader.GetFunctionMap(),
                                                          prototypeMap).get());
     
-    WrapperGenerator wrapperGenerator(prototypeMap, funcFileReader.GetLogInfoMap());
+    WrapperGenerator wrapperGenerator(prototypeMap, funcFileReader.GetOperationMap());
     wrapperGenerator.GenerateWrappers();
 
     return 0;

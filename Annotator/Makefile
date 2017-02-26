@@ -39,7 +39,7 @@ CLANG_LIBS := \
 	-Wl,--end-group
 
 .PHONY: all
-all: ClangBase.o FileFinder.o FunctionFileReader.o WrapperGenerator.o Utils.o EventAnnotator.cc
+all: ClangBase.o FileFinder.o FunctionFileReader.o WrapperGenerator.o Utils.o OperationLog.o EventAnnotator.cc
 	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) $^ $(CLANG_LIBS) $(LLVM_LDFLAGS) -o EventAnnotator
 
 #CodeTransformer.o: CodeTransformer.cc
@@ -58,6 +58,9 @@ WrapperGenerator.o: WrapperGenerator.cc
 	$(CXX) $(CXXFLAGS) -c $^ -o $@
 
 Utils.o: Utils.cc
+	$(CXX) $(CXXFLAGS) -c $^ -o $@
+
+OperationLog.o: ../ExecutionTimeTracer/C++/OperationLog.cc
 	$(CXX) $(CXXFLAGS) -c $^ -o $@
 
 .PHONY: clean

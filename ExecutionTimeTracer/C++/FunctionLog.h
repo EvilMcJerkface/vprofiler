@@ -1,3 +1,6 @@
+#ifndef FUNCTION_LOG_H
+#define FUNCTION_LOG_H
+
 #include "trace_tool.h"
 
 #include <time.h>
@@ -34,3 +37,4 @@ class FunctionLog {
         timespec functionEnd;
 };
 
+#endif
