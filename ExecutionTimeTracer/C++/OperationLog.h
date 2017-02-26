@@ -1,7 +1,9 @@
+#include "trace_tool.h"
+
 #include <thread>
 #include <iostream>
 
-enum Operations { MUTEX_LOCK,
+enum Operation  { MUTEX_LOCK,
                   MUTEX_UNLOCK,
                   CV_WAIT,
                   CV_BROADCAST,
@@ -11,7 +13,7 @@ enum Operations { MUTEX_LOCK,
                   MESSAGE_SEND,
                   MESSAGE_RECEIVE };
 
-std::ostream& operator<<(std::ostream &os, const Operations &op) {
+std::ostream& operator<<(std::ostream &os, const Operation &op) {
     switch (op) {
         case MUTEX_LOCK:
             os << "ML";
@@ -45,11 +47,10 @@ std::ostream& operator<<(std::ostream &os, const Operations &op) {
     return os;
 }
 
-template <typename T>
 class OperationLog {
     public:
-        OperationLog(const unsigned int _semIntervalID, const T* _obj, Operation _op):
-        semIntervalID(_semIntervalID), obj(_obj), op(_op) {
+        OperationLog(const void* _obj, Operation _op):
+        semIntervalID(TraceTool::current_transaction_id), obj(_obj), op(_op) {
             threadID = std::this_thread::get_id();
         }
 
@@ -61,13 +62,13 @@ class OperationLog {
             return semIntervalID;
         }
 
-        T* getObj() {
+        const void* getObj() {
             return obj;
         }
 
         friend std::ostream& operator<<(std::ostream &os, const OperationLog &log) {
-            os << log.getThreadID() << ',' << log.getSemIntervalID() << ','
-               << log.getObj() << ',' << op << '\n';
+            os << log.threadID << ',' << log.semIntervalID << ',' << log.obj 
+               << ',' << log.op << '\n';
 
             return os;
         }
@@ -75,6 +76,6 @@ class OperationLog {
     private:
         std::thread::id threadID;
         unsigned int semIntervalID;
-        T *obj;
+        const void* obj;
         Operation op;
 };

@@ -5,10 +5,10 @@ using namespace std;
 WrapperGenerator::WrapperGenerator(shared_ptr<unordered_map<string, 
                                    FunctionPrototype>> _prototypeMap,
                                    std::shared_ptr<std::unordered_map<std::string, 
-                                   LogInformation>> _logInfoMap,
+                                   std::string>> _operationMap,
                                    string pathPrefix):
                                    prototypeMap(_prototypeMap),
-                                   logInfoMap(_logInfoMap) {
+                                   operationMap(_operationMap) {
     headerFile.open(pathPrefix + "VProfEventWrappers.h");
     implementationFile.open(pathPrefix + "VProfEventWrappers.cpp");
 
@@ -58,10 +58,8 @@ void WrapperGenerator::GenerateImplementations() {
             implementationFile << kv.second.returnType + " result;\n\t";
         }
 
-        implementationFile << "SynchronizationTraceTool::LogEventStart(" + 
-                              to_string((*logInfoMap)[kv.first].functionID) + ", " 
-                              + ((*logInfoMap)[kv.first].isMessageBased ? "true" : "false")  
-                              + ");\n\t";
+        implementationFile << "SynchronizationTraceTool::SynchronizationCallStart(" + 
+                              (*operationMap)[kv.first] + ", obj);\n\t";
 
         if (kv.second.returnType != "void") {
             implementationFile << "result = ";
@@ -79,10 +77,7 @@ void WrapperGenerator::GenerateImplementations() {
 
         implementationFile <<");\n\t";
 
-        implementationFile << "EventTraceTool::LogEventEnd(" + 
-                              to_string((*logInfoMap)[kv.first].functionID) + ", " 
-                              + ((*logInfoMap)[kv.first].isMessageBased ? "true" : "false")  
-                              + ");\n";
+        implementationFile << "SynchronizationTraceTool::SynchronizationCallEnd();\n";
 
         if (kv.second.returnType != "void") {
             implementationFile << "\treturn result;\n";

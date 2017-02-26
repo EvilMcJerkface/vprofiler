@@ -16,7 +16,6 @@ void FunctionFileReader::Parse() {
     std::vector<std::string> nameComponents;
     std::string unqualifiedName;
     for (int i = 0; i < qualifiedNames->size(); i++) {
-        LogInformation newLogInfo;
         std::vector<std::string> separateWords = SplitString((*qualifiedNames)[i], ' ');
 
         if (separateWords.size() != 2) {
@@ -32,11 +31,7 @@ void FunctionFileReader::Parse() {
                                 "for function " + separateWords[0]);
         }
 
-        // Fill logInfoMap
-        newLogInfo.op = separateWords[1];
-
-        newLogInfo.functionID = i;
-        (*logInfoMap)[(*qualifiedNames)[i]] = newLogInfo;
+        (*opMap)[(*qualifiedNames)[i]] = separateWords[1];
 
         // Fill unqualified names
         nameComponents = SplitString(separateWords[0], ':');
@@ -56,12 +51,12 @@ std::shared_ptr<std::unordered_map<std::string, std::string>> FunctionFileReader
     return funcMap;
 }
 
-std::shared_ptr<std::unordered_map<std::string, LogInformation>> FunctionFileReader::GetLogInfoMap() { 
+std::shared_ptr<std::unordered_map<std::string, std::string>> FunctionFileReader::GetOperationMap() { 
     if (!beenParsed) {
         throw std::logic_error("FunctionFileReader::GetFunctionMap called before function file was parsed.");
     }
 
-    return logInfoMap;
+    return opMap;
 }
 
 std::shared_ptr<std::vector<std::string>> FunctionFileReader::GetQualifiedFunctionNames() {

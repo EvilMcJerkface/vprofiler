@@ -1,45 +1,46 @@
 #ifndef SYNCHRO_TRACE_TOOL_H
 #define SYNCHRO_TRACE_TOOL_H
 
+#include "trace_tool.h"
+#include "OperationLog.h"
+#include "FunctionLog.h"
+
 #include <string>
 #include <vector>
 #include <fstream>
 #include <mutex>
 #include <shared_mutex>
 #include <unordered_map>
+#include <memory>
 
 class SynchronizationTraceTool {
     public:
-        template <typename T>
-        static void SynchronizationCallStart(unsigned int funcID, Operations op, T *obj);
+        static void SynchronizationCallStart(Operation op, void* obj);
 
         static void SynchronizationCallEnd();
 
-        static void Teardown();
+        ~SynchronizationTraceTool();
 
     private:
-        static SynchronizationTraceTool *instance;
+        static std::unique_ptr<SynchronizationTraceTool> instance;
         static std::mutex singletonMutex;
 
-        static __thread FunctionLog currFuncLog;
+        static thread_local FunctionLog currFuncLog;
 
         std::ofstream funcLogFile;
         std::ofstream opLogFile;
 
-        std::vector<std::vector<OperationLog>> *opLogs;
+        std::vector<OperationLog> *opLogs;
         std::vector<FunctionLog> *funcLogs;
-        std::shared_mutex logMutex;
-
-        std::unordered_map<std::thread::id, unsigned long int> threadSemanticIntervals;
+        std::shared_timed_mutex logMutex;
 
         static void maybeCreateInstance();
 
-        SynchronizationTool();
-        ~SynchronizationTool();
+        SynchronizationTraceTool();
 
         static void writeLogWorker();
-        static void writeLog(std::vector<OperationLog> opLogs,
-                             std::vector<FunctionLog> funcLogs);
-}
+        static void writeLogs(std::vector<OperationLog> *opLogs,
+                             std::vector<FunctionLog> *funcLogs);
+};
 
 #endif

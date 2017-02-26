@@ -16,7 +16,7 @@ class WrapperGenerator {
         // containing all information needed to form the wrapper.
         std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> prototypeMap;
 
-        std::shared_ptr<std::unordered_map<std::string, LogInformation>> logInfoMap;
+        std::shared_ptr<std::unordered_map<std::string, std::string>> operationMap;
 
         // File handle for header file.
         std::ofstream headerFile;
@@ -30,7 +30,7 @@ class WrapperGenerator {
         WrapperGenerator(std::shared_ptr<std::unordered_map<std::string, 
                          FunctionPrototype>> _prototypeMap,
                          std::shared_ptr<std::unordered_map<std::string, 
-                         LogInformation>> _logInfoMap,
+                         std::string>> _operationMap,
                          std::string pathPrefix="");
 
         void GenerateHeader();

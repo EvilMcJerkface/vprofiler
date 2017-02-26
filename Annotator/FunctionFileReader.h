@@ -25,7 +25,7 @@ class FunctionFileReader {
         FunctionFileReader(const std::string _filename): 
         filename(_filename),
         funcMap(std::make_shared<std::unordered_map<std::string, std::string>>()), 
-        logInfoMap(std::make_shared<std::unordered_map<std::string, LogInformation>>()), 
+        opMap(std::make_shared<std::unordered_map<std::string, std::string>>()), 
         unqualifiedNames(std::make_shared<std::vector<std::string>>()), 
         qualifiedNames(std::make_shared<std::vector<std::string>>()),
         beenParsed(false), operationStrings({ "MUTEX_LOCK", "MUTEX_UNLOCK", "CV_WAIT",
@@ -41,7 +41,7 @@ class FunctionFileReader {
         std::shared_ptr<std::unordered_map<std::string, std::string>> GetFunctionMap();
 
         // Returns a map of qualified function name to log info struct
-        std::shared_ptr<std::unordered_map<std::string, LogInformation>> GetLogInfoMap();
+        std::shared_ptr<std::unordered_map<std::string, std::string>> GetOperationMap();
 
         // Returns a vector of all the qualified function names.
         // Parse must be called prior to this.
@@ -54,7 +54,7 @@ class FunctionFileReader {
     private:
         const std::string filename;
         std::shared_ptr<std::unordered_map<std::string, std::string>> funcMap;
-        std::shared_ptr<std::unordered_map<std::string, LogInformation>> logInfoMap;
+        std::shared_ptr<std::unordered_map<std::string, std::string>> opMap;
         std::shared_ptr<std::vector<std::string>> unqualifiedNames;
         std::shared_ptr<std::vector<std::string>> qualifiedNames;
 
