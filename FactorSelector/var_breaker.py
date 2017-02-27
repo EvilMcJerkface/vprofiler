@@ -108,6 +108,7 @@ def break_down(function_file, path, var_tree_file):
                 variance_break_down.append(
                     (function_name1 + ',' + function_name2, 2 * covariance))
                 if 2 * covariance / variance_of_latency > 1e-3:
+                    # Missing quotation mark after first ->?
                     tree_file.write('"' + caller + '" -> ' + function_name1 + '",' +
                                     function_name2 + '" -> "' +
                                     str(2 * covariance / variance_of_latency) + '"\n')

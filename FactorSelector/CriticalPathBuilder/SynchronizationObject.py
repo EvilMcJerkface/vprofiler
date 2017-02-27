@@ -1,5 +1,6 @@
 from abc import ABCMeta
 
+# Abstract base class for synchronization objects
 class SynchronizationObject:
     __metaclass__ = ABCMeta
 
@@ -25,14 +26,11 @@ class OwnershipTimeInterval:
 
         self.otherThreadTriedToAcquire = False
 
+# Represents mutexes, condition variables, and semaphores (semaphores might actually need more changes)
+# Probably need extra changes for rwlocks
 class OwnableObject(SynchronizationObject):
-    def __init__(self, objID):
-        self.objID = objID
+    def __init__(self):
         self.ownershipTimeSeries = []
-
-        # Only to be set true after synchronization file has been
-        # completely parsed
-        self.isInitialized = False
 
     def StartNewOwnership(self, threadID, startTime):
         valToAppend = None
@@ -51,6 +49,13 @@ class OwnableObject(SynchronizationObject):
     def SetLatestOwnershipEndTime(self, endTime):
         self.ownershipTimeSeries[-1].endTime = endTime
 
+    def RegisterObjectAcquisitionRequest(self, timestamp):
+        if len(self.ownershipTimeSeries) > 0:
+            if self.ownershipTimeSeries[-1].startTime <= timestamp and
+              (self.ownershipTimeSeries[-1].endTime == None or
+               timestamp <= self.ownershipTimeSeries[-1].endTime):
+                  self.ownershipTimeSeries[-1].otherThreadTriedToAcquire = True
+
     def GetDependenceRelation(self, timestamp):
         # Just loop over everything for now.  If too slow, can write something else.
 
@@ -63,3 +68,17 @@ class OwnableObject(SynchronizationObject):
 
         return result
 
+# User should provide function which returns a unique ID of the event so we can
+# track it
+class EventCreationObject(SynchronizationObject):
+    def __init__(self):
+        # Map from eventID to the threadID of the thread which created event eventID
+        self.eventCreationRelationships = {}
+
+    def AddEventCreationRelationship(self, eventID, threadID):
+        self.eventCreationRelationships[eventID] = threadID
+
+    # Returns the threadID of the thread which created event eventID.  Returns None
+    # if no event with eventID was found.
+    def GetEventCreator(self, eventID):
+        return self.eventCreationRelationships.get(eventID)

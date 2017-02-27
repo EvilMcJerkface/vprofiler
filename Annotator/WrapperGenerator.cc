@@ -77,6 +77,9 @@ void WrapperGenerator::GenerateImplementations() {
 
         implementationFile <<");\n\t";
 
+        // NOTE TODO. I think we need to add some mutex which we lock here. 
+        // Think through this.
+
         implementationFile << "SynchronizationTraceTool::SynchronizationCallEnd();\n";
 
         if (kv.second.returnType != "void") {
