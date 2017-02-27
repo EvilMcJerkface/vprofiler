@@ -5,6 +5,8 @@ class SynchronizationObjectAggregator:
     def __init__(self):
         self.objectMap = {}
 
+        self.messages = {}
+
     def AddLogRow(self, row):
         opID = int(row[0])
         objID = row[1]
@@ -25,3 +27,14 @@ class SynchronizationObjectAggregator:
             else:
                 self.objectMap[objID].RegisterObjectAcquisitionRequest(operationTimeStart)
                 self.objectMap[objID].StartNewOwnership(threadID, operationTimeEnd)
+
+        elif opID == Operation.MESSAGE_SEND:
+            self.messages[objID] = threadID
+
+        elif opID == Operation.QUEUE_ENQUEUE:
+            eventID = row[5]
+
+            if objID not in self.objectMap:
+                self.objectMap[objID] = EventCreationObject()
+
+            self.objectMap[objID].AddEventCreationRelationship(eventID, threadID
