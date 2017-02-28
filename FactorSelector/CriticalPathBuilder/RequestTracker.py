@@ -1,5 +1,18 @@
 from datetime import datetime
+from bisect import bisect_left
 from OperationEnum import Operation
+
+class ThreadRequests:
+    def __init__(self, val):
+        self.requests = [val]
+
+        self.keys = None
+
+    def GetKeys(self):
+        if self.keys == None:
+            self.keys = [x[1] for x in self.requests]
+
+        return self.keys
 
 class RequestTracker:
     def __init__(self):
@@ -20,6 +33,16 @@ class RequestTracker:
 
             threadID = row[2]
             if threadID not in self.threadRequests:
-                self.threadRequests[threadID] = [toInsert]
+                self.threadRequests[threadID] = ThreadRequests(toInsert)
             else:
-                self.threadRequests[threadID].append(toInsert)
+                self.threadRequests[threadID].requests.append(toInsert)
+
+
+    def FindPrecedingRequest(self, threadID, timestamp):
+        opType, requestTimeEnd, objID = (None, None, None)
+        idx = bisect_left(self.threadRequests[threadID], timestamp) - 1
+
+        if idx != -1:
+            opType, requestTimeEnd, objID = self.threadRequests[threadID][idx]
+
+        return opType, requestTimeEnd, objID

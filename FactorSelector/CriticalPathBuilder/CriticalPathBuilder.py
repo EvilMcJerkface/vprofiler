@@ -18,8 +18,9 @@ class CriticalPathBuilder:
             self.requestTracker.AddLogRow(row)
             self.synchObjAgg.AddLogRow(row)
 
+
     def __BuildHelper(self, segmentEndTime, currThreadID, timeSeries):
-        requestTime, objID, opType = requestTracker.FindPrecedingRequest(currThreadID, segmentEndTime)
+        opType, requestTime, objID = requestTracker.FindPrecedingRequest(currThreadID, segmentEndTime)
 
         unblockedSegment = -1
         i = 0
@@ -50,7 +51,7 @@ class CriticalPathBuilder:
             self.blockedEdgeStack.appendleft((lastBlockingRequest.startTime, currThreadID))
             timeSeries.appendleft((currThreadID, lastBlockingRequest.endTime, segmentEndTime))
 
-            leftTimeBound, nextThreadID = self.synchObjAgg.GetCorrespondingEvent(requestTime, objID, opType)
+            leftTimeBound, nextThreadID = self.synchObjAgg.GetDependenceEdge(requestTime, objID, opType)
 
         return self.__BuildHelper(leftTimeBound, nextThreadID, timeSeries)
 
@@ -60,15 +61,13 @@ class CriticalPathBuilder:
     # represents an event creation wait-for relationship (the time between when
     # an event is created and picked up), its threadID will be -1.
     def Build(self, semIntStartTime, semIntEndTime, endingThreadID):
-        timeSeries = self.__BuildHelper(semIntStartTime, semIntEndTime, endingThreadID, deque())
-
         # Take threadID of -1 to indicate that whichever thread is executing
         # at the end of the semantic interval is the final thread in the
         # critical path's time series.
         self.blockedEdgeStack.append((semIntStartTime, -1))
-        # Convert from list to tuple
-        for val in timeSeries:
-            val = tuple(val)
 
-        blockedEdgeStack.clear()
+        timeSeries = self.__BuildHelper(semIntStartTime, semIntEndTime, endingThreadID, deque())
+
+        self.blockedEdgeStack.clear()
         return timeSeries
+

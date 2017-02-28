@@ -58,11 +58,6 @@ bool VProfVisitor::shouldCreateNewPrototype(const std::string &functionName) {
 
 // TODO change name to getParamDeclAsString
 std::string VProfVisitor::getEntireParamDeclAsString(const ParmVarDecl *decl) {
-    // To satisfy compiler (should this return param instead?).
-    //std::string param;
-    //llvm::raw_string_ostream ss(param);
-    //decl->dump(ss);
-
     return decl->getType().getAsString() + " " + decl->getNameAsString();
 }
 

@@ -29,7 +29,7 @@ class SynchronizationObjectAggregator:
                 self.objectMap[objID].StartNewOwnership(threadID, operationTimeEnd)
 
         elif opID == Operation.MESSAGE_SEND:
-            self.messages[objID] = threadID
+            self.messages[objID] = (threadID, operationTimeEnd)
 
         elif opID == Operation.QUEUE_ENQUEUE:
             eventID = row[5]
@@ -37,4 +37,21 @@ class SynchronizationObjectAggregator:
             if objID not in self.objectMap:
                 self.objectMap[objID] = EventCreationObject()
 
-            self.objectMap[objID].AddEventCreationRelationship(eventID, threadID
+            self.objectMap[objID].AddEventCreationRelationship(eventID, threadID)
+
+    # Get ending ending time of segment we have an dependence edge to, as
+    # well as the thread ID of the thread adjacent to the dependence edge
+    # which comes first in the time series.
+    #
+    # Note that to use this function, it must be called with one of the following
+    # configurations for the tuple (objID, requestTime, eventID)
+    # (!None, !None, None) - This is a object ownership relation
+    # (!None, None, !None) - This is an event queue relation
+    # (None, None, !None)  - This is a messaging relation
+    def GetDependenceEdge(self, opType, objID=None, requestTime=None, eventID=None):
+        if opType == Operation.MUTEX_LOCK or opType == Operation.CV_WAIT:
+            return self.objectMap[objID].GetDependenceRelation(requestTime)
+        elif opType == Operation.QUEUE_DEQUEUE:
+            return self.objectMap[objID].GetDependenceRelation(eventID)
+        else:
+            return self.messages[eventID]
