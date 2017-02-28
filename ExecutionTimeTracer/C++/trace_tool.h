@@ -10,7 +10,7 @@
 #include <thread>
 #include <chrono>
 
-#include "LatencyLog.h"
+#include "FunctionLog.h"
 
 #define TRX_TYPES 6
 
@@ -83,8 +83,8 @@ private:
     
     ofstream log_file;                      /*!< An log file for outputing debug messages. */
     
-    vector<vector<LatencyLog>> function_times;  /*!< Stores the running time of the child functions
-                                                 and also transaction latency (the last one). */
+    vector<vector<vector<FunctionLog>>> function_times;  /*!< Stores the running time of the child functions
+                                                              and also transaction latency (the last one). */
     vector<ulint> transaction_start_times;  /*!< Stores the start time of transactions. */
     vector<transaction_type> transaction_types;/*!< Stores the transaction types of transactions. */
     
@@ -163,7 +163,7 @@ public:
     
     /********************************************************************//**
     Record running time of a function. */
-    void add_record(int function_index, long duration);
+    void add_record(int function_index, timespec &start_time, timespec &end_time);
 };
 
 #endif

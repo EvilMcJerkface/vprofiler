@@ -45,7 +45,7 @@ void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj)
     instance->opLogs->push_back(OperationLog(obj, op));
     instance->logMutex.unlock_shared();
 
-    currFuncLog = FunctionLog();
+    currFuncLog = FunctionLog(TraceTool::current_transaction_id);
 
     timespec startTime;
     clock_gettime(CLOCK_REALTIME, &startTime);

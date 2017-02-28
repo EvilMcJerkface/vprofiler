@@ -10,7 +10,7 @@
 #include <cassert>
 
 #define TARGET_PATH_COUNT 0
-#define NUMBER_OF_FUNCTIONS 0
+#define NUMBER_OF_FUNCTIONS 200
 #define LATENCY
 #define MONITOR
 
@@ -75,8 +75,7 @@ void TRACE_FUNCTION_END()
   if (TraceTool::should_monitor())
   {
     clock_gettime(CLOCK_REALTIME, &function_end);
-    long duration = TraceTool::difftime(function_start, function_end);
-    TraceTool::get_instance()->add_record(0, duration);
+    TraceTool::get_instance()->add_record(0, function_start, function_end);
   }
 #endif
 }
@@ -98,8 +97,7 @@ bool TRACE_END(int index)
   if (TraceTool::should_monitor())
   {
     clock_gettime(CLOCK_REALTIME, &call_end);
-    long duration = TraceTool::difftime(call_start, call_end);
-    TraceTool::get_instance()->add_record(index, duration);
+    TraceTool::get_instance()->add_record(index, call_start, call_end);
   }
 #endif
   return false;
@@ -151,12 +149,14 @@ TraceTool::TraceTool() : function_times()
   /* Open the log file in append mode so that it won't be overwritten */
   log_file.open("logs/trace.log");
   const int number_of_functions = NUMBER_OF_FUNCTIONS + 1;
-  vector<LatencyLog> function_time;
-  function_time.push_back(LatencyLog());
+  vector<vector<FunctionLog>> function_time;
   for (int index = 0; index < number_of_functions; index++)
   {
     function_times.push_back(function_time);
     function_times[index].reserve(500000);
+    for (int j = 0; j < 500000; j++) {
+        function_times[index][j].reserve(500);
+    }
   }
   transaction_start_times.reserve(500000);
   transaction_start_times.push_back(0);
@@ -248,12 +248,6 @@ void TraceTool::start_new_query()
     pthread_rwlock_wrlock(&data_lock);
     current_transaction_id = transaction_id++;
     transaction_start_times[current_transaction_id] = now_micro();
-    for (vector<vector<LatencyLog>>::iterator iterator = function_times.begin();
-         iterator != function_times.end();
-         ++iterator)
-    {
-      iterator->push_back(LatencyLog());
-    }
     transaction_start_times.push_back(0);
     transaction_types.push_back(NONE);
     pthread_rwlock_unlock(&data_lock);
@@ -317,9 +311,8 @@ void TraceTool::end_transaction()
 {
 #ifdef LATENCY
   timespec now = get_time();
-  LatencyLog latencyLog(difftime(trans_start, now), std::this_thread::get_id());
   pthread_rwlock_rdlock(&data_lock);
-  function_times.back()[current_transaction_id] = latencyLog;
+  function_times.back()[current_transaction_id].push_back(FunctionLog(current_transaction_id, trans_start, now));
   if (!commit_successful)
   {
     transaction_start_times[current_transaction_id] = 0;
@@ -330,14 +323,16 @@ void TraceTool::end_transaction()
   type = NONE;
 }
 
-void TraceTool::add_record(int function_index, long duration)
+void TraceTool::add_record(int function_index, 
+                           timespec &start_time, 
+                           timespec &end_time)
 {
   if (current_transaction_id > transaction_id)
   {
     current_transaction_id = 0;
   }
   pthread_rwlock_rdlock(&data_lock);
-  function_times[function_index][current_transaction_id].latency += duration;
+  function_times[function_index][current_transaction_id].push_back(FunctionLog(current_transaction_id, start_time, end_time));
   pthread_rwlock_unlock(&data_lock);
 }
 
@@ -388,34 +383,35 @@ void TraceTool::write_latency(string dir)
   }
   
   int function_index = 0;
-  for (vector<vector<LatencyLog>>::iterator iterator = function_times.begin(); iterator != function_times.end(); ++iterator)
+  for (vector<vector<vector<FunctionLog>>>::iterator iterator = function_times.begin(); iterator != function_times.end(); ++iterator)
   {
     ulint number_of_transactions = iterator->size();
     for (ulint index = 0; index < number_of_transactions; ++index)
     {
       if (transaction_start_times[index] > 0)
       {
-        LatencyLog latencyLog = (*iterator)[index];
-        tpcc_log << index << ',' << latencyLog.threadID << ',' << function_index << ',' << latencyLog.latency << endl;
-        switch (transaction_types[index])
-        {
-          case NEW_ORDER:
-            new_order_log << function_index << ',' << latencyLog.latency << endl;
-            break;
-          case PAYMENT:
-            payment_log << function_index << ',' << latencyLog.latency << endl;
-            break;
-          case ORDER_STATUS:
-            order_status_log << function_index << ',' << latencyLog.latency << endl;
-            break;
-          case DELIVERY:
-            delivery_log << function_index << ',' << latencyLog.latency << endl;
-            break;
-          case STOCK_LEVEL:
-            stock_level_log << function_index << ',' << latencyLog.latency << endl;
-            break;
-          default:
-            break;
+        for (vector<FunctionLog>::iterator innerIt = (*iterator)[index].begin(); innerIt != (*iterator)[index].end(); innerIt++) {
+            tpcc_log << function_index << ',' << (*innerIt);
+            switch (transaction_types[index])
+            {
+              case NEW_ORDER:
+                new_order_log << function_index << ',' << (*innerIt);
+                break;
+              case PAYMENT:
+                payment_log << function_index << ',' << (*innerIt);
+                break;
+              case ORDER_STATUS:
+                order_status_log << function_index << ',' << (*innerIt);
+                break;
+              case DELIVERY:
+                delivery_log << function_index << ',' << (*innerIt);
+                break;
+              case STOCK_LEVEL:
+                stock_level_log << function_index << ',' << (*innerIt);
+                break;
+              default:
+                break;
+            }
         }
       }
     }
