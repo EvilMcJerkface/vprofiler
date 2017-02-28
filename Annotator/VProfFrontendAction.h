@@ -28,9 +28,7 @@ class VProfFrontendAction : public clang::ASTFrontendAction {
                                    functionNameMap(_functionNameMap),
                                    prototypeMap(_prototypeMap) {}
 
-        ~VProfFrontendAction() {
-        }
-
+        ~VProfFrontendAction() {} 
         virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &ci,
                                                                       llvm::StringRef file) {
             std::shared_ptr<clang::Rewriter> rewriter = std::make_shared<clang::Rewriter>();

@@ -7,6 +7,10 @@
 #include <time.h>
 #include <cstdlib>
 #include <string>
+#include <thread>
+#include <chrono>
+
+#include "LatencyLog.h"
 
 #define TRX_TYPES 6
 
@@ -75,12 +79,11 @@ private:
     static __thread timespec function_end;  /*!< Time for the end of a function call. */
     static __thread timespec call_start;    /*!< Time for the start of a child function call. */
     static __thread timespec call_end;      /*!< Time for the end of a child function call. */
-    static __thread bool new_transaction;   /*!< True if we need to start a new transaction. */
     static __thread timespec trans_start;   /*!< Start time of the current transaction. */
     
     ofstream log_file;                      /*!< An log file for outputing debug messages. */
     
-    vector<vector<long> > function_times;  /*!< Stores the running time of the child functions
+    vector<vector<LatencyLog>> function_times;  /*!< Stores the running time of the child functions
                                                  and also transaction latency (the last one). */
     vector<ulint> transaction_start_times;  /*!< Stores the start time of transactions. */
     vector<transaction_type> transaction_types;/*!< Stores the transaction types of transactions. */
@@ -92,6 +95,11 @@ public:
     static __thread ulint current_transaction_id;   /*!< Each thread can execute only one transaction at
                                                          a time. This is the ID of the current transactions. */
     
+    // This used to be private, but there was a compiler error where a 
+    // non-member function was using this.  This is a temporary fix,
+    // but I'm not sure if it's one that should necessarily stay.
+    static __thread bool new_transaction;   /*!< True if we need to start a new transaction. */
+
     static __thread int path_count;         /*!< Number of node in the function call path. Used for
                                                  tracing running time of functions. */
     
