@@ -25,7 +25,7 @@ class FileFinder {
 
         // Convenience function for finding all potential files of functions the 
         // user wishes to profile.
-        std::vector<std::string> FindFunctionsPotentialFiles(const std::vector<std::string> &functions);
+        std::vector<std::string> FindFunctionsPotentialFiles(const std::shared_ptr<std::vector<std::string>> functions);
 
     private:
         //////////////////////////////

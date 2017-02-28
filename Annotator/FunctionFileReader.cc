@@ -6,24 +6,44 @@ void FunctionFileReader::Parse() {
 
     // Should eventually trim the line to help user not input bad data
     while (std::getline(infile, line)) {
-        qualifiedNames.push_back(line);
+        qualifiedNames->push_back(line);
         std::replace(line.begin(), line.end(), ':', '_');
-        funcMap[qualifiedNames[qualifiedNames.size() - 1]] = line + "_vprofiler";
+        std::replace(line.begin(), line.end(), '<', '_');
+        std::replace(line.begin(), line.end(), '>', '_');
+        (*funcMap)[(*qualifiedNames)[qualifiedNames->size() - 1]] = line + "_vprofiler";
     }
 
     std::vector<std::string> nameComponents;
     std::string unqualifiedName;
-    for (std::string &func : qualifiedNames) {
-        nameComponents = SplitString(func, ':');
+    for (int i = 0; i < qualifiedNames->size(); i++) {
+        std::vector<std::string> separateWords = SplitString((*qualifiedNames)[i], ' ');
+
+        if (separateWords.size() != 2) {
+            throw std::runtime_error("Did not find pattern <fully qualified function name>" 
+                                     " <function type> for function " + separateWords[0]);
+        }
+
+        transform(separateWords[1].begin(), separateWords[1].end(),
+                  separateWords[1].begin(), ::toupper);
+
+        if (operationStrings.find(separateWords[1]) == operationStrings.end()) {
+            throw std::runtime_error("Function type " + separateWords[1] + " not "
+                                     "for function " + separateWords[0]);
+        }
+
+        (*opMap)[(*qualifiedNames)[i]] = separateWords[1];
+
+        // Fill unqualified names
+        nameComponents = SplitString(separateWords[0], ':');
         unqualifiedName = nameComponents[nameComponents.size() - 1];
 
-        unqualifiedNames.push_back(unqualifiedName);
+        unqualifiedNames->push_back(unqualifiedName);
     }
 
     beenParsed = true;
 }
 
-std::unordered_map<std::string, std::string> FunctionFileReader::GetFunctionMap() { 
+std::shared_ptr<std::unordered_map<std::string, std::string>> FunctionFileReader::GetFunctionMap() { 
     if (!beenParsed) {
         throw std::logic_error("FunctionFileReader::GetFunctionMap called before function file was parsed.");
     }
@@ -31,7 +51,15 @@ std::unordered_map<std::string, std::string> FunctionFileReader::GetFunctionMap(
     return funcMap;
 }
 
-std::vector<std::string> FunctionFileReader::GetQualifiedFunctionNames() {
+std::shared_ptr<std::unordered_map<std::string, std::string>> FunctionFileReader::GetOperationMap() { 
+    if (!beenParsed) {
+        throw std::logic_error("FunctionFileReader::GetFunctionMap called before function file was parsed.");
+    }
+
+    return opMap;
+}
+
+std::shared_ptr<std::vector<std::string>> FunctionFileReader::GetQualifiedFunctionNames() {
     if (!beenParsed) {
         throw std::logic_error("FunctionFileReader::GetQualifiedFunctionNames called before function file was parsed.");
     }
@@ -39,7 +67,7 @@ std::vector<std::string> FunctionFileReader::GetQualifiedFunctionNames() {
     return qualifiedNames;
 }
 
-std::vector<std::string> FunctionFileReader::GetUnqualifiedFunctionNames() {
+std::shared_ptr<std::vector<std::string>> FunctionFileReader::GetUnqualifiedFunctionNames() {
     if (!beenParsed) {
         throw std::logic_error("FunctionFileReader::GetUnqualifiedFunctionNames called before function file was parsed.");
     }

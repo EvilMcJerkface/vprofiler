@@ -198,6 +198,7 @@ void *TraceTool::check_write_log(void *arg)
       
       /* Dump data in the old instance to log files and
          reclaim memory. */
+      // Should this section be locked?
       old_instace->write_log();
       delete old_instace;
     }

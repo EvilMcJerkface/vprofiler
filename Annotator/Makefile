@@ -1,11 +1,17 @@
+BUILD_PREFIX := ../build/bin
+
+#CXX := $(BUILD_PREFIX)/clang++
 CXX := g++
 CXXFLAGS := -fno-rtti -O0 -g -std=c++11
 PLUGIN_CXXFLAGS := -fpic
 
-LLVM_CXXFLAGS := $(shell llvm-config --cxxflags)
-LLVM_LDFLAGS  := $(shell llvm-config --ldflags --libs --system-libs)
+LLVM_CXXFLAGS := $(shell $(BUILD_PREFIX)/llvm-config --cxxflags)
+LLVM_LDFLAGS  := $(shell $(BUILD_PREFIX)/llvm-config --ldflags --libs --system-libs)
 
-CLANG_INCLUDES := $(shell llvm-config --includedir)
+LLVM_INCLUDES := $(shell $(BUILD_PREFIX)/llvm-config --includedir)
+CLANG_INCLUDES := -I../llvm/tools/clang/include \
+				  -I../build/tools/clang/include
+
 
 CLANG_LIBS := \
 	-Wl,--start-group \
@@ -33,11 +39,11 @@ CLANG_LIBS := \
 	-Wl,--end-group
 
 .PHONY: all
-all: ClangBase.o CodeTransformer.o FileFinder.o FunctionFileReader.o Utils.o EventAnnotator.cc
+all: ClangBase.o FileFinder.o FunctionFileReader.o WrapperGenerator.o Utils.o OperationLog.o EventAnnotator.cc
 	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) $^ $(CLANG_LIBS) $(LLVM_LDFLAGS) -o EventAnnotator
 
-CodeTransformer.o: CodeTransformer.cc
-	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ -o $@
+#CodeTransformer.o: CodeTransformer.cc
+	#$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ -o $@
 
 ClangBase.o: ClangBase.cc
 	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ -o $@
@@ -48,9 +54,15 @@ FileFinder.o: FileFinder.cc
 FunctionFileReader.o: FunctionFileReader.cc 
 	$(CXX) $(CXXFLAGS) -c $^ -o $@
 
+WrapperGenerator.o: WrapperGenerator.cc
+	$(CXX) $(CXXFLAGS) -c $^ -o $@
+
 Utils.o: Utils.cc
+	$(CXX) $(CXXFLAGS) -c $^ -o $@
+
+OperationLog.o: ../ExecutionTimeTracer/C++/OperationLog.cc
 	$(CXX) $(CXXFLAGS) -c $^ -o $@
 
 .PHONY: clean
 clean: 
-	rm *.o -rf
+	rm *.gch *.o EventAnnotator CodeTransformer FileFinder FunctionFileReader Utils -rf

@@ -111,11 +111,11 @@ public:
     static bool should_monitor();
     
     /********************************************************************//**
-    Calcualte time interval in nanoseconds. */
+    Calculate time interval in nanoseconds. */
     static long difftime(timespec start, timespec end);
     
     /********************************************************************//**
-    Periododically checks if any query comes in in the last 5 second.
+    Periodically checks if any query comes in in the last 5 second.
     If no then dump all logs to disk. */
     static void *check_write_log(void *);
     
@@ -127,7 +127,7 @@ public:
     static ulint now_micro();
     
     /********************************************************************//**
-    Retruns the log file for outputing debug information. */
+    Returns the log file for outputing debug information. */
     ofstream &get_log()
     {
         return log_file;
