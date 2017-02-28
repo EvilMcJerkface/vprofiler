@@ -6,6 +6,15 @@ import sys
 import cmath
 import getopt
 import numpy as np
+import csv
+
+# Note for TODO. Filter by semantic interval ID AFTER we get critical path.
+# Thus, when checking whether a factor should be in the variance tree, first
+# check if it's the correct semantic interval ID, then check whether it's part
+# of the critical path.  In other words, we don't need to check whether a factor
+# is part of the critical path when building the critical path, only after it is
+# constructed.
+from CriticalPathBuilder import CriticalPathBuilder
 
 
 def cov(variable1, variable2):
@@ -50,7 +59,6 @@ def collect_exec_time(function_file, path):
                 function_exec_time[function_index].append(time)
             current_function_index = function_index
     return function_names, function_exec_time
-
 
 def break_down(function_file, path, var_tree_file):
     """ Break down variance into variances and covariances """

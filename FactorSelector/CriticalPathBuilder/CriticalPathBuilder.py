@@ -1,5 +1,6 @@
 from csv import reader
 from collections import deque
+from intervaltree import IntervalTree
 from RequestTracker import RequestTracker
 from SynchronizationObjectAggregator import SynchronizationObjectAggregator
 
@@ -69,5 +70,5 @@ class CriticalPathBuilder:
         timeSeries = self.__BuildHelper(semIntStartTime, semIntEndTime, endingThreadID, deque())
 
         self.blockedEdgeStack.clear()
-        return timeSeries
+        return IntervalTree.from_tuples(timeSeries)
 
