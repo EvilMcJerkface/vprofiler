@@ -8,6 +8,8 @@ import getopt
 import numpy as np
 import csv
 
+from LatencyAggregator import LatencyAggregator
+
 # Note for TODO. Filter by semantic interval ID AFTER we get critical path.
 # Thus, when checking whether a factor should be in the variance tree, first
 # check if it's the correct semantic interval ID, then check whether it's part
@@ -40,24 +42,26 @@ def collect_exec_time(function_file, path):
     function_names.insert(0, function_file)
     function_names.append('latency')
 
-    function_exec_time = []
-    function_exec_time_file = open('tpcc', 'r')
-    current_function_index = -1
-    for line in function_exec_time_file:
-        # Skip transaction starting time
-        if ',' not in line:
-            continue
-        # Skip empty lines
-        if len(line) > 1:
-            function_index, time = line.split(',')
-            function_index = int(function_index)
-            time = int(time)
-            if function_index != current_function_index:
-                # new function, ignore the first transaction
-                function_exec_time.append([])
-            else:
-                function_exec_time[function_index].append(time)
-            current_function_index = function_index
+    latencyAggregator = LatencyAggregator("synch")
+    function_exec_time = latencyAggregator.GetLatencies("tpcc", len(function_names))
+#    function_exec_time = []
+#    function_exec_time_file = open('tpcc', 'r')
+#    current_function_index = -1
+#    for line in function_exec_time_file:
+#        # Skip transaction starting time
+#        if ',' not in line:
+#            continue
+#        # Skip empty lines
+#        if len(line) > 1:
+#            function_index, time = line.split(',')
+#            function_index = int(function_index)
+#            time = int(time)
+#            if function_index != current_function_index:
+#                # new function, ignore the first transaction
+#                function_exec_time.append([])
+#            else:
+#                function_exec_time[function_index].append(time)
+#            current_function_index = function_index
     return function_names, function_exec_time
 
 def break_down(function_file, path, var_tree_file):
