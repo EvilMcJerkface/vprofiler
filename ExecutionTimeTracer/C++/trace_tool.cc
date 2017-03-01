@@ -20,13 +20,14 @@
 #define DELIVERY_MARKER "SELECT NO_O_ID FROM NEW_ORDER WHERE NO_D_ID ="
 #define STOCK_LEVEL_MARKER "SELECT D_NEXT_O_ID FROM DISTRICT WHERE D_W_ID ="
 
-using std::endl;
-using std::ifstream;
-using std::ofstream;
-using std::vector;
-using std::stringstream;
-using std::sort;
-using std::getline;
+using namespace std;
+//using std::endl;
+//using std::ifstream;
+//using std::ofstream;
+//using std::vector;
+//using std::stringstream;
+//using std::sort;
+//using std::getline;
 
 ulint transaction_id = 0;
 
@@ -44,6 +45,9 @@ __thread bool TraceTool::commit_successful = true;
 __thread bool TraceTool::new_transaction = true;
 __thread timespec TraceTool::trans_start;
 __thread transaction_type TraceTool::type = NONE;
+
+unique_ptr<SynchronizationTraceTool> SynchronizationTraceTool::instance = nullptr;
+mutex SynchronizationTraceTool::singletonMutex;
 
 static const size_t NEW_ORDER_LENGTH = strlen(NEW_ORDER_MARKER);
 static const size_t PAYMENT_LENGTH = strlen(PAYMENT_MARKER);
@@ -432,3 +436,148 @@ void TraceTool::write_log()
 { 
   write_latency("latency/");
 }
+
+
+SynchronizationTraceTool::SynchronizationTraceTool() {
+    opLogs = new vector<OperationLog>;
+    funcLogs = new vector<FunctionLog>;
+
+    opLogs->reserve(1000000);
+    funcLogs->reserve(1000000);
+
+    opLogFile.open("latency/OperationLog.log");
+    funcLogFile.open("latency/SynchronizationTimeLog.log");
+
+    thread logWriter(writeLogWorker);
+    logWriter.detach();
+}
+
+SynchronizationTraceTool::~SynchronizationTraceTool() {
+    logMutex.lock();
+    
+    // opLogs and funcLogs are deleted in here.  Maybe move that
+    // functionality to a cleanup function.
+    writeLogs(instance->opLogs, instance->funcLogs);
+
+    logMutex.unlock();
+}
+
+void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj) {
+    if (instance == nullptr) {
+        maybeCreateInstance();
+    }
+
+    thread::id thisThreadID = this_thread::get_id();
+    
+    /*if (threadSemanticIntervals.find(thisThreadID) == threadSemanticIntervals.end()) {
+        threadSemanticIntrervals[thisThreadID] = nextSemanticIntervalID++;
+    }*/
+
+    instance->logMutex.lock_shared();
+    instance->opLogs->push_back(OperationLog(obj, op));
+    instance->logMutex.unlock_shared();
+
+    currFuncLog = FunctionLog(TraceTool::current_transaction_id);
+
+    timespec startTime;
+    clock_gettime(CLOCK_REALTIME, &startTime);
+
+    currFuncLog.setFunctionStart(startTime);
+}
+
+void SynchronizationTraceTool::SynchronizationCallEnd() {
+    timespec endTime;
+    clock_gettime(CLOCK_REALTIME, &endTime);
+    currFuncLog.setFunctionEnd(endTime);
+
+    instance->logMutex.lock_shared();
+    instance->funcLogs->push_back(currFuncLog);
+    instance->logMutex.unlock_shared();
+}
+
+void SynchronizationTraceTool::maybeCreateInstance() {
+    singletonMutex.lock();
+
+    if (instance == nullptr) {
+        instance = unique_ptr<SynchronizationTraceTool>(new SynchronizationTraceTool());
+    }
+
+    singletonMutex.unlock();
+}
+
+void SynchronizationTraceTool::writeLogWorker() {
+    // Loop forever writing logs
+    while (true) {
+        this_thread::sleep_for(5s);
+        if (instance != nullptr) {
+            vector<OperationLog> *newOpLogs = new vector<OperationLog>;
+            vector<FunctionLog> *newFuncLogs = new vector<FunctionLog>;
+
+            // TODO TODO TODO experiment with this size!!!!
+            newOpLogs->reserve(instance->opLogs->size() * 4);
+            newFuncLogs->reserve(instance->funcLogs->size() * 4);
+
+            // Lock exclusively
+            instance->logMutex.lock();
+
+            vector<OperationLog> *oldOpLogs = instance->opLogs;
+            vector<FunctionLog> *oldFuncLogs = instance->funcLogs;
+
+            instance->opLogs = newOpLogs;
+            instance->funcLogs = newFuncLogs;
+
+            instance->logMutex.unlock();
+
+            writeLogs(oldOpLogs, oldFuncLogs);
+        }
+    }
+}
+
+void SynchronizationTraceTool::writeLogs(vector<OperationLog> *opLogs, 
+                                         vector<FunctionLog> *funcLogs) {
+    for (OperationLog &opLog : *opLogs) {
+        instance->opLogFile << opLog;
+    }
+
+    for (FunctionLog &funcLog : *funcLogs) {
+        instance->funcLogFile << funcLog;
+    }
+
+    delete opLogs;
+    delete funcLogs;
+}
+
+std::ostream& operator<<(std::ostream &os, const Operation &op) {
+    switch (op) {
+        case MUTEX_LOCK:
+            os << "ML";
+            break;
+        case MUTEX_UNLOCK:
+            os << "MU";
+            break;
+        case CV_WAIT:
+            os << "CVW";
+            break;
+        case CV_BROADCAST:
+            os << "CVB";
+            break;
+        case CV_SIGNAL:
+            os << "CVS";
+            break;
+        case QUEUE_ENQUEUE:
+            os << "QE";
+            break;
+        case QUEUE_DEQUEUE:
+            os << "QD";
+            break;
+        case MESSAGE_SEND:
+            os << "MS";
+            break;
+        case MESSAGE_RECEIVE:
+            os << "MR";
+            break;
+    }
+
+    return os;
+}
+

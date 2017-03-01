@@ -9,8 +9,11 @@
 #include <string>
 #include <thread>
 #include <chrono>
-
-#include "FunctionLog.h"
+#include <iostream>
+#include <mutex>
+#include <shared_mutex>
+#include <unordered_map>
+#include <memory>
 
 #define TRX_TYPES 6
 
@@ -65,6 +68,48 @@ enum transaction_type
     NEW_ORDER, PAYMENT, ORDER_STATUS, DELIVERY, STOCK_LEVEL, NONE
 };
 typedef enum transaction_type transaction_type;
+
+// NOTE we're keeping one of these for each synchronization and traced
+// function instance.  In particular, for non-synchronization calls
+// storing semIntervalID is redundant.  If we have problems with
+// too much overhead, change this.
+class FunctionLog {
+    public:
+        FunctionLog(unsigned int _semIntervalID):
+        semIntervalID(_semIntervalID) {
+            threadID = std::this_thread::get_id();
+        }
+
+        FunctionLog(unsigned int _semIntervalID, 
+                    timespec _functionStart,
+                    timespec _functionEnd): semIntervalID(_semIntervalID),
+                    functionStart(_functionStart), functionEnd(_functionEnd) {
+            threadID = std::this_thread::get_id();
+        }
+
+        void setFunctionStart(timespec val) {
+            functionStart = val;
+        }
+
+        void setFunctionEnd(timespec val) {
+            functionEnd = val;
+        }
+
+        friend std::ostream& operator<<(std::ostream &os, const FunctionLog &funcLog) {
+            os << funcLog.threadID << ',' << std::to_string(funcLog.semIntervalID) 
+               << ',' << (funcLog.functionStart.tv_sec * 1000000000) + funcLog.functionStart.tv_nsec << ',' 
+               << (funcLog.functionEnd.tv_sec * 1000000000) + funcLog.functionEnd.tv_nsec << '\n';
+
+            return os;
+        }
+
+    private:
+        std::thread::id threadID;
+        unsigned int semIntervalID;
+
+        timespec functionStart;
+        timespec functionEnd;
+};
 
 class TraceTool
 {
@@ -164,6 +209,79 @@ public:
     /********************************************************************//**
     Record running time of a function. */
     void add_record(int function_index, timespec &start_time, timespec &end_time);
+};
+
+enum Operation  { MUTEX_LOCK,
+                  MUTEX_UNLOCK,
+                  CV_WAIT,
+                  CV_BROADCAST,
+                  CV_SIGNAL,
+                  QUEUE_ENQUEUE,
+                  QUEUE_DEQUEUE,
+                  MESSAGE_SEND,
+                  MESSAGE_RECEIVE };
+
+class OperationLog {
+    public:
+        OperationLog(const void* _obj, Operation _op):
+        semIntervalID(TraceTool::current_transaction_id), obj(_obj), op(_op) {
+            threadID = std::this_thread::get_id();
+        }
+
+        std::thread::id getThreadID() const {
+            return threadID;
+        }
+
+        unsigned int getSemIntervalID() {
+            return semIntervalID;
+        }
+
+        const void* getObj() {
+            return obj;
+        }
+
+        friend std::ostream& operator<<(std::ostream &os, const OperationLog &log) {
+            os << log.threadID << ',' << log.semIntervalID << ',' << log.obj 
+               << ',' << log.op << '\n';
+
+            return os;
+        }
+
+    private:
+        std::thread::id threadID;
+        unsigned int semIntervalID;
+        const void* obj;
+        Operation op;
+};
+
+class SynchronizationTraceTool {
+    public:
+        static void SynchronizationCallStart(Operation op, void* obj);
+
+        static void SynchronizationCallEnd();
+
+        ~SynchronizationTraceTool();
+
+    private:
+        static std::unique_ptr<SynchronizationTraceTool> instance;
+        static std::mutex singletonMutex;
+
+        static thread_local FunctionLog currFuncLog;
+
+        std::ofstream funcLogFile;
+        std::ofstream opLogFile;
+
+        std::vector<OperationLog> *opLogs;
+        std::vector<FunctionLog> *funcLogs;
+        std::shared_timed_mutex logMutex;
+
+        static void maybeCreateInstance();
+
+        SynchronizationTraceTool();
+
+        static void writeLogWorker();
+        static void writeLogs(std::vector<OperationLog> *opLogs,
+                             std::vector<FunctionLog> *funcLogs);
 };
 
 #endif
