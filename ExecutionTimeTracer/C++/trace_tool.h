@@ -62,6 +62,11 @@ void SESSION_START();
 void SESSION_END(bool successfully);
 
 /********************************************************************//**
+These functions are called by the generated wrappers. */
+void SYNCHRONIZATION_CALL_START(int op, void* obj);
+void SYNCHRONIZATION_CALL_END();
+
+/********************************************************************//**
 Transaction types in TPCC workload. */
 enum transaction_type
 {

@@ -58,8 +58,9 @@ void WrapperGenerator::GenerateImplementations() {
             implementationFile << kv.second.returnType + " result;\n\t";
         }
 
-        implementationFile << "SynchronizationTraceTool::SynchronizationCallStart(" + 
-                              (*operationMap)[kv.first] + ", static_cast<void*>(obj));\n\t";
+        implementationFile << "SYNCHRONIZATION_CALL_START(" + 
+                              (*operationMap)[kv.first] + 
+                              ", static_cast<void*>(obj));\n\t";
 
         if (kv.second.returnType != "void") {
             implementationFile << "result = ";
@@ -80,7 +81,7 @@ void WrapperGenerator::GenerateImplementations() {
         // NOTE TODO. I think we need to add some mutex which we lock here. 
         // Think through this.
 
-        implementationFile << "SynchronizationTraceTool::SynchronizationCallEnd();\n";
+        implementationFile << "SYNCHRONIZATION_CALL_END();\n";
 
         if (kv.second.returnType != "void") {
             implementationFile << "\treturn result;\n";

@@ -60,6 +60,11 @@ This function marks the end of a child function call. */
 int TRACE_END(
   int index);   /*!< Index of the child function call. */
 
+/********************************************************************//**
+These functions are called by the generated wrappers. */
+void SYNCHRONIZATION_CALL_START(int op, void* obj);
+void SYNCHRONIZATION_CALL_END();
+
 #ifdef __cplusplus
 }
 #endif

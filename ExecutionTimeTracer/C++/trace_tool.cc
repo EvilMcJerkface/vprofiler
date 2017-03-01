@@ -124,6 +124,14 @@ void SESSION_END(bool successfully)
 #endif
 }
 
+void SYNCHRONIZATION_CALL_START(int op, void* obj) {
+    SynchronizationTraceTool::SynchronizationCallStart(static_cast<Operation>(op), obj);
+}
+
+void SYNCHRONIZATION_CALL_END() {
+    SynchronizationTraceTool::SynchronizationCallEnd();
+}
+
 /********************************************************************//**
 Get the current TraceTool instance. */
 TraceTool *TraceTool::get_instance()
