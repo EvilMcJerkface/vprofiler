@@ -34,6 +34,7 @@ ulint transaction_id = 0;
 TraceTool *TraceTool::instance = NULL;
 pthread_mutex_t TraceTool::instance_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_rwlock_t TraceTool::data_lock = PTHREAD_RWLOCK_INITIALIZER;
+pthread_rwlock_t SynchronizationTraceTool::data_lock = PTHREAD_RWLOCK_INITIALIZER;
 __thread ulint TraceTool::current_transaction_id = 0;
 
 timespec TraceTool::global_last_query;
@@ -461,13 +462,13 @@ SynchronizationTraceTool::SynchronizationTraceTool() {
 }
 
 SynchronizationTraceTool::~SynchronizationTraceTool() {
-    logMutex.lock();
+    pthread_rwlock_rdlock(&data_lock);
     
     // opLogs and funcLogs are deleted in here.  Maybe move that
     // functionality to a cleanup function.
     writeLogs(instance->opLogs, instance->funcLogs);
 
-    logMutex.unlock();
+    pthread_rwlock_unlock(&data_lock);
 }
 
 void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj) {
@@ -481,9 +482,9 @@ void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj)
         threadSemanticIntrervals[thisThreadID] = nextSemanticIntervalID++;
     }*/
 
-    instance->logMutex.lock_shared();
+    pthread_rwlock_rdlock(&data_lock);
     instance->opLogs->push_back(OperationLog(obj, op));
-    instance->logMutex.unlock_shared();
+    pthread_rwlock_unlock(&data_lock);
 
     currFuncLog = FunctionLog(TraceTool::current_transaction_id);
 
@@ -498,9 +499,9 @@ void SynchronizationTraceTool::SynchronizationCallEnd() {
     clock_gettime(CLOCK_REALTIME, &endTime);
     currFuncLog.setFunctionEnd(endTime);
 
-    instance->logMutex.lock_shared();
+    pthread_rwlock_rdlock(&data_lock);
     instance->funcLogs->push_back(currFuncLog);
-    instance->logMutex.unlock_shared();
+    pthread_rwlock_unlock(&data_lock);
 }
 
 void SynchronizationTraceTool::maybeCreateInstance() {
@@ -526,7 +527,7 @@ void SynchronizationTraceTool::writeLogWorker() {
             newFuncLogs->reserve(instance->funcLogs->size() * 4);
 
             // Lock exclusively
-            instance->logMutex.lock();
+            pthread_rwlock_wrlock(&data_lock);
 
             vector<OperationLog> *oldOpLogs = instance->opLogs;
             vector<FunctionLog> *oldFuncLogs = instance->funcLogs;
@@ -534,7 +535,7 @@ void SynchronizationTraceTool::writeLogWorker() {
             instance->opLogs = newOpLogs;
             instance->funcLogs = newFuncLogs;
 
-            instance->logMutex.unlock();
+            pthread_rwlock_unlock(&data_lock);
 
             writeLogs(oldOpLogs, oldFuncLogs);
         }

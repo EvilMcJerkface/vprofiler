@@ -278,7 +278,7 @@ class SynchronizationTraceTool {
 
         std::vector<OperationLog> *opLogs;
         std::vector<FunctionLog> *funcLogs;
-        std::shared_timed_mutex logMutex;
+        static pthread_rwlock_t data_lock;      
 
         static void maybeCreateInstance();
 
