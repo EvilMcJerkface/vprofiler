@@ -105,6 +105,7 @@ void VProfVisitor::createNewPrototype(const FunctionDecl *decl,
     }
 
     newPrototype.functionPrototype += ")";
+    newPrototype.isMemberCall = isMemberFunc;
 
     (*prototypeMap)[functionName] = newPrototype;
 }

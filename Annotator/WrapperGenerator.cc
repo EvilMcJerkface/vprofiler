@@ -58,9 +58,11 @@ void WrapperGenerator::GenerateImplementations() {
             implementationFile << kv.second.returnType + " result;\n\t";
         }
 
+        string object = kv.second.isMemberCall ? "obj" : kv.second.paramVars[0];
+
         implementationFile << "SYNCHRONIZATION_CALL_START(" + 
                               (*operationMap)[kv.first] + 
-                              ", static_cast<void*>(obj));\n\t";
+                              ", static_cast<void*>(" + object "));\n\t";
 
         if (kv.second.returnType != "void") {
             implementationFile << "result = ";
