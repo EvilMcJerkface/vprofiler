@@ -62,7 +62,7 @@ void WrapperGenerator::GenerateImplementations() {
 
         implementationFile << "SYNCHRONIZATION_CALL_START(" + 
                               (*operationMap)[kv.first] + 
-                              ", static_cast<void*>(" + object "));\n\t";
+                              ", static_cast<void*>(" + object + "));\n\t";
 
         if (kv.second.returnType != "void") {
             implementationFile << "result = ";

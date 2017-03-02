@@ -4,7 +4,18 @@
 #include <pthread.h>
 #include <time.h>
 
+enum Operation  { MUTEX_LOCK,
+                  MUTEX_UNLOCK,
+                  CV_WAIT,
+                  CV_BROADCAST,
+                  CV_SIGNAL,
+                  QUEUE_ENQUEUE,
+                  QUEUE_DEQUEUE,
+                  MESSAGE_SEND,
+                  MESSAGE_RECEIVE };
+
 typedef struct timespec timespec;
+typedef enum Operation Operation;
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,7 +73,7 @@ int TRACE_END(
 
 /********************************************************************//**
 These functions are called by the generated wrappers. */
-void SYNCHRONIZATION_CALL_START(int op, void* obj);
+void SYNCHRONIZATION_CALL_START(Operation op, void* obj);
 void SYNCHRONIZATION_CALL_END();
 
 #ifdef __cplusplus

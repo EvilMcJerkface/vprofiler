@@ -23,4 +23,5 @@ if [ ! -f ${CLANG_BIN_DIR}/EventAnnotator ]; then
     cp EventAnnotator $CLANG_BIN_DIR
 fi
 
+cp EventAnnotator $CLANG_BIN_DIR
 ${CLANG_BIN_DIR}/EventAnnotator "$@"
