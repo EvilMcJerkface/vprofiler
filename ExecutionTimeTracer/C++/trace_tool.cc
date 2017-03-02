@@ -517,7 +517,7 @@ void SynchronizationTraceTool::maybeCreateInstance() {
 void SynchronizationTraceTool::writeLogWorker() {
     // Loop forever writing logs
     while (true) {
-        this_thread::sleep_for(5s);
+        this_thread::sleep_for(chrono::seconds(5));
         if (instance != nullptr) {
             vector<OperationLog> *newOpLogs = new vector<OperationLog>;
             vector<FunctionLog> *newFuncLogs = new vector<FunctionLog>;
