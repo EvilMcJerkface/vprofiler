@@ -2,21 +2,25 @@
 
 void FunctionFileReader::Parse() {
     std::ifstream infile(filename.c_str());
+    std::vector<std::string> lines;
     std::string line; 
 
     // Should eventually trim the line to help user not input bad data
     while (std::getline(infile, line)) {
-        qualifiedNames->push_back(line);
-        std::replace(line.begin(), line.end(), ':', '_');
-        std::replace(line.begin(), line.end(), '<', '_');
-        std::replace(line.begin(), line.end(), '>', '_');
-        (*funcMap)[(*qualifiedNames)[qualifiedNames->size() - 1]] = line + "_vprofiler";
+        lines.push_back(line);
     }
 
     std::vector<std::string> nameComponents;
     std::string unqualifiedName;
-    for (int i = 0; i < qualifiedNames->size(); i++) {
-        std::vector<std::string> separateWords = SplitString((*qualifiedNames)[i], ' ');
+    for (int i = 0; i < lines.size(); i++) {
+        std::replace(line.begin(), line.end(), ':', '_');
+        std::replace(line.begin(), line.end(), '<', '_');
+        std::replace(line.begin(), line.end(), '>', '_');
+
+        std::vector<std::string> separateWords = SplitString(lines[i], ' ');
+        qualifiedNames->push_back(separateWords[0]);
+
+        (*funcMap)[(*qualifiedNames)[qualifiedNames->size() - 1]] = separateWords[0] + "_vprofiler";
 
         if (separateWords.size() != 2) {
             throw std::runtime_error("Did not find pattern <fully qualified function name>" 

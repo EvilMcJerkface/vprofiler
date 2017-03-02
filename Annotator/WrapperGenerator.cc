@@ -39,7 +39,7 @@ void WrapperGenerator::GenerateHeader() {
     for (string &includeName : includeNames) {
         headerFile << "#include \"" + includeName + "\"\n";
     }
-    headerFile << "#include \"TraceTool.h\"\n\n";
+    headerFile << "#include \"trace_tool.h\"\n\n";
 
     for (auto kv : *prototypeMap) {
         headerFile << kv.second.functionPrototype + ";\n\n";
