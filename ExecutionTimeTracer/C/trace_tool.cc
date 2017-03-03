@@ -334,6 +334,15 @@ int TRACE_END(int index) {
     return 0;
 }
 
+void SYNCHRONIZATION_CALL_START(int op, void* obj) {
+    SynchronizationTraceTool::SynchronizationCallStart(static_cast<Operation>(op), obj);
+}
+
+void SYNCHRONIZATION_CALL_END() {
+    SynchronizationTraceTool::SynchronizationCallEnd();
+}
+
+
 timespec get_trx_start() {
     return TraceTool::get_instance()->trans_start;
 }
