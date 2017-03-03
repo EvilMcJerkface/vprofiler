@@ -6,6 +6,9 @@
 #include <sstream>
 #include <vector>
 #include <set>
+#include <thread>
+#include <mutex>
+#include <memory>
 
 using std::ifstream;
 using std::ofstream;
@@ -16,6 +19,8 @@ using std::endl;
 using std::string;
 using std::to_string;
 using std::set;
+using std::thread;
+using std::mutex;
 
 #define TARGET_PATH_COUNT 0
 #define NUMBER_OF_FUNCTIONS 0
@@ -100,6 +105,107 @@ public:
     /********************************************************************//**
     Record running time of a function. */
     void add_record(int function_index, long duration);
+};
+
+class FunctionLog {
+    public:
+        FunctionLog(unsigned int _semIntervalID):
+        semIntervalID(_semIntervalID) {
+            threadID = std::this_thread::get_id();
+        }
+
+        FunctionLog(unsigned int _semIntervalID, 
+                    timespec _functionStart,
+                    timespec _functionEnd): semIntervalID(_semIntervalID),
+                    functionStart(_functionStart), functionEnd(_functionEnd) {
+            threadID = std::this_thread::get_id();
+        }
+
+        void setFunctionStart(timespec val) {
+            functionStart = val;
+        }
+
+        void setFunctionEnd(timespec val) {
+            functionEnd = val;
+        }
+
+        friend std::ostream& operator<<(std::ostream &os, const FunctionLog &funcLog) {
+            os << funcLog.threadID << ',' << std::to_string(funcLog.semIntervalID) 
+               << ',' << (funcLog.functionStart.tv_sec * 1000000000) + funcLog.functionStart.tv_nsec << ',' 
+               << (funcLog.functionEnd.tv_sec * 1000000000) + funcLog.functionEnd.tv_nsec << '\n';
+
+            return os;
+        }
+
+    private:
+        std::thread::id threadID;
+        unsigned int semIntervalID;
+
+        timespec functionStart;
+        timespec functionEnd;
+};
+
+class OperationLog {
+    public:
+        OperationLog(const void* _obj, Operation _op):
+        semIntervalID(TraceTool::current_transaction_id), obj(_obj), op(_op) {
+            threadID = std::this_thread::get_id();
+        }
+
+        std::thread::id getThreadID() const {
+            return threadID;
+        }
+
+        unsigned int getSemIntervalID() {
+            return semIntervalID;
+        }
+
+        const void* getObj() {
+            return obj;
+        }
+
+        friend std::ostream& operator<<(std::ostream &os, const OperationLog &log) {
+            os << log.threadID << ',' << log.semIntervalID << ',' << log.obj 
+               << ',' << log.op << '\n';
+
+            return os;
+        }
+
+    private:
+        std::thread::id threadID;
+        unsigned int semIntervalID;
+        const void* obj;
+        Operation op;
+};
+
+class SynchronizationTraceTool {
+    public:
+        static void SynchronizationCallStart(Operation op, void* obj);
+
+        static void SynchronizationCallEnd();
+
+        ~SynchronizationTraceTool();
+
+    private:
+        static std::unique_ptr<SynchronizationTraceTool> instance;
+        static std::mutex singletonMutex;
+
+        static thread_local FunctionLog currFuncLog;
+
+        std::ofstream funcLogFile;
+        std::ofstream opLogFile;
+
+        std::vector<OperationLog> *opLogs;
+        std::vector<FunctionLog> *funcLogs;
+        static pthread_rwlock_t data_lock;      
+
+        static void maybeCreateInstance();
+
+        SynchronizationTraceTool();
+
+        static void writeLogWorker();
+        static void writeLogs(std::vector<OperationLog> *opLogs,
+                             std::vector<FunctionLog> *funcLogs);
 };
 
 TraceTool *TraceTool::instance = NULL;
@@ -396,3 +502,147 @@ void TraceTool::write_log() {
         write_latency("latency/");
     }
 }
+
+SynchronizationTraceTool::SynchronizationTraceTool() {
+    opLogs = new vector<OperationLog>;
+    funcLogs = new vector<FunctionLog>;
+
+    opLogs->reserve(1000000);
+    funcLogs->reserve(1000000);
+
+    opLogFile.open("latency/OperationLog.log");
+    funcLogFile.open("latency/SynchronizationTimeLog.log");
+
+    thread logWriter(writeLogWorker);
+    logWriter.detach();
+}
+
+SynchronizationTraceTool::~SynchronizationTraceTool() {
+    pthread_rwlock_rdlock(&data_lock);
+    
+    // opLogs and funcLogs are deleted in here.  Maybe move that
+    // functionality to a cleanup function.
+    writeLogs(instance->opLogs, instance->funcLogs);
+
+    pthread_rwlock_unlock(&data_lock);
+}
+
+void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj) {
+    if (instance == nullptr) {
+        maybeCreateInstance();
+    }
+
+    thread::id thisThreadID = std::this_thread::get_id();
+    
+    /*if (threadSemanticIntervals.find(thisThreadID) == threadSemanticIntervals.end()) {
+        threadSemanticIntrervals[thisThreadID] = nextSemanticIntervalID++;
+    }*/
+
+    pthread_rwlock_rdlock(&data_lock);
+    instance->opLogs->push_back(OperationLog(obj, op));
+    pthread_rwlock_unlock(&data_lock);
+
+    currFuncLog = FunctionLog(TraceTool::current_transaction_id);
+
+    timespec startTime;
+    clock_gettime(CLOCK_REALTIME, &startTime);
+
+    currFuncLog.setFunctionStart(startTime);
+}
+
+void SynchronizationTraceTool::SynchronizationCallEnd() {
+    timespec endTime;
+    clock_gettime(CLOCK_REALTIME, &endTime);
+    currFuncLog.setFunctionEnd(endTime);
+
+    pthread_rwlock_rdlock(&data_lock);
+    instance->funcLogs->push_back(currFuncLog);
+    pthread_rwlock_unlock(&data_lock);
+}
+
+void SynchronizationTraceTool::maybeCreateInstance() {
+    singletonMutex.lock();
+
+    if (instance == nullptr) {
+        instance = std::unique_ptr<SynchronizationTraceTool>(new SynchronizationTraceTool());
+    }
+
+    singletonMutex.unlock();
+}
+
+void SynchronizationTraceTool::writeLogWorker() {
+    // Loop forever writing logs
+    while (true) {
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        if (instance != nullptr) {
+            vector<OperationLog> *newOpLogs = new vector<OperationLog>;
+            vector<FunctionLog> *newFuncLogs = new vector<FunctionLog>;
+
+            // TODO TODO TODO experiment with this size!!!!
+            newOpLogs->reserve(instance->opLogs->size() * 4);
+            newFuncLogs->reserve(instance->funcLogs->size() * 4);
+
+            // Lock exclusively
+            pthread_rwlock_wrlock(&data_lock);
+
+            vector<OperationLog> *oldOpLogs = instance->opLogs;
+            vector<FunctionLog> *oldFuncLogs = instance->funcLogs;
+
+            instance->opLogs = newOpLogs;
+            instance->funcLogs = newFuncLogs;
+
+            pthread_rwlock_unlock(&data_lock);
+
+            writeLogs(oldOpLogs, oldFuncLogs);
+        }
+    }
+}
+
+void SynchronizationTraceTool::writeLogs(vector<OperationLog> *opLogs, 
+                                         vector<FunctionLog> *funcLogs) {
+    for (OperationLog &opLog : *opLogs) {
+        instance->opLogFile << opLog;
+    }
+
+    for (FunctionLog &funcLog : *funcLogs) {
+        instance->funcLogFile << funcLog;
+    }
+
+    delete opLogs;
+    delete funcLogs;
+}
+
+std::ostream& operator<<(std::ostream &os, const Operation &op) {
+    switch (op) {
+        case MUTEX_LOCK:
+            os << "ML";
+            break;
+        case MUTEX_UNLOCK:
+            os << "MU";
+            break;
+        case CV_WAIT:
+            os << "CVW";
+            break;
+        case CV_BROADCAST:
+            os << "CVB";
+            break;
+        case CV_SIGNAL:
+            os << "CVS";
+            break;
+        case QUEUE_ENQUEUE:
+            os << "QE";
+            break;
+        case QUEUE_DEQUEUE:
+            os << "QD";
+            break;
+        case MESSAGE_SEND:
+            os << "MS";
+            break;
+        case MESSAGE_RECEIVE:
+            os << "MR";
+            break;
+    }
+
+    return os;
+}
+
