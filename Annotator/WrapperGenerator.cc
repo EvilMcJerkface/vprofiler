@@ -40,13 +40,14 @@ void WrapperGenerator::GenerateHeader() {
     for (string &includeName : includeNames) {
         headerFile << "#include \"" + includeName + "\"\n";
     }
-    headerFile << "#include \"trace_tool.h\"\n\n";
+    headerFile << "#include \"trace_tool.h\"\n\n"
+                  "#ifdef __cplusplus\nextern \"C\" {\n#endif";
 
     for (auto kv : *prototypeMap) {
         headerFile << kv.second.functionPrototype + ";\n\n";
     }
 
-    headerFile << "#endif";
+    headerFile << "$ifdef __cplusplus\n}\n#endif\n\n#endif";
 
     headerFile.close();
 }
