@@ -36,6 +36,7 @@ vector<string> WrapperGenerator::getFilenames() {
 
 void WrapperGenerator::GenerateHeader() {
     vector<string> includeNames = getFilenames();
+    headerFile << "#ifndef VPROFEVENTWRAPPERS_H\n#define VPROFEVENTWRAPPERS_H\n";
     for (string &includeName : includeNames) {
         headerFile << "#include \"" + includeName + "\"\n";
     }
@@ -44,6 +45,8 @@ void WrapperGenerator::GenerateHeader() {
     for (auto kv : *prototypeMap) {
         headerFile << kv.second.functionPrototype + ";\n\n";
     }
+
+    headerFile << "#endif";
 
     headerFile.close();
 }
