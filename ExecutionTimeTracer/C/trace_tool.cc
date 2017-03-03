@@ -223,6 +223,13 @@ __thread timespec TraceTool::trans_start;
 bool TraceTool::should_shutdown = false;
 pthread_t TraceTool::back_thread;
 
+thread_local FunctionLog SynchronizationTraceTool::currFuncLog = FunctionLog();
+__thread bool SynchronizationTraceTool::funcLogInitialized;
+
+unique_ptr<SynchronizationTraceTool> SynchronizationTraceTool::instance = nullptr;
+mutex SynchronizationTraceTool::singletonMutex;
+pthread_rwlock_t SynchronizationTraceTool::data_lock = PTHREAD_RWLOCK_INITIALIZER;
+
 /* Define MONITOR if needs to trace running time of functions. */
 #ifdef MONITOR
 static __thread timespec function_start;
