@@ -346,7 +346,7 @@ int TRACE_END(int index) {
     return 0;
 }
 
-void SYNCHRONIZATION_CALL_START(int op, void* obj) {
+void SYNCHRONIZATION_CALL_START(Operation op, void* obj) {
     SynchronizationTraceTool::SynchronizationCallStart(static_cast<Operation>(op), obj);
 }
 
