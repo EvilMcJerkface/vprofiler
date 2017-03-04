@@ -199,6 +199,9 @@ class SynchronizationTraceTool {
         std::vector<FunctionLog> *funcLogs;
         static pthread_rwlock_t data_lock;      
 
+        std::thread writerThread;
+        bool doneWriting;
+
         static void maybeCreateInstance();
 
         SynchronizationTraceTool();
@@ -522,6 +525,7 @@ void TraceTool::write_log() {
 SynchronizationTraceTool::SynchronizationTraceTool() {
     opLogs = new vector<OperationLog>;
     funcLogs = new vector<FunctionLog>;
+    doneWriting = false;
 
     opLogs->reserve(1000000);
     funcLogs->reserve(1000000);
@@ -529,8 +533,7 @@ SynchronizationTraceTool::SynchronizationTraceTool() {
     opLogFile.open("latency/OperationLog.log");
     funcLogFile.open("latency/SynchronizationTimeLog.log");
 
-    thread logWriter(writeLogWorker);
-    logWriter.detach();
+    writerThread = thread(writeLogWorker);
 }
 
 SynchronizationTraceTool::~SynchronizationTraceTool() {
@@ -539,8 +542,11 @@ SynchronizationTraceTool::~SynchronizationTraceTool() {
     // opLogs and funcLogs are deleted in here.  Maybe move that
     // functionality to a cleanup function.
     writeLogs(instance->opLogs, instance->funcLogs);
+    doneWriting = true;
 
     pthread_rwlock_unlock(&data_lock);
+
+    writerThread.join();
 }
 
 void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj) {
@@ -587,8 +593,10 @@ void SynchronizationTraceTool::maybeCreateInstance() {
 }
 
 void SynchronizationTraceTool::writeLogWorker() {
+    bool stopLogging = false;
+
     // Loop forever writing logs
-    while (true) {
+    while (!stopLogging) {
         std::this_thread::sleep_for(std::chrono::seconds(5));
         if (instance != nullptr) {
             vector<OperationLog> *newOpLogs = new vector<OperationLog>;
@@ -606,6 +614,10 @@ void SynchronizationTraceTool::writeLogWorker() {
 
             instance->opLogs = newOpLogs;
             instance->funcLogs = newFuncLogs;
+
+            if (instance->doneWriting) {
+                stopLogging = true;
+            }
 
             pthread_rwlock_unlock(&data_lock);
 

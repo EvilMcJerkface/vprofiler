@@ -282,6 +282,9 @@ class SynchronizationTraceTool {
         std::vector<FunctionLog> *funcLogs;
         static pthread_rwlock_t data_lock;      
 
+        std::thread writerThread;
+        bool doneWriting;
+
         static void maybeCreateInstance();
 
         SynchronizationTraceTool();
