@@ -79,6 +79,9 @@ typedef enum transaction_type transaction_type;
 // too much overhead, change this.
 class FunctionLog {
     public:
+        FunctionLog():
+        semIntervalID(-1), threadID(std::thread::id()) {}
+
         FunctionLog(unsigned int _semIntervalID):
         semIntervalID(_semIntervalID) {
             threadID = std::this_thread::get_id();
