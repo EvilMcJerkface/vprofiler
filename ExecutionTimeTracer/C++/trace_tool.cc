@@ -455,8 +455,8 @@ SynchronizationTraceTool::SynchronizationTraceTool() {
     opLogs->reserve(1000000);
     funcLogs->reserve(1000000);
 
-    opLogFile.open("latency/OperationLog.log");
-    funcLogFile.open("latency/SynchronizationTimeLog.log");
+    opLogFile.open("latency/OperationLog.log", ios_base::app);
+    funcLogFile.open("latency/SynchronizationTimeLog.log", ios_base::app);
 
     writerThread = thread(writeLogWorker);
 }

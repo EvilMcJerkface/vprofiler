@@ -3,12 +3,14 @@ from collections import deque
 from intervaltree import IntervalTree
 from RequestTracker import RequestTracker
 from SynchronizationObjectAggregator import SynchronizationObjectAggregator
+from pdb import set_trace
 
 # TODO need to add support for try_locks
 # TODO need to add support for state transitions like the following for thread1
 # executing semanticID1 -> executing semanticID2 -> executing semanticID1
 class CriticalPathBuilder:
     def __init__(self, filename):
+        set_trace()
         self.synchObjAgg = SynchronizationObjectAggregator()
         self.requestTracker = RequestTracker()
         self.blockedEdgeStack = deque()
@@ -19,6 +21,8 @@ class CriticalPathBuilder:
             self.requestTracker.AddLogRow(row)
             self.synchObjAgg.AddLogRow(row)
 
+        set_trace()
+
 
     def __BuildHelper(self, segmentEndTime, currThreadID, timeSeries):
         opType, requestTime, objID = requestTracker.FindPrecedingRequest(currThreadID, segmentEndTime)
@@ -26,14 +30,14 @@ class CriticalPathBuilder:
         unblockedSegment = -1
         i = 0
         for potentialBlockedEdge in self.blockedEdgeStack:
-            if lastBlockingRequest.endTime <= potentialBlockedEdge[0]:
+            if requestTime.endTime <= potentialBlockedEdge[0]:
                 unblockedSegment = i
 
             i += 1
 
         leftTimeBound = None
         nextThreadID = None
-        # We have a blocked-by edge
+        # This thread was blocking a thread earlier in the critical path.
         if unblockedSegment != -1:
             leftTimeBound = self.blockedEdgeStack[unblockedSegment][0]
             timeSeries.appendleft((currThreadID, leftTimeBound, segmentEndTime))
@@ -49,8 +53,8 @@ class CriticalPathBuilder:
 
         # We're blocked by some other thread
         else:
-            self.blockedEdgeStack.appendleft((lastBlockingRequest.startTime, currThreadID))
-            timeSeries.appendleft((currThreadID, lastBlockingRequest.endTime, segmentEndTime))
+            self.blockedEdgeStack.appendleft(requestTime.startTime, currThreadID))
+            timeSeries.appendleft((currThreadID, requestTime.endTime, segmentEndTime))
 
             leftTimeBound, nextThreadID = self.synchObjAgg.GetDependenceEdge(requestTime, objID, opType)
 

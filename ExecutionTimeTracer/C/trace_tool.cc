@@ -109,6 +109,9 @@ public:
 
 class FunctionLog {
     public:
+        FunctionLog():
+        semIntervalID(-1), threadID(std::thread::id()) {}
+
         FunctionLog(unsigned int _semIntervalID):
         semIntervalID(_semIntervalID) {
             threadID = std::this_thread::get_id();
@@ -232,7 +235,7 @@ pthread_t TraceTool::back_thread;
 thread_local OperationLog SynchronizationTraceTool::currOpLog;
 thread_local FunctionLog SynchronizationTraceTool::currFuncLog = FunctionLog();
 
-unique_ptr<SynchronizationTraceTool> SynchronizationTraceTool::instance = nullptr;
+std::unique_ptr<SynchronizationTraceTool> SynchronizationTraceTool::instance = nullptr;
 mutex SynchronizationTraceTool::singletonMutex;
 pthread_rwlock_t SynchronizationTraceTool::data_lock = PTHREAD_RWLOCK_INITIALIZER;
 
@@ -347,7 +350,7 @@ int TRACE_END(int index) {
     return 0;
 }
 
-void SYNCHRONIZATION_CALL_START(int op, void* obj) {
+void SYNCHRONIZATION_CALL_START(Operation op, void* obj) {
     SynchronizationTraceTool::SynchronizationCallStart(static_cast<Operation>(op), obj);
 }
 
@@ -533,8 +536,8 @@ SynchronizationTraceTool::SynchronizationTraceTool() {
     opLogs->reserve(1000000);
     funcLogs->reserve(1000000);
 
-    opLogFile.open("latency/OperationLog.log");
-    funcLogFile.open("latency/SynchronizationTimeLog.log");
+    opLogFile.open("latency/OperationLog.log", ios_base::app);
+    funcLogFile.open("latency/SynchronizationTimeLog.log", ios_base::app);
 
     writerThread = thread(writeLogWorker);
 }

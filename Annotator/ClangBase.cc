@@ -1,4 +1,5 @@
 #include "ClangBase.h"
+#include <iostream>
 
 using namespace clang;
 
@@ -165,8 +166,10 @@ VProfVisitor::VProfVisitor(clang::CompilerInstance &ci,
 // TODO put some exception in here if write fails
 VProfASTConsumer::~VProfASTConsumer() {
     if (*shouldFlush) {
-        std::string other = filename;
-        other.insert(other.find("."), "_orig");
+        //std::string other = "/home/jiamin/apache_copies/" + filename;
+        
+        // Leave these out for now. TODO take out or leave in.
+        //other.insert(other.find("."), "_orig");
         filename.insert(filename.find("."), "_vprof");
 
         std::error_code OutErrInfo;
@@ -176,13 +179,13 @@ VProfASTConsumer::~VProfASTConsumer() {
                                         OutErrInfo, llvm::sys::fs::F_None); 
 
         if (OutErrInfo == ok) {
-            auto srcMgr = &rewriter->getSourceMgr();
-            llvm::raw_fd_ostream origFile(llvm::StringRef(other), 
-                                            OutErrInfo, llvm::sys::fs::F_None); 
-            auto origBuf = srcMgr->getBuffer(srcMgr->getMainFileID())->getBuffer();
+            //auto srcMgr = &rewriter->getSourceMgr();
+            //llvm::raw_fd_ostream origFile(llvm::StringRef(other), 
+            //                                OutErrInfo, llvm::sys::fs::F_None); 
+            //auto origBuf = srcMgr->getBuffer(srcMgr->getMainFileID())->getBuffer();
             const RewriteBuffer *RewriteBuf = rewriter->getRewriteBufferFor(fileID);
 
-            origFile << std::string(origBuf.begin(), origBuf.end());
+            //origFile << std::string(origBuf.begin(), origBuf.end());
             outputFile << "// VProfiler included header\n#include \"VProfEventWrappers.h\"\n\n";
             outputFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
         }

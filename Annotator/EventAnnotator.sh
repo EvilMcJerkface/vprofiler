@@ -25,3 +25,4 @@ fi
 
 cp EventAnnotator $CLANG_BIN_DIR
 ${CLANG_BIN_DIR}/EventAnnotator "$@"
+python replace_files.py
