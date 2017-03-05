@@ -34,7 +34,6 @@ ulint transaction_id = 0;
 TraceTool *TraceTool::instance = NULL;
 pthread_mutex_t TraceTool::instance_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_rwlock_t TraceTool::data_lock = PTHREAD_RWLOCK_INITIALIZER;
-pthread_rwlock_t SynchronizationTraceTool::data_lock = PTHREAD_RWLOCK_INITIALIZER;
 __thread ulint TraceTool::current_transaction_id = 0;
 
 timespec TraceTool::global_last_query;
@@ -49,6 +48,10 @@ __thread transaction_type TraceTool::type = NONE;
 
 unique_ptr<SynchronizationTraceTool> SynchronizationTraceTool::instance = nullptr;
 mutex SynchronizationTraceTool::singletonMutex;
+
+thread_local OperationLog SynchronizationTraceTool::currOpLog;
+thread_local FunctionLog SynchronizationTraceTool::currFuncLog;
+std::mutex SynchronizationTraceTool::dataMutex;
 
 static const size_t NEW_ORDER_LENGTH = strlen(NEW_ORDER_MARKER);
 static const size_t PAYMENT_LENGTH = strlen(PAYMENT_MARKER);
@@ -467,9 +470,9 @@ SynchronizationTraceTool::~SynchronizationTraceTool() {
     // functionality to a cleanup function.
     writeLogs(instance->opLogs, instance->funcLogs);
 
-    pthread_rwlock_wrlock(&data_lock);
+    dataMutex.lock();
     doneWriting = true;
-    pthread_rwlock_unlock(&data_lock);
+    dataMutex.unlock();
 
     writerThread.join();
 }
@@ -479,16 +482,7 @@ void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj)
         maybeCreateInstance();
     }
 
-    thread::id thisThreadID = this_thread::get_id();
-    
-    /*if (threadSemanticIntervals.find(thisThreadID) == threadSemanticIntervals.end()) {
-        threadSemanticIntrervals[thisThreadID] = nextSemanticIntervalID++;
-    }*/
-
-    pthread_rwlock_rdlock(&data_lock);
-    instance->opLogs->push_back(OperationLog(obj, op));
-    pthread_rwlock_unlock(&data_lock);
-
+    currOpLog = OperationLog(obj, op);
     currFuncLog = FunctionLog(TraceTool::current_transaction_id);
 
     timespec startTime;
@@ -502,9 +496,10 @@ void SynchronizationTraceTool::SynchronizationCallEnd() {
     clock_gettime(CLOCK_REALTIME, &endTime);
     currFuncLog.setFunctionEnd(endTime);
 
-    pthread_rwlock_rdlock(&data_lock);
+    dataMutex.lock();
+    instance->opLogs->push_back(currOpLog);
     instance->funcLogs->push_back(currFuncLog);
-    pthread_rwlock_unlock(&data_lock);
+    dataMutex.unlock();
 }
 
 void SynchronizationTraceTool::maybeCreateInstance() {
@@ -531,8 +526,7 @@ void SynchronizationTraceTool::writeLogWorker() {
             newOpLogs->reserve(instance->opLogs->size() * 4);
             newFuncLogs->reserve(instance->funcLogs->size() * 4);
 
-            // Lock exclusively
-            pthread_rwlock_wrlock(&data_lock);
+            dataMutex.lock();
 
             vector<OperationLog> *oldOpLogs = instance->opLogs;
             vector<FunctionLog> *oldFuncLogs = instance->funcLogs;
@@ -544,7 +538,7 @@ void SynchronizationTraceTool::writeLogWorker() {
                 stopLogging = true;
             }
 
-            pthread_rwlock_unlock(&data_lock);
+            dataMutex.unlock();
 
             writeLogs(oldOpLogs, oldFuncLogs);
         }

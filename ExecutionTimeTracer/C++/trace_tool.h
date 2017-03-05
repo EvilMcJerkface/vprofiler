@@ -230,6 +230,9 @@ enum Operation  { MUTEX_LOCK,
 
 class OperationLog {
     public:
+        OperationLog(): 
+        semIntervalID(-1), obj(nullptr), op(MUTEX_LOCK), threadID(std::thread::id()) {}
+
         OperationLog(const void* _obj, Operation _op):
         semIntervalID(TraceTool::current_transaction_id), obj(_obj), op(_op) {
             threadID = std::this_thread::get_id();
@@ -274,13 +277,14 @@ class SynchronizationTraceTool {
         static std::mutex singletonMutex;
 
         static thread_local FunctionLog currFuncLog;
+        static thread_local OperationLog currOpLog;
 
         std::ofstream funcLogFile;
         std::ofstream opLogFile;
 
         std::vector<OperationLog> *opLogs;
         std::vector<FunctionLog> *funcLogs;
-        static pthread_rwlock_t data_lock;      
+        static std::mutex dataMutex;
 
         std::thread writerThread;
         bool doneWriting;

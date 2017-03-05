@@ -203,7 +203,7 @@ class SynchronizationTraceTool {
 
         std::vector<OperationLog> *opLogs;
         std::vector<FunctionLog> *funcLogs;
-        std::mutex dataMutex;
+        static std::mutex dataMutex;
 
         std::thread writerThread;
         bool doneWriting;
@@ -233,11 +233,11 @@ bool TraceTool::should_shutdown = false;
 pthread_t TraceTool::back_thread;
 
 thread_local OperationLog SynchronizationTraceTool::currOpLog;
-thread_local FunctionLog SynchronizationTraceTool::currFuncLog = FunctionLog();
+thread_local FunctionLog SynchronizationTraceTool::currFuncLog;
+std::mutex SynchronizationTraceTool::dataMutex;
 
 std::unique_ptr<SynchronizationTraceTool> SynchronizationTraceTool::instance = nullptr;
 mutex SynchronizationTraceTool::singletonMutex;
-pthread_rwlock_t SynchronizationTraceTool::data_lock = PTHREAD_RWLOCK_INITIALIZER;
 
 /* Define MONITOR if needs to trace running time of functions. */
 #ifdef MONITOR
@@ -536,8 +536,8 @@ SynchronizationTraceTool::SynchronizationTraceTool() {
     opLogs->reserve(1000000);
     funcLogs->reserve(1000000);
 
-    opLogFile.open("latency/OperationLog.log", ios_base::app);
-    funcLogFile.open("latency/SynchronizationTimeLog.log", ios_base::app);
+    opLogFile.open("latency/OperationLog.log", std::ios_base::app);
+    funcLogFile.open("latency/SynchronizationTimeLog.log", std::ios_base::app);
 
     writerThread = thread(writeLogWorker);
 }
@@ -609,7 +609,7 @@ void SynchronizationTraceTool::writeLogWorker() {
             newOpLogs->reserve(instance->opLogs->size() * 4);
             newFuncLogs->reserve(instance->funcLogs->size() * 4);
 
-            dataMutex.lock()
+            dataMutex.lock();
 
             vector<OperationLog> *oldOpLogs = instance->opLogs;
             vector<FunctionLog> *oldFuncLogs = instance->funcLogs;
