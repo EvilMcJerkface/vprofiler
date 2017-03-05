@@ -1,6 +1,7 @@
 from datetime import datetime
 from bisect import bisect_left
 from OperationEnum import Operation
+from pdb import set_trace
 
 class ThreadRequests:
     def __init__(self, val):
@@ -24,7 +25,8 @@ class RequestTracker:
                                 Operation.QUEUE_DEQUEUE, Operation.MESSAGE_RECEIVE]
 
     # Don't do anything if this is not a request for some type of object
-    def AddLogRow(self, ):
+    def AddLogRow(self, row):
+        set_trace()
         opID = int(row[0])
         if opID in self.allowedRequests:
             requestTimeEnd = datetime.fromtimestamp(int(row[4]) / 1e9)

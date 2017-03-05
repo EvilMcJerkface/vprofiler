@@ -35,15 +35,14 @@ def l2norm(nums):
 
 def collect_exec_time(function_file, path):
     """ Read function execution time data from file """
-    os.chdir(path)
-    functions = open(function_file, 'r')
+    functions = open(path + function_file, 'r')
     functions.readline()
     function_names = [function.strip() for function in functions]
     function_names.insert(0, function_file)
     function_names.append('latency')
 
     latencyAggregator = LatencyAggregator("synch")
-    function_exec_time = latencyAggregator.GetLatencies("tpcc", len(function_names))
+    function_exec_time = latencyAggregator.GetLatencies("SynchronizationTimeLog.log", len(function_names))
 #    function_exec_time = []
 #    function_exec_time_file = open('tpcc', 'r')
 #    current_function_index = -1

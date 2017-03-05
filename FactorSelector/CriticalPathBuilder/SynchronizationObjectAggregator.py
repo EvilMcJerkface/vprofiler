@@ -1,5 +1,5 @@
 from datetime import datetime
-from OperationsEnum import Operation
+from OperationEnum import Operation
 
 class SynchronizationObjectAggregator:
     def __init__(self):
@@ -20,8 +20,8 @@ class SynchronizationObjectAggregator:
             # ownership of an object and it's the first thread to own the object.
             if objID not in self.objectMap:
                 self.objectMap[objID] = OwnableObject()
-            elif opID == Operation.MUTEX_UNLOCK or
-                 opID == Operation.CV_BROADCAST or
+            elif opID == Operation.MUTEX_UNLOCK or \
+                 opID == Operation.CV_BROADCAST or \
                  opID == Operation.CV_SIGNAL:
                 self.objectMap[objID].SetLatestOwnershipEndTime(operationTimeEnd)
             else:

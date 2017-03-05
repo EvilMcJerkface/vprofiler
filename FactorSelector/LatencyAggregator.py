@@ -1,5 +1,7 @@
 import csv
+import sys
 
+sys.path.append('CriticalPathBuilder/')
 from CriticalPathBuilder import CriticalPathBuilder
 
 class FunctionRecord:
