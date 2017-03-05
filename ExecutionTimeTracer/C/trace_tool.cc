@@ -147,10 +147,12 @@ class FunctionLog {
 
 class OperationLog {
     public:
+        OperationLog(): 
+        semIntervalID(-1), obj(nullptr), op(MUTEX_LOCK), threadID(std::thread::id()) {}
+
         OperationLog(const void* _obj, Operation _op):
-        semIntervalID(TraceTool::current_transaction_id), obj(_obj), op(_op) {
-            threadID = std::this_thread::get_id();
-        }
+        semIntervalID(TraceTool::current_transaction_id), obj(_obj), 
+        op(_op), threadID(std::this_thread::get_id()) {}
 
         std::thread::id getThreadID() const {
             return threadID;
@@ -191,13 +193,14 @@ class SynchronizationTraceTool {
         static std::mutex singletonMutex;
 
         static thread_local FunctionLog currFuncLog;
+        static thread_local OperationLog currOpLog;
 
         std::ofstream funcLogFile;
         std::ofstream opLogFile;
 
         std::vector<OperationLog> *opLogs;
         std::vector<FunctionLog> *funcLogs;
-        static pthread_rwlock_t data_lock;      
+        std::mutex dataMutex;
 
         std::thread writerThread;
         bool doneWriting;
@@ -226,8 +229,8 @@ __thread timespec TraceTool::trans_start;
 bool TraceTool::should_shutdown = false;
 pthread_t TraceTool::back_thread;
 
+thread_local OperationLog SynchronizationTraceTool::currOpLog;
 thread_local FunctionLog SynchronizationTraceTool::currFuncLog = FunctionLog();
-__thread bool SynchronizationTraceTool::funcLogInitialized;
 
 unique_ptr<SynchronizationTraceTool> SynchronizationTraceTool::instance = nullptr;
 mutex SynchronizationTraceTool::singletonMutex;
@@ -537,14 +540,13 @@ SynchronizationTraceTool::SynchronizationTraceTool() {
 }
 
 SynchronizationTraceTool::~SynchronizationTraceTool() {
-    pthread_rwlock_rdlock(&data_lock);
-    
     // opLogs and funcLogs are deleted in here.  Maybe move that
     // functionality to a cleanup function.
     writeLogs(instance->opLogs, instance->funcLogs);
+    
+    dataMutex.lock();
     doneWriting = true;
-
-    pthread_rwlock_unlock(&data_lock);
+    dataMutex.unlock();
 
     writerThread.join();
 }
@@ -560,10 +562,7 @@ void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj)
         threadSemanticIntrervals[thisThreadID] = nextSemanticIntervalID++;
     }*/
 
-    pthread_rwlock_rdlock(&data_lock);
-    instance->opLogs->push_back(OperationLog(obj, op));
-    pthread_rwlock_unlock(&data_lock);
-
+    currOpLog = OperationLog(obj, op);
     currFuncLog = FunctionLog(TraceTool::current_transaction_id);
 
     timespec startTime;
@@ -577,9 +576,10 @@ void SynchronizationTraceTool::SynchronizationCallEnd() {
     clock_gettime(CLOCK_REALTIME, &endTime);
     currFuncLog.setFunctionEnd(endTime);
 
-    pthread_rwlock_rdlock(&data_lock);
+    dataMutex.lock();
     instance->funcLogs->push_back(currFuncLog);
-    pthread_rwlock_unlock(&data_lock);
+    instance->opLogs->push_back(currOpLog);
+    dataMutex.unlock();
 }
 
 void SynchronizationTraceTool::maybeCreateInstance() {
@@ -606,8 +606,7 @@ void SynchronizationTraceTool::writeLogWorker() {
             newOpLogs->reserve(instance->opLogs->size() * 4);
             newFuncLogs->reserve(instance->funcLogs->size() * 4);
 
-            // Lock exclusively
-            pthread_rwlock_wrlock(&data_lock);
+            dataMutex.lock()
 
             vector<OperationLog> *oldOpLogs = instance->opLogs;
             vector<FunctionLog> *oldFuncLogs = instance->funcLogs;
@@ -619,7 +618,7 @@ void SynchronizationTraceTool::writeLogWorker() {
                 stopLogging = true;
             }
 
-            pthread_rwlock_unlock(&data_lock);
+            dataMutex.unlock();
 
             writeLogs(oldOpLogs, oldFuncLogs);
         }

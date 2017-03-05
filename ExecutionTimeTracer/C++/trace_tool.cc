@@ -462,13 +462,13 @@ SynchronizationTraceTool::SynchronizationTraceTool() {
 }
 
 SynchronizationTraceTool::~SynchronizationTraceTool() {
-    pthread_rwlock_rdlock(&data_lock);
     
     // opLogs and funcLogs are deleted in here.  Maybe move that
     // functionality to a cleanup function.
     writeLogs(instance->opLogs, instance->funcLogs);
-    doneWriting = true;
 
+    pthread_rwlock_wrlock(&data_lock);
+    doneWriting = true;
     pthread_rwlock_unlock(&data_lock);
 
     writerThread.join();
