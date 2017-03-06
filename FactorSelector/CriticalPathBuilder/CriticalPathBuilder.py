@@ -9,17 +9,30 @@ from pdb import set_trace
 # TODO need to add support for state transitions like the following for thread1
 # executing semanticID1 -> executing semanticID2 -> executing semanticID1
 class CriticalPathBuilder:
-    def __init__(self, filename):
+    def __init__(self, synchroOpLogName, synchroFxnTimeLogName):
         set_trace()
         self.synchObjAgg = SynchronizationObjectAggregator()
         self.requestTracker = RequestTracker()
         self.blockedEdgeStack = deque()
 
-        synchronizationLogReader = reader(filename)
+        # Error if we can't open this or the next file.
+        with open(synchroOpLogName, 'rb') as synchroOpLogFile:
+            synchroOpLogReader = reader(synchroOpLogFile)
 
-        for row in synchronizationLogReader:
-            self.requestTracker.AddLogRow(row)
-            self.synchObjAgg.AddLogRow(row)
+            for operation in synchroOpLogReader:
+                self.requestTracker.AddOperation(operation)
+
+        with open(synchroFxnTimeLogName, 'rb') as synchroFxnTimeFile:
+            synchroFxnTimeReader = reader(synchroFxnTimeFile)
+
+            for functionTime in synchroFxnTimeReader:
+                self.requestTracker.AddFunctionTime(functionTime)
+
+                threadID = functionTime[2]
+                self.synchObjAgg.AddOperation(threadID, \
+                self.requestTracker.GetLastAddedOperationForTID(threadID))
+
+        self.requestTracker.InitSynchroAgg(self.synchObjAgg)
 
         set_trace()
 

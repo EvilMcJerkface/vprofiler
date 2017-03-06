@@ -565,7 +565,9 @@ void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj)
         threadSemanticIntrervals[thisThreadID] = nextSemanticIntervalID++;
     }*/
 
-    currOpLog = OperationLog(obj, op);
+    dataMutex.lock();
+    instance->opLogs->push_back(currOpLog);
+    dataMutex.unlock();
     currFuncLog = FunctionLog(TraceTool::current_transaction_id);
 
     timespec startTime;
@@ -580,7 +582,6 @@ void SynchronizationTraceTool::SynchronizationCallEnd() {
     currFuncLog.setFunctionEnd(endTime);
 
     dataMutex.lock();
-    instance->funcLogs->push_back(currFuncLog);
     instance->opLogs->push_back(currOpLog);
     dataMutex.unlock();
 }

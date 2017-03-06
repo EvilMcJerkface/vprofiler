@@ -11,7 +11,7 @@ class FunctionRecord:
         self.threadID = threadID
 
 class LatencyAggregator:
-    def __init__(self, synchronizationLogName):
+    def __init__(self, synchroOpLogName, synchroFxnTimeLogName):
         # This will, at the end of execution, be a 2D with the first dimension
         # mapping to a function, and the second being a list of latencies.
         # Then, effectively, the list is a map of
@@ -27,7 +27,7 @@ class LatencyAggregator:
         self.semanticIntervalFunctionInstances = {}
 
         # Driver for building critical paths
-        self.criticalPathBuilder = CriticalPathBuilder(synchronizationLogName)
+        self.criticalPathBuilder = CriticalPathBuilder(synchroOpLogName, synchroFxnTimeLogName)
 
     def __Parse(self, filename, numFunctions):
         with open(filename, 'rb') as latencyLogFile:

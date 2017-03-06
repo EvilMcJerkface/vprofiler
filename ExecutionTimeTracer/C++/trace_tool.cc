@@ -482,7 +482,10 @@ void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj)
         maybeCreateInstance();
     }
 
-    currOpLog = OperationLog(obj, op);
+    dataMutex.lock();
+    instance->opLogs->push_back(OperationLog(obj, op));
+    dataMutex.unlock();
+
     currFuncLog = FunctionLog(TraceTool::current_transaction_id);
 
     timespec startTime;
