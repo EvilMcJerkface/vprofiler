@@ -15,13 +15,14 @@ class CriticalPathBuilder:
         self.requestTracker = RequestTracker()
         self.blockedEdgeStack = deque()
 
-        synchronizationLogReader = reader(filename)
+        with open(filename, 'rb') as synchroObjReqsFile:
+            synchroObjReqsReader = reader(synchroObjReqsFile)
 
-        for row in synchronizationLogReader:
-            self.requestTracker.AddLogRow(row)
-            self.synchObjAgg.AddLogRow(row)
+            for row in synchroObjReqsReader:
+                self.requestTracker.AddLogRow(row)
+                self.synchObjAgg.AddLogRow(row)
 
-        set_trace()
+            set_trace()
 
 
     def __BuildHelper(self, segmentEndTime, currThreadID, timeSeries):
@@ -53,7 +54,7 @@ class CriticalPathBuilder:
 
         # We're blocked by some other thread
         else:
-            self.blockedEdgeStack.appendleft(requestTime.startTime, currThreadID))
+            self.blockedEdgeStack.appendleft(requestTime.startTime, currThreadID)
             timeSeries.appendleft((currThreadID, requestTime.endTime, segmentEndTime))
 
             leftTimeBound, nextThreadID = self.synchObjAgg.GetDependenceEdge(requestTime, objID, opType)

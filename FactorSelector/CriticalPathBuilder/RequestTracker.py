@@ -27,13 +27,13 @@ class RequestTracker:
     # Don't do anything if this is not a request for some type of object
     def AddLogRow(self, row):
         set_trace()
-        opID = int(row[0])
+        opID = int(row[3])
         if opID in self.allowedRequests:
             requestTimeEnd = datetime.fromtimestamp(int(row[4]) / 1e9)
-            objID = row[1]
+            objID = row[2]
             toInsert = (opID, requestTimeEnd, objID)
 
-            threadID = row[2]
+            threadID = row[1]
             if threadID not in self.threadRequests:
                 self.threadRequests[threadID] = ThreadRequests(toInsert)
             else:
