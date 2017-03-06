@@ -7,12 +7,11 @@ class SynchronizationObjectAggregator:
 
         self.messages = {}
 
-    def AddLogRow(self, row):
-        opID = int(row[0])
-        objID = row[1]
-        threadID = row[2]
-        operationTimeStart = datetime.fromtimestamp(int(row[3]) / 1e9)
-        operationTimeEnd = datetime.fromtimestamp(int(row[4]) / 1e9)
+    def AddOperation(self, threadID, operation):
+        opID = operation.opID
+        objID = operation.objID
+        operationTimeStart = operation.timeStart
+        operationTimeEnd = operation.timeEnd
 
         # These values represent mutexes and condition variables
         if opID <= 4:
