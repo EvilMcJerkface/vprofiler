@@ -1,4 +1,4 @@
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 
 # Abstract base class for synchronization objects
 class SynchronizationObject:
@@ -42,8 +42,8 @@ class OwnableObject(SynchronizationObject):
 
     def RegisterObjectAcquisitionRequest(self, timestamp):
         if len(self.ownershipTimeSeries) > 0:
-            if self.ownershipTimeSeries[-1].startTime <= timestamp and
-              (self.ownershipTimeSeries[-1].endTime == None or
+            if self.ownershipTimeSeries[-1].startTime <= timestamp and \
+              (self.ownershipTimeSeries[-1].endTime == None or \
                timestamp <= self.ownershipTimeSeries[-1].endTime):
                   self.ownershipTimeSeries[-1].otherThreadTriedToAcquire = True
 

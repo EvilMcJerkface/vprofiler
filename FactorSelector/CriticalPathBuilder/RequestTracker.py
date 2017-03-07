@@ -54,7 +54,7 @@ class RequestTracker:
 
     # Don't do anything if this is not a request for some type of object
     def AddOperation(self, operation):
-        opID = int(operation[3])
+        opID = Operation(int(operation[3]))
         if opID in self.allowedRequests:
             objID = operation[2]
             toInsert = Request(objID, opID)
@@ -66,21 +66,25 @@ class RequestTracker:
             else:
                 self.threadRequests[threadID].requests.append(toInsert)
 
-    def AddFuntionTime(self, funcTime):
+    def AddFunctionTime(self, funcTime):
         threadID = funcTime[0]
-        startTime = np.datetime64(funcTime[1], 'ns')
-        endTime = np.datetime64(funcTime[2], 'ns')
+
+        # Index 1 is the semantic interval ID.  Don't actually think this is 
+        # necessary.
+
+        startTime = np.datetime64(funcTime[2], 'ns')
+        endTime = np.datetime64(funcTime[3], 'ns')
 
         self.threadRequests[threadID].AddFunctionTime(startTime, endTime)
 
     def InitSynchObjAgg(self, objAggregator):
-        for threadID, threadRequests:
+        for threadID, threadRequests in self.threadRequests.items():
             for request in threadRequests.requests:
-                objAggregator.AddOwnership(threadID, request.opID, request.objID \
+                objAggregator.AddOwnership(threadID, request.opID, request.objID, \
                                            request.timeStart, request.timeEnd)
 
     def GetLastAddedOperationForTID(self, threadID):
-        idx = self.threadRequests[threadID].timeTrackIdx
+        idx = self.threadRequests[threadID].timeTrackIdx - 1
         return self.threadRequests[threadID].requests[idx]
 
     def FindPrecedingRequest(self, threadID, timestamp):

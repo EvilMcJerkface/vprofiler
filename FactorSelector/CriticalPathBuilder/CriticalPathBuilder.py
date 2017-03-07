@@ -10,7 +10,6 @@ from pdb import set_trace
 # executing semanticID1 -> executing semanticID2 -> executing semanticID1
 class CriticalPathBuilder:
     def __init__(self, synchroOpLogName, synchroFxnTimeLogName):
-        set_trace()
         self.synchObjAgg = SynchronizationObjectAggregator()
         self.requestTracker = RequestTracker()
         self.blockedEdgeStack = deque()
@@ -20,17 +19,20 @@ class CriticalPathBuilder:
             synchroOpLogReader = reader(synchroOpLogFile)
 
             for operation in synchroOpLogReader:
-                self.requestTracker.AddOperation(operation)
+                if len(operation) == 4 and '' not in operation:
+                    self.requestTracker.AddOperation(operation)
 
         with open(synchroFxnTimeLogName, 'rb') as synchroFxnTimeFile:
             synchroFxnTimeReader = reader(synchroFxnTimeFile)
 
             for functionTime in synchroFxnTimeReader:
-                self.requestTracker.AddFunctionTime(functionTime)
+                if len(functionTime) == 4 and '' not in operation:
+                    print(functionTime)
+                    self.requestTracker.AddFunctionTime(functionTime)
 
-                threadID = functionTime[2]
-                self.synchObjAgg.AddOperation(threadID, \
-                self.requestTracker.GetLastAddedOperationForTID(threadID))
+                    threadID = functionTime[0]
+                    self.synchObjAgg.AddOperation(threadID, \
+                    self.requestTracker.GetLastAddedOperationForTID(threadID))
 
         set_trace()
 
