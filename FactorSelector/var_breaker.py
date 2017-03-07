@@ -41,8 +41,8 @@ def collect_exec_time(function_file, path):
     function_names.insert(0, function_file)
     function_names.append('latency')
 
-    latencyAggregator = LatencyAggregator("synch")
-    function_exec_time = latencyAggregator.GetLatencies("SynchronizationTimeLog.log", len(function_names))
+    latencyAggregator = LatencyAggregator(path + "OperationLog.log", path + "SynchronizationTimeLog.log")
+    function_exec_time = latencyAggregator.GetLatencies(path + "tpcc", len(function_names))
 #    function_exec_time = []
 #    function_exec_time_file = open('tpcc', 'r')
 #    current_function_index = -1

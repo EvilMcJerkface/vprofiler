@@ -201,6 +201,8 @@ class SynchronizationTraceTool {
         std::ofstream funcLogFile;
         std::ofstream opLogFile;
 
+        static pid_t lastPID;
+
         std::vector<OperationLog> *opLogs;
         std::vector<FunctionLog> *funcLogs;
         static std::mutex dataMutex;
@@ -235,6 +237,7 @@ pthread_t TraceTool::back_thread;
 thread_local OperationLog SynchronizationTraceTool::currOpLog;
 thread_local FunctionLog SynchronizationTraceTool::currFuncLog;
 std::mutex SynchronizationTraceTool::dataMutex;
+pid_t SynchronizationTraceTool::lastPID;
 
 std::unique_ptr<SynchronizationTraceTool> SynchronizationTraceTool::instance = nullptr;
 mutex SynchronizationTraceTool::singletonMutex;
@@ -536,8 +539,10 @@ SynchronizationTraceTool::SynchronizationTraceTool() {
     opLogs->reserve(1000000);
     funcLogs->reserve(1000000);
 
-    opLogFile.open("latency/OperationLog.log", std::ios_base::app);
-    funcLogFile.open("latency/SynchronizationTimeLog.log", std::ios_base::app);
+    lastPID = ::getpid();
+
+    opLogFile.open("latency/OperationLog_" + std::to_string(lastPID), std::ios_base::trunc);
+    funcLogFile.open("latency/SynchronizationTimeLog" + std::to_string(lastPID), std::ios_base::trunc);
 
     writerThread = thread(writeLogWorker);
 }
@@ -585,6 +590,18 @@ void SynchronizationTraceTool::maybeCreateInstance() {
     singletonMutex.unlock();
 }
 
+void SynchronizationTraceTool::checkFileClean() {
+    pid_t currPID = ::getpid();
+
+    if (currPID != lastPID) {
+        instance->funcLogFile.close();
+        instance->opLogFile.close();
+
+        instance->funcLogFile.open("latency/SynchronizationTimeLog_" + std::to_string(currPID), std::ios_base::trunc);
+        instance->opLogFile.open("latency/OperationLog_" + std::to_string(currPID), std::ios_base::trunc);
+    }
+}
+
 void SynchronizationTraceTool::writeLogWorker() {
     bool stopLogging = false;
 
@@ -592,6 +609,8 @@ void SynchronizationTraceTool::writeLogWorker() {
     while (!stopLogging) {
         std::this_thread::sleep_for(std::chrono::seconds(5));
         if (instance != nullptr) {
+            checkFileClean();
+
             vector<OperationLog> *newOpLogs = new vector<OperationLog>;
             vector<FunctionLog> *newFuncLogs = new vector<FunctionLog>;
 

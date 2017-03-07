@@ -10,7 +10,6 @@ from pdb import set_trace
 # executing semanticID1 -> executing semanticID2 -> executing semanticID1
 class CriticalPathBuilder:
     def __init__(self, synchroOpLogName, synchroFxnTimeLogName):
-        set_trace()
         self.synchObjAgg = SynchronizationObjectAggregator()
         self.requestTracker = RequestTracker()
         self.blockedEdgeStack = deque()
@@ -20,19 +19,20 @@ class CriticalPathBuilder:
             synchroOpLogReader = reader(synchroOpLogFile)
 
             for operation in synchroOpLogReader:
-                self.requestTracker.AddOperation(operation)
+                if len(operation) == 4 and '' not in operation:
+                    self.requestTracker.AddOperation(operation)
 
         with open(synchroFxnTimeLogName, 'rb') as synchroFxnTimeFile:
             synchroFxnTimeReader = reader(synchroFxnTimeFile)
 
             for functionTime in synchroFxnTimeReader:
-                self.requestTracker.AddFunctionTime(functionTime)
+                if len(functionTime) == 4 and '' not in operation:
+                    print(functionTime)
+                    self.requestTracker.AddFunctionTime(functionTime)
 
-                threadID = functionTime[2]
-                self.synchObjAgg.AddOperation(threadID, \
-                self.requestTracker.GetLastAddedOperationForTID(threadID))
-
-        self.requestTracker.InitSynchroAgg(self.synchObjAgg)
+                    threadID = functionTime[0]
+                    self.synchObjAgg.AddOperation(threadID, \
+                    self.requestTracker.GetLastAddedOperationForTID(threadID))
 
         set_trace()
 
@@ -66,7 +66,7 @@ class CriticalPathBuilder:
 
         # We're blocked by some other thread
         else:
-            self.blockedEdgeStack.appendleft(requestTime.startTime, currThreadID))
+            self.blockedEdgeStack.appendleft(requestTime.startTime, currThreadID)
             timeSeries.appendleft((currThreadID, requestTime.endTime, segmentEndTime))
 
             leftTimeBound, nextThreadID = self.synchObjAgg.GetDependenceEdge(requestTime, objID, opType)

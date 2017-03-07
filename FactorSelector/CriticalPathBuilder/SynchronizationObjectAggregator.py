@@ -1,5 +1,6 @@
 from datetime import datetime
 from OperationEnum import Operation
+from SynchronizationObject import OwnableObject, EventCreationObject
 
 class SynchronizationObjectAggregator:
     def __init__(self):
@@ -14,7 +15,7 @@ class SynchronizationObjectAggregator:
         operationTimeEnd = operation.timeEnd
 
         # These values represent mutexes and condition variables
-        if opID <= 4:
+        if opID <= Operation.CV_SIGNAL:
             # If this conditional is true then we know it is a thread acquiring
             # ownership of an object and it's the first thread to own the object.
             if objID not in self.objectMap:

@@ -10,3 +10,13 @@ class Operation(Enum):
     QUEUE_DEQUEUE   = 6
     MESSAGE_SEND    = 7
     MESSAGE_RECEIVE = 8
+
+    def __eq__(self, other):
+        if self.__class__ == other.__class__:
+            return self.value == other.value
+        return NotImplemented
+
+    def __le__(self, other):
+        if self.__class__ == other.__class__:
+            return self.value <= other.value
+        return NotImplemented
