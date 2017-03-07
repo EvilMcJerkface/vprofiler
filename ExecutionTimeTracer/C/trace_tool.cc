@@ -543,10 +543,6 @@ SynchronizationTraceTool::SynchronizationTraceTool() {
 }
 
 SynchronizationTraceTool::~SynchronizationTraceTool() {
-    // opLogs and funcLogs are deleted in here.  Maybe move that
-    // functionality to a cleanup function.
-    writeLogs(instance->opLogs, instance->funcLogs);
-    
     dataMutex.lock();
     doneWriting = true;
     dataMutex.unlock();
@@ -559,20 +555,13 @@ void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj)
         maybeCreateInstance();
     }
 
-    thread::id thisThreadID = std::this_thread::get_id();
-    
-    /*if (threadSemanticIntervals.find(thisThreadID) == threadSemanticIntervals.end()) {
-        threadSemanticIntrervals[thisThreadID] = nextSemanticIntervalID++;
-    }*/
-
     dataMutex.lock();
     instance->opLogs->push_back(currOpLog);
     dataMutex.unlock();
-    currFuncLog = FunctionLog(TraceTool::current_transaction_id);
 
+    currFuncLog = FunctionLog(TraceTool::current_transaction_id);
     timespec startTime;
     clock_gettime(CLOCK_REALTIME, &startTime);
-
     currFuncLog.setFunctionStart(startTime);
 }
 
@@ -582,7 +571,7 @@ void SynchronizationTraceTool::SynchronizationCallEnd() {
     currFuncLog.setFunctionEnd(endTime);
 
     dataMutex.lock();
-    instance->opLogs->push_back(currOpLog);
+    instance->funcLogs->push_back(currFuncLog);
     dataMutex.unlock();
 }
 
