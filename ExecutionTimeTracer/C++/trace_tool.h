@@ -1,10 +1,15 @@
 #ifndef MY_TRACE_TOOL_H
 #define MY_TRACE_TOOL_H
 
-#include <fstream>
-#include <vector>
+// C libs
 #include <pthread.h>
 #include <time.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+// C++ libs
+#include <fstream>
+#include <vector>
 #include <cstdlib>
 #include <string>
 #include <thread>
@@ -282,6 +287,8 @@ class SynchronizationTraceTool {
         std::ofstream funcLogFile;
         std::ofstream opLogFile;
 
+        static pid_t lastPID;
+
         std::vector<OperationLog> *opLogs;
         std::vector<FunctionLog> *funcLogs;
         static std::mutex dataMutex;
@@ -293,6 +300,7 @@ class SynchronizationTraceTool {
 
         SynchronizationTraceTool();
 
+        static void checkFileClean();
         static void writeLogWorker();
         static void writeLogs(std::vector<OperationLog> *opLogs,
                              std::vector<FunctionLog> *funcLogs);

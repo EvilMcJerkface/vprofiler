@@ -52,6 +52,7 @@ mutex SynchronizationTraceTool::singletonMutex;
 thread_local OperationLog SynchronizationTraceTool::currOpLog;
 thread_local FunctionLog SynchronizationTraceTool::currFuncLog;
 std::mutex SynchronizationTraceTool::dataMutex;
+pid_t SynchronizationTraceTool::lastPID;
 
 static const size_t NEW_ORDER_LENGTH = strlen(NEW_ORDER_MARKER);
 static const size_t PAYMENT_LENGTH = strlen(PAYMENT_MARKER);
@@ -458,8 +459,10 @@ SynchronizationTraceTool::SynchronizationTraceTool() {
     opLogs->reserve(1000000);
     funcLogs->reserve(1000000);
 
-    opLogFile.open("latency/OperationLog.log", ios_base::app);
-    funcLogFile.open("latency/SynchronizationTimeLog.log", ios_base::app);
+    lastPID = ::getpid();
+
+    opLogFile.open("latency/OperationLog_" + std::to_string(lastPID), std::ios_base::trunc);
+    funcLogFile.open("latency/SynchronizationTimeLog" + std::to_string(lastPID), std::ios_base::trunc);
 
     writerThread = thread(writeLogWorker);
 }
@@ -515,13 +518,27 @@ void SynchronizationTraceTool::maybeCreateInstance() {
     singletonMutex.unlock();
 }
 
+void SynchronizationTraceTool::checkFileClean() {
+    pid_t currPID = ::getpid();
+
+    if (currPID != lastPID) {
+        instance->funcLogFile.close();
+        instance->opLogFile.close();
+
+        instance->funcLogFile.open("latency/SynchronizationTimeLog_" + std::to_string(currPID), std::ios_base::trunc);
+        instance->opLogFile.open("latency/OperationLog_" + std::to_string(currPID), std::ios_base::trunc);
+    }
+}
+
 void SynchronizationTraceTool::writeLogWorker() {
     bool stopLogging = false;
-    //
+
     // Loop forever writing logs
     while (!stopLogging) {
         this_thread::sleep_for(chrono::seconds(5));
         if (instance != nullptr) {
+            checkFileClean();
+
             vector<OperationLog> *newOpLogs = new vector<OperationLog>;
             vector<FunctionLog> *newFuncLogs = new vector<FunctionLog>;
 
