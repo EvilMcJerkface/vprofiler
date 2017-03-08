@@ -284,8 +284,7 @@ class SynchronizationTraceTool {
         static thread_local FunctionLog currFuncLog;
         static thread_local OperationLog currOpLog;
 
-        std::ofstream funcLogFile;
-        std::ofstream opLogFile;
+        std::ofstream logFile;
 
         static pid_t lastPID;
 

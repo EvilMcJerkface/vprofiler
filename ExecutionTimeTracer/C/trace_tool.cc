@@ -198,8 +198,7 @@ class SynchronizationTraceTool {
         static thread_local FunctionLog currFuncLog;
         static thread_local OperationLog currOpLog;
 
-        std::ofstream funcLogFile;
-        std::ofstream opLogFile;
+        std::ofstream logFile;
 
         static pid_t lastPID;
 
@@ -214,6 +213,7 @@ class SynchronizationTraceTool {
 
         SynchronizationTraceTool();
 
+        static void checkFileClean();
         static void writeLogWorker();
         static void writeLogs(std::vector<OperationLog> *opLogs,
                              std::vector<FunctionLog> *funcLogs);
@@ -541,8 +541,7 @@ SynchronizationTraceTool::SynchronizationTraceTool() {
 
     lastPID = ::getpid();
 
-    opLogFile.open("latency/OperationLog_" + std::to_string(lastPID), std::ios_base::trunc);
-    funcLogFile.open("latency/SynchronizationTimeLog" + std::to_string(lastPID), std::ios_base::trunc);
+    logFile.open("latency/SynchronizationLog_" + std::to_string(lastPID), std::ios_base::trunc);
 
     writerThread = thread(writeLogWorker);
 }
@@ -594,12 +593,11 @@ void SynchronizationTraceTool::checkFileClean() {
     pid_t currPID = ::getpid();
 
     if (currPID != lastPID) {
-        instance->funcLogFile.close();
-        instance->opLogFile.close();
-
-        instance->funcLogFile.open("latency/SynchronizationTimeLog_" + std::to_string(currPID), std::ios_base::trunc);
-        instance->opLogFile.open("latency/OperationLog_" + std::to_string(currPID), std::ios_base::trunc);
+        instance->logFile.close();
+        instance->logFile.open("latency/SynchronizationLog_" + std::to_string(currPID), std::ios_base::trunc);
     }
+
+    lastPID = currPID;
 }
 
 void SynchronizationTraceTool::writeLogWorker() {
@@ -640,11 +638,11 @@ void SynchronizationTraceTool::writeLogWorker() {
 void SynchronizationTraceTool::writeLogs(vector<OperationLog> *opLogs, 
                                          vector<FunctionLog> *funcLogs) {
     for (OperationLog &opLog : *opLogs) {
-        instance->opLogFile << opLog;
+        instance->logFile << "0," << opLog;
     }
 
     for (FunctionLog &funcLog : *funcLogs) {
-        instance->funcLogFile << funcLog;
+        instance->logFile << "1," << funcLog;
     }
 
     delete opLogs;
