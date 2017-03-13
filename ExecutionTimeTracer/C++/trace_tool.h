@@ -18,6 +18,7 @@
 #include <mutex>
 #include <unordered_map>
 #include <memory>
+#include <atomic>
 
 #define TRX_TYPES 6
 
@@ -39,7 +40,7 @@ using std::endl;
 using std::string;
 
 /** The global transaction id counter */
-extern ulint transaction_id;
+extern std::unique_ptr<std::atomic_uint_fast64_t> transaction_id;
 
 /********************************************************************//**
 To break down the variance of a function, we need to trace the running
@@ -123,10 +124,28 @@ class FunctionLog {
         timespec functionEnd;
 };
 
+struct SharedMem {
+    std::atomic_uint_fast64_t transaction_id;
+    bool sharedMemInitialized;
+};
+
+class VProfSharedMemory {
+    private:
+        static std::shared_ptr<VProfSharedMemory> instance;
+        static bool singletonInitialized;
+
+        const char* GetExecutableName() const;
+
+        VProfSharedMemory();
+    public:
+        static std::shared_ptr<VProfSharedMemory> GetInstance();
+        std::atomic_uint_fast64_t *transaction_id;
+};
+
 class TraceTool
 {
 private:
-    static TraceTool *instance;             /*!< Instance for the Singleton pattern. */
+    static std::shared_ptr<TraceTool> instance;  /*!< Instance for the Singleton pattern. */
     static pthread_mutex_t instance_mutex;  /*!< Mutex for protecting instance. */
     
     static timespec global_last_query;      /*!< Time when MySQL receives the most recent query. */
@@ -169,7 +188,7 @@ public:
     
     /********************************************************************//**
     The Singleton pattern. Used for getting the instance of this class. */
-    static TraceTool *get_instance();
+    static std::shared_ptr<TraceTool> get_instance();
     
     /********************************************************************//**
     Check if we should trace the running time of function calls. */
