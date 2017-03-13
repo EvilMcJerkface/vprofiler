@@ -1,6 +1,15 @@
+// VProf headers
 #include "trace_tool.h"
+
+// C headers
+#include <sys/mman.h>
+#include <limits.h>
 #include <pthread.h>
+#include <time.h>
+#include <fcntl.h>
 #include <unistd.h>
+
+// C++ headers
 #include <algorithm>
 #include <fstream>
 #include <sstream>
@@ -9,6 +18,7 @@
 #include <thread>
 #include <mutex>
 #include <memory>
+#include <atomic>
 
 using std::ifstream;
 using std::ofstream;
@@ -27,7 +37,23 @@ using std::mutex;
 #define LATENCY
 #define MONITOR
 
-ulint transaction_id = 0;
+struct SharedMem {
+    std::atomic_uint_fast64_t transaction_id;
+    bool sharedMemInitialized;
+};
+
+class VProfSharedMemory {
+    private:
+        static std::shared_ptr<VProfSharedMemory> instance;
+        static bool singletonInitialized;
+
+        const char* GetExecutableName() const;
+
+        VProfSharedMemory();
+    public:
+        static std::shared_ptr<VProfSharedMemory> GetInstance();
+        std::atomic_uint_fast64_t *transaction_id;
+};
 
 class TraceTool {
 private:
@@ -219,6 +245,9 @@ class SynchronizationTraceTool {
                              std::vector<FunctionLog> *funcLogs);
 };
 
+std::shared_ptr<VProfSharedMemory> VProfSharedMemory::instance = nullptr;
+bool VProfSharedMemory::singletonInitialized = false;
+
 TraceTool *TraceTool::instance = NULL;
 __thread ulint TraceTool::current_transaction_id = 0;
 
@@ -366,6 +395,68 @@ timespec get_trx_start() {
     return TraceTool::get_instance()->trans_start;
 }
 
+const char* VProfSharedMemory::GetExecutableName() const {
+    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32) || !defined(__CYGWIN__)
+    //#include <Windows.h>
+    wchar_t filename[MAX_PATH];
+    //GetModuleFilename(NULL, filename, MAX_PATH);
+
+    // Eventually need some other directive for Mac OS
+    #else
+    char *filename[PATH_MAX];
+    readlink("/proc/self/exe", filename, PATH_MAX);
+
+    #endif
+
+    return filename;
+}
+
+VProfSharedMemory::VProfSharedMemory() {
+    SharedMem *shm;
+    const char *filename = GetExecutableName();
+
+    int fd = shm_open(filename, O_RDWR | O_CREAT | O_EXCL, 0666);
+
+    // We're the first process to create the shared memory.
+    if (fd != -1) {
+        // Set shared memory size.
+        // TODO handle error.
+        if (ftruncate(fd, sizeof(VProfSharedMemory)) == -1) {
+            // noop
+            (void)0;
+        }
+
+        shm = static_cast<SharedMem*>(mmap(NULL, sizeof(VProfSharedMemory), 
+                                                   PROT_READ | PROT_WRITE,
+                                                   MAP_SHARED, fd, 0));
+        shm->transaction_id = 0;
+        shm->sharedMemInitialized = true;
+    }
+    else {
+        fd = shm_open(filename, O_RDWR, 0666);
+        shm = static_cast<SharedMem*>(mmap(NULL, sizeof(VProfSharedMemory), 
+                                                   PROT_READ | PROT_WRITE,
+                                                   MAP_SHARED, fd, 0));
+
+        // Wait for shm to be initialized. Maybe add cv in shm?
+        while (!shm->sharedMemInitialized) {}
+    }
+
+    transaction_id = &shm->transaction_id;
+}
+
+/********************************************************************//**
+Get shared memory instance. */
+std::shared_ptr<VProfSharedMemory> VProfSharedMemory::GetInstance() {
+    if (!singletonInitialized) {
+        instance = std::shared_ptr<VProfSharedMemory>(new VProfSharedMemory());
+
+        singletonInitialized = true;
+    }
+
+    return instance;
+}
+
 /********************************************************************//**
 Get the current TraceTool instance. */
 TraceTool *TraceTool::get_instance() {
@@ -406,14 +497,14 @@ void *TraceTool::check_write_log(void *arg) {
     while (true) {
         sleep(5);
         timespec now = get_time();
-        if (now.tv_sec - global_last_query.tv_sec >= 10 && transaction_id > 0) {
+        if (now.tv_sec - global_last_query.tv_sec >= 10 && *(VProfSharedMemory::GetInstance()->transaction_id) > 0) {
             /* Create a new TraceTool instance. */
             TraceTool *old_instance = instance;
             instance = new TraceTool;
             instance->id = old_instance->id;
 
             /* Reset the global transaction ID. */
-            transaction_id = 0;
+            *(VProfSharedMemory::GetInstance()->transaction_id) = 0;
 
             /* Dump data in the old instance to log files and
                reclaim memory. */
@@ -449,13 +540,13 @@ Start a new query. This may also start a new transaction. */
 void TraceTool::start_trx() {
     is_commit = false;
     /* This happens when a log write happens, which marks the end of a phase. */
-    if (current_transaction_id > transaction_id) {
+    if (current_transaction_id > *(VProfSharedMemory::GetInstance()->transaction_id)) {
         current_transaction_id = 0;
     }
 #ifdef LATENCY
     commit_successful = true;
     /* Use a write lock here because we are appending content to the vector. */
-    current_transaction_id = transaction_id++;
+    current_transaction_id = *(VProfSharedMemory::GetInstance()->transaction_id)++;
     transaction_start_times[current_transaction_id] = now_micro();
     for (vector<vector<int> >::iterator iterator = function_times.begin();
          iterator != function_times.end();
@@ -489,7 +580,7 @@ void TraceTool::end_transaction() {
 }
 
 void TraceTool::add_record(int function_index, long duration) {
-    if (current_transaction_id > transaction_id) {
+    if (current_transaction_id > *(VProfSharedMemory::GetInstance()->transaction_id)) {
         current_transaction_id = 0;
     }
     function_times[function_index][current_transaction_id] += duration;
