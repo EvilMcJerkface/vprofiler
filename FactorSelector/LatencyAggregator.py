@@ -11,7 +11,7 @@ class FunctionRecord:
         self.threadID = threadID
 
 class LatencyAggregator:
-    def __init__(self, synchroOpLogName, synchroFxnTimeLogName):
+    def __init__(self, synchroLogName):
         # This will, at the end of execution, be a 2D with the first dimension
         # mapping to a function, and the second being a list of latencies.
         # Then, effectively, the list is a map of

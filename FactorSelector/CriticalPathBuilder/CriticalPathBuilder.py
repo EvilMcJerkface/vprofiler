@@ -9,30 +9,25 @@ from pdb import set_trace
 # TODO need to add support for state transitions like the following for thread1
 # executing semanticID1 -> executing semanticID2 -> executing semanticID1
 class CriticalPathBuilder:
-    def __init__(self, synchroOpLogName, synchroFxnTimeLogName):
+    def __init__(self, synchroLogName):
         self.synchObjAgg = SynchronizationObjectAggregator()
         self.requestTracker = RequestTracker()
         self.blockedEdgeStack = deque()
 
         # Error if we can't open this or the next file.
-        with open(synchroOpLogName, 'rb') as synchroOpLogFile:
-            synchroOpLogReader = reader(synchroOpLogFile)
+        with open(synchroLogName, 'rb') as synchroLogFile:
+            synchroLogReader = reader(synchroLogFile)
 
-            for operation in synchroOpLogReader:
-                if len(operation) == 4 and '' not in operation:
-                    self.requestTracker.AddOperation(operation)
+            for log in synchroOpLogReader:
+                if len(log) == 5 and '' not in operation:
+                    if log[0] == 0: 
+                        self.requestTracker.AddOperation(log[1:])
+                    else:
+                        self.requestTracker.AddFunctionTime(log[1:)
 
-        with open(synchroFxnTimeLogName, 'rb') as synchroFxnTimeFile:
-            synchroFxnTimeReader = reader(synchroFxnTimeFile)
-
-            for functionTime in synchroFxnTimeReader:
-                if len(functionTime) == 4 and '' not in operation:
-                    print(functionTime)
-                    self.requestTracker.AddFunctionTime(functionTime)
-
-                    threadID = functionTime[0]
-                    self.synchObjAgg.AddOperation(threadID, \
-                    self.requestTracker.GetLastAddedOperationForTID(threadID))
+                        threadID = functionTime[1]
+                        self.synchObjAgg.AddOperation(threadID, \
+                        self.requestTracker.GetLastAddedOperationForTID(threadID))
 
         set_trace()
 

@@ -132,6 +132,19 @@ class FunctionLog {
             functionEnd = val;
         }
 
+        void appendToString(string &other) {
+            std::stringstream ss;
+            ss << threadID;
+            other.append(string("1," + ss.str() + ',' + std::to_string(semIntervalID) 
+                         + ',' + std::to_string((functionStart.tv_sec * 1000000000) 
+                         + functionStart.tv_nsec) + ',' + std::to_string((
+                           functionEnd.tv_sec * 1000000000) + functionEnd.tv_nsec) + '\n'));
+        }
+
+        friend std::string& operator+(std::string &str, const FunctionLog &funcLog) {
+            funcLog.appendToString(str);
+        }
+
         friend std::ostream& operator<<(std::ostream &os, const FunctionLog &funcLog) {
             os << funcLog.threadID << ',' << std::to_string(funcLog.semIntervalID) 
                << ',' << (funcLog.functionStart.tv_sec * 1000000000) + funcLog.functionStart.tv_nsec << ',' 
@@ -167,6 +180,19 @@ class OperationLog {
 
         const void* getObj() {
             return obj;
+        }
+
+        void appendToString(string &other) {
+            std::stringstream ss2;
+            std::stringstream ss1, ss2;
+            ss1 << threadID;
+            ss2 << obj;
+            other.append(string("0," + ss1.str() + ',' + std::to_string(semIntervalID) + ',' + ss2.str() + ',' + 
+                                std::to_string(op) + '\n'));
+        }
+
+        friend std::string& operator+(std::string &str, const OperationLog &funcLog) {
+            funcLog.appendToString(str);
         }
 
         friend std::ostream& operator<<(std::ostream &os, const OperationLog &log) {
@@ -637,13 +663,17 @@ void SynchronizationTraceTool::writeLogWorker() {
 
 void SynchronizationTraceTool::writeLogs(vector<OperationLog> *opLogs, 
                                          vector<FunctionLog> *funcLogs) {
+    string writeStr = "";
+
     for (OperationLog &opLog : *opLogs) {
-        instance->logFile << "0," << opLog;
+        writeStr += opLog;
     }
 
     for (FunctionLog &funcLog : *funcLogs) {
-        instance->logFile << "1," << funcLog;
+        writeStr += funcLog;
     }
+
+    instance->logFile.write(writeStr.c_str(), writeStr.size());
 
     delete opLogs;
     delete funcLogs;
