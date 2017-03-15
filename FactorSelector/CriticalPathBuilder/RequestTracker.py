@@ -1,8 +1,6 @@
-import numpy as np
-
+from nanotime import nanotime
 from bisect import bisect_left
 from OperationEnum import Operation
-from pdb import set_trace
 
 class Request:
     def __init__(self, objID, opID):
@@ -39,9 +37,10 @@ class ThreadRequests:
         return self.keys
 
     def AddFunctionTime(self, funcStart, funcEnd):
-        self.requests[self.timeTrackIdx].AddFunctionTimes(funcStart, funcEnd)
+        if self.timeTrackIdx < len(self.requests): # and \
+            self.requests[self.timeTrackIdx].AddFunctionTimes(funcStart, funcEnd)
 
-        self.timeTrackIdx += 1
+            self.timeTrackIdx += 1
 
 class RequestTracker:
     def __init__(self):
@@ -55,16 +54,15 @@ class RequestTracker:
     # Don't do anything if this is not a request for some type of object
     def AddOperation(self, operation):
         opID = Operation(int(operation[3]))
-        if opID in self.allowedRequests:
-            objID = operation[2]
-            toInsert = Request(objID, opID)
+        objID = operation[2]
+        toInsert = Request(objID, opID)
 
 
-            threadID = operation[0]
-            if threadID not in self.threadRequests:
-                self.threadRequests[threadID] = ThreadRequests(toInsert)
-            else:
-                self.threadRequests[threadID].requests.append(toInsert)
+        threadID = operation[0]
+        if threadID not in self.threadRequests:
+            self.threadRequests[threadID] = ThreadRequests(toInsert)
+        else:
+            self.threadRequests[threadID].requests.append(toInsert)
 
     def AddFunctionTime(self, funcTime):
         threadID = funcTime[0]
@@ -72,8 +70,8 @@ class RequestTracker:
         # Index 1 is the semantic interval ID.  Don't actually think this is 
         # necessary.
 
-        startTime = np.datetime64(funcTime[2], 'ns')
-        endTime = np.datetime64(funcTime[3], 'ns')
+        startTime = nanotime(int(funcTime[2]))
+        endTime = nanotime(int(funcTime[3]))
 
         self.threadRequests[threadID].AddFunctionTime(startTime, endTime)
 
@@ -88,12 +86,22 @@ class RequestTracker:
         return self.threadRequests[threadID].requests[idx]
 
     def FindPrecedingRequest(self, threadID, timestamp):
-        opType, requestTimeEnd, objID = (None, None, None)
+        request = None
+
         # Should this be:
         # idx = bisect_left(self.threadRequests[threadID].GetKeys(), timestamp) - 1
-        idx = bisect_left(self.threadRequests[threadID], timestamp) - 1
+        idx = bisect_left(self.threadRequests[threadID].GetKeys(), timestamp) - 1
 
         if idx != -1:
-            opType, requestTimeEnd, objID = self.threadRequests[threadID][idx]
+            while idx > -1:
+                if self.threadRequests[threadID].requests[idx].opID in self.allowedRequests:
+                    request = self.threadRequests[threadID].requests[idx]
+                    break
 
-        return opType, requestTimeEnd, objID
+                idx -= 1
+            #opType = self.threadRequests[threadID].requests[idx].opID
+            #requestTimeEnd = self.threadRequests[threadID].requests[idx].timeEnd
+            #objID = self.threadRequests[threadID].requests[idx].objID
+
+        #return opType, requestTimeEnd, objID
+        return request

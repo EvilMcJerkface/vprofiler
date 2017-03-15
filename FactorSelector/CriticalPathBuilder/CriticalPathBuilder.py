@@ -1,54 +1,84 @@
+from os import listdir
 from csv import reader
 from collections import deque
 from intervaltree import IntervalTree
 from RequestTracker import RequestTracker
 from SynchronizationObjectAggregator import SynchronizationObjectAggregator
-from pdb import set_trace
+from progressbar import ProgressBar
 
 # TODO need to add support for try_locks
 # TODO need to add support for state transitions like the following for thread1
 # executing semanticID1 -> executing semanticID2 -> executing semanticID1
 class CriticalPathBuilder:
-    def __init__(self, synchroLogName):
+    def __init__(self, pathPrefix, logName):
         self.synchObjAgg = SynchronizationObjectAggregator()
         self.requestTracker = RequestTracker()
         self.blockedEdgeStack = deque()
 
-        # Error if we can't open this or the next file.
-        with open(synchroLogName, 'rb') as synchroLogFile:
-            synchroLogReader = reader(synchroLogFile)
+        pathPrefix += '/' if pathPrefix[-1] != '/' else ''
 
-            for log in synchroOpLogReader:
-                if len(log) == 5 and '' not in operation:
-                    if log[0] == 0: 
+        logFiles = [pathPrefix + f for f in listdir(pathPrefix) if logName in f]
+        for synchroLogName in logFiles:
+            # Error if we can't open this or the next file.
+            with open(synchroLogName, 'rb') as synchroLogFile:
+                numLines = sum(1 for line in synchroLogFile)
+                print(synchroLogName)
+                pbar = ProgressBar(max_value = numLines).start()
+                
+                synchroLogFile.seek(0)
+                synchroLogReader = reader(synchroLogFile)
+
+                for i, log in enumerate(synchroLogReader):
+                    if log[0] == '0': 
                         self.requestTracker.AddOperation(log[1:])
                     else:
-                        self.requestTracker.AddFunctionTime(log[1:)
+                        self.requestTracker.AddFunctionTime(log[1:])
 
-                        threadID = functionTime[1]
+                        threadID = log[1]
                         self.synchObjAgg.AddOperation(threadID, \
                         self.requestTracker.GetLastAddedOperationForTID(threadID))
 
-        set_trace()
-
+                    pbar.update(i + 1)
+                    
 
     def __BuildHelper(self, segmentEndTime, currThreadID, timeSeries):
-        opType, requestTime, objID = requestTracker.FindPrecedingRequest(currThreadID, segmentEndTime)
+        precedingRequest = self.requestTracker.FindPrecedingRequest(currThreadID, segmentEndTime)
 
         unblockedSegment = -1
-        i = 0
-        for potentialBlockedEdge in self.blockedEdgeStack:
-            if requestTime.endTime <= potentialBlockedEdge[0]:
-                unblockedSegment = i
 
-            i += 1
+        if precedingRequest == None:
+            unblockedSegment = len(self.blockedEdgeStack) - 1
+        else:
+            i = 0
+            for potentialBlockedEdge in self.blockedEdgeStack:
+                if precedingRequest.timeEnd <= potentialBlockedEdge[0]:
+                    unblockedSegment = i
+
+                i += 1
 
         leftTimeBound = None
         nextThreadID = None
+
+        if unblockedSegment == -1:
+            self.blockedEdgeStack.appendleft((precedingRequest.timeStart, currThreadID))
+            leftTimeBound, nextThreadID = self.synchObjAgg.GetDependenceEdge(precedingRequest.opID, precedingRequest.objID, precedingRequest.timeEnd)
+
+            if leftTimeBound is None or nextThreadID is None:
+                leftTimeBound = precedingRequest.timeStart
+                nextThreadID = currThreadID
+
+            i = 0
+            for potentialBlockedEdge in self.blockedEdgeStack:
+                if leftTimeBound <= potentialBlockedEdge[0]:
+                    unblockedSegment = i
+
+                i += 1
+
         # This thread was blocking a thread earlier in the critical path.
         if unblockedSegment != -1:
             leftTimeBound = self.blockedEdgeStack[unblockedSegment][0]
-            timeSeries.appendleft((currThreadID, leftTimeBound, segmentEndTime))
+            if leftTimeBound != segmentEndTime:
+                timeSeries.appendleft((leftTimeBound, segmentEndTime, currThreadID))
 
             nextThreadID = self.blockedEdgeStack[unblockedSegment][1]
 
@@ -57,14 +87,12 @@ class CriticalPathBuilder:
                 return timeSeries
 
             for j in range(unblockedSegment + 1):
-                self.blockedEdgeStack.pop_front()
+                self.blockedEdgeStack.popleft()
 
         # We're blocked by some other thread
         else:
-            self.blockedEdgeStack.appendleft(requestTime.startTime, currThreadID)
-            timeSeries.appendleft((currThreadID, requestTime.endTime, segmentEndTime))
-
-            leftTimeBound, nextThreadID = self.synchObjAgg.GetDependenceEdge(requestTime, objID, opType)
+            if precedingRequest.timeEnd != segmentEndTime:
+                timeSeries.appendleft((precedingRequest.timeEnd, segmentEndTime, currThreadID))
 
         return self.__BuildHelper(leftTimeBound, nextThreadID, timeSeries)
 
@@ -79,7 +107,7 @@ class CriticalPathBuilder:
         # critical path's time series.
         self.blockedEdgeStack.append((semIntStartTime, -1))
 
-        timeSeries = self.__BuildHelper(semIntStartTime, semIntEndTime, endingThreadID, deque())
+        timeSeries = self.__BuildHelper(semIntEndTime, endingThreadID, deque())
 
         self.blockedEdgeStack.clear()
         return IntervalTree.from_tuples(timeSeries)
