@@ -6,6 +6,17 @@ import sys
 import cmath
 import getopt
 import numpy as np
+import csv
+
+from LatencyAggregator import LatencyAggregator
+
+# Note for TODO. Filter by semantic interval ID AFTER we get critical path.
+# Thus, when checking whether a factor should be in the variance tree, first
+# check if it's the correct semantic interval ID, then check whether it's part
+# of the critical path.  In other words, we don't need to check whether a factor
+# is part of the critical path when building the critical path, only after it is
+# constructed.
+from CriticalPathBuilder import CriticalPathBuilder
 
 
 def cov(variable1, variable2):
@@ -24,33 +35,34 @@ def l2norm(nums):
 
 def collect_exec_time(function_file, path):
     """ Read function execution time data from file """
-    os.chdir(path)
-    functions = open(function_file, 'r')
+    functions = open(path + function_file, 'r')
     functions.readline()
     function_names = [function.strip() for function in functions]
+
+    latencyAggregator = LatencyAggregator(path)
+    function_exec_time = latencyAggregator.GetLatencies(path, len(function_names))
+
     function_names.insert(0, function_file)
     function_names.append('latency')
-
-    function_exec_time = []
-    function_exec_time_file = open('tpcc', 'r')
-    current_function_index = -1
-    for line in function_exec_time_file:
-        # Skip transaction starting time
-        if ',' not in line:
-            continue
-        # Skip empty lines
-        if len(line) > 1:
-            function_index, time = line.split(',')
-            function_index = int(function_index)
-            time = int(time)
-            if function_index != current_function_index:
-                # new function, ignore the first transaction
-                function_exec_time.append([])
-            else:
-                function_exec_time[function_index].append(time)
-            current_function_index = function_index
+#    function_exec_time = []
+#    function_exec_time_file = open('tpcc', 'r')
+#    current_function_index = -1
+#    for line in function_exec_time_file:
+#        # Skip transaction starting time
+#        if ',' not in line:
+#            continue
+#        # Skip empty lines
+#        if len(line) > 1:
+#            function_index, time = line.split(',')
+#            function_index = int(function_index)
+#            time = int(time)
+#            if function_index != current_function_index:
+#                # new function, ignore the first transaction
+#                function_exec_time.append([])
+#            else:
+#                function_exec_time[function_index].append(time)
+#            current_function_index = function_index
     return function_names, function_exec_time
-
 
 def break_down(function_file, path, var_tree_file):
     """ Break down variance into variances and covariances """
@@ -58,8 +70,8 @@ def break_down(function_file, path, var_tree_file):
     caller = function_names[0]
     function_names[0] = 'img_' + function_names[0]
 
-    latency_data = function_exec_time[-1]
-    imaginary_records = function_exec_time[0]
+    latency_data = function_exec_time[0]
+    imaginary_records = function_exec_time[-1]
     variance_of_latency = np.var(latency_data)
     std_of_latency = np.std(latency_data)
     mean_of_latency = np.mean(latency_data)

@@ -1,12 +1,24 @@
 #ifndef MY_TRACE_TOOL_H
 #define MY_TRACE_TOOL_H
 
-#include <fstream>
-#include <vector>
+// C libs
 #include <pthread.h>
 #include <time.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+// C++ libs
+#include <fstream>
+#include <vector>
 #include <cstdlib>
 #include <string>
+#include <thread>
+#include <chrono>
+#include <iostream>
+#include <mutex>
+#include <unordered_map>
+#include <memory>
+#include <atomic>
 
 #define TRX_TYPES 6
 
@@ -28,7 +40,7 @@ using std::endl;
 using std::string;
 
 /** The global transaction id counter */
-extern ulint transaction_id;
+extern std::unique_ptr<std::atomic_uint_fast64_t> transaction_id;
 
 /********************************************************************//**
 To break down the variance of a function, we need to trace the running
@@ -55,6 +67,11 @@ void SESSION_START();
 void SESSION_END(bool successfully);
 
 /********************************************************************//**
+These functions are called by the generated wrappers. */
+void SYNCHRONIZATION_CALL_START(int op, void* obj);
+void SYNCHRONIZATION_CALL_END();
+
+/********************************************************************//**
 Transaction types in TPCC workload. */
 enum transaction_type
 {
@@ -62,10 +79,73 @@ enum transaction_type
 };
 typedef enum transaction_type transaction_type;
 
+// NOTE we're keeping one of these for each synchronization and traced
+// function instance.  In particular, for non-synchronization calls
+// storing semIntervalID is redundant.  If we have problems with
+// too much overhead, change this.
+class FunctionLog {
+    public:
+        FunctionLog():
+        semIntervalID(-1), threadID(std::thread::id()) {}
+
+        FunctionLog(unsigned int _semIntervalID):
+        semIntervalID(_semIntervalID) {
+            threadID = std::this_thread::get_id();
+        }
+
+        FunctionLog(unsigned int _semIntervalID, 
+                    timespec _functionStart,
+                    timespec _functionEnd): semIntervalID(_semIntervalID),
+                    functionStart(_functionStart), functionEnd(_functionEnd) {
+            threadID = std::this_thread::get_id();
+        }
+
+        void setFunctionStart(timespec val) {
+            functionStart = val;
+        }
+
+        void setFunctionEnd(timespec val) {
+            functionEnd = val;
+        }
+
+        friend std::ostream& operator<<(std::ostream &os, const FunctionLog &funcLog) {
+            os << funcLog.threadID << ',' << std::to_string(funcLog.semIntervalID) 
+               << ',' << (funcLog.functionStart.tv_sec * 1000000000) + funcLog.functionStart.tv_nsec << ',' 
+               << (funcLog.functionEnd.tv_sec * 1000000000) + funcLog.functionEnd.tv_nsec << '\n';
+
+            return os;
+        }
+
+    private:
+        std::thread::id threadID;
+        unsigned int semIntervalID;
+
+        timespec functionStart;
+        timespec functionEnd;
+};
+
+struct SharedMem {
+    std::atomic_uint_fast64_t transaction_id;
+    bool sharedMemInitialized;
+};
+
+class VProfSharedMemory {
+    private:
+        static std::shared_ptr<VProfSharedMemory> instance;
+        static bool singletonInitialized;
+
+        const char* GetExecutableName() const;
+
+        VProfSharedMemory();
+    public:
+        static std::shared_ptr<VProfSharedMemory> GetInstance();
+        std::atomic_uint_fast64_t *transaction_id;
+};
+
 class TraceTool
 {
 private:
-    static TraceTool *instance;             /*!< Instance for the Singleton pattern. */
+    static std::shared_ptr<TraceTool> instance;  /*!< Instance for the Singleton pattern. */
     static pthread_mutex_t instance_mutex;  /*!< Mutex for protecting instance. */
     
     static timespec global_last_query;      /*!< Time when MySQL receives the most recent query. */
@@ -75,13 +155,12 @@ private:
     static __thread timespec function_end;  /*!< Time for the end of a function call. */
     static __thread timespec call_start;    /*!< Time for the start of a child function call. */
     static __thread timespec call_end;      /*!< Time for the end of a child function call. */
-    static __thread bool new_transaction;   /*!< True if we need to start a new transaction. */
     static __thread timespec trans_start;   /*!< Start time of the current transaction. */
     
     ofstream log_file;                      /*!< An log file for outputing debug messages. */
     
-    vector<vector<long> > function_times;  /*!< Stores the running time of the child functions
-                                                 and also transaction latency (the last one). */
+    vector<vector<vector<FunctionLog>>> function_times;  /*!< Stores the running time of the child functions
+                                                              and also transaction latency (the last one). */
     vector<ulint> transaction_start_times;  /*!< Stores the start time of transactions. */
     vector<transaction_type> transaction_types;/*!< Stores the transaction types of transactions. */
     
@@ -92,6 +171,11 @@ public:
     static __thread ulint current_transaction_id;   /*!< Each thread can execute only one transaction at
                                                          a time. This is the ID of the current transactions. */
     
+    // This used to be private, but there was a compiler error where a 
+    // non-member function was using this.  This is a temporary fix,
+    // but I'm not sure if it's one that should necessarily stay.
+    static __thread bool new_transaction;   /*!< True if we need to start a new transaction. */
+
     static __thread int path_count;         /*!< Number of node in the function call path. Used for
                                                  tracing running time of functions. */
     
@@ -104,7 +188,7 @@ public:
     
     /********************************************************************//**
     The Singleton pattern. Used for getting the instance of this class. */
-    static TraceTool *get_instance();
+    static std::shared_ptr<TraceTool> get_instance();
     
     /********************************************************************//**
     Check if we should trace the running time of function calls. */
@@ -155,7 +239,89 @@ public:
     
     /********************************************************************//**
     Record running time of a function. */
-    void add_record(int function_index, long duration);
+    void add_record(int function_index, timespec &start_time, timespec &end_time);
+};
+
+enum Operation  { MUTEX_LOCK,
+                  MUTEX_UNLOCK,
+                  CV_WAIT,
+                  CV_BROADCAST,
+                  CV_SIGNAL,
+                  QUEUE_ENQUEUE,
+                  QUEUE_DEQUEUE,
+                  MESSAGE_SEND,
+                  MESSAGE_RECEIVE };
+
+class OperationLog {
+    public:
+        OperationLog(): 
+        semIntervalID(-1), obj(nullptr), op(MUTEX_LOCK), threadID(std::thread::id()) {}
+
+        OperationLog(const void* _obj, Operation _op):
+        semIntervalID(TraceTool::current_transaction_id), obj(_obj), op(_op) {
+            threadID = std::this_thread::get_id();
+        }
+
+        std::thread::id getThreadID() const {
+            return threadID;
+        }
+
+        unsigned int getSemIntervalID() {
+            return semIntervalID;
+        }
+
+        const void* getObj() {
+            return obj;
+        }
+
+        friend std::ostream& operator<<(std::ostream &os, const OperationLog &log) {
+            os << log.threadID << ',' << log.semIntervalID << ',' << log.obj 
+               << ',' << log.op << '\n';
+
+            return os;
+        }
+
+    private:
+        std::thread::id threadID;
+        unsigned int semIntervalID;
+        const void* obj;
+        Operation op;
+};
+
+class SynchronizationTraceTool {
+    public:
+        static void SynchronizationCallStart(Operation op, void* obj);
+
+        static void SynchronizationCallEnd();
+
+        ~SynchronizationTraceTool();
+
+    private:
+        static std::unique_ptr<SynchronizationTraceTool> instance;
+        static std::mutex singletonMutex;
+
+        static thread_local FunctionLog currFuncLog;
+        static thread_local OperationLog currOpLog;
+
+        std::ofstream logFile;
+
+        static pid_t lastPID;
+
+        std::vector<OperationLog> *opLogs;
+        std::vector<FunctionLog> *funcLogs;
+        static std::mutex dataMutex;
+
+        std::thread writerThread;
+        bool doneWriting;
+
+        static void maybeCreateInstance();
+
+        SynchronizationTraceTool();
+
+        static void checkFileClean();
+        static void writeLogWorker();
+        static void writeLogs(std::vector<OperationLog> *opLogs,
+                             std::vector<FunctionLog> *funcLogs);
 };
 
 #endif

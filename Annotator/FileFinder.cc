@@ -6,7 +6,7 @@ std::string FileFinder::cdCommand() {
 
 // Build a cscope query which will return files which contain functionName
 std::string FileFinder::buildQuery(const std::string &functionName) {
-    return std::string(cdCommand() + " && cscope -L3" + functionName);
+    return std::string(cdCommand() + " && cscope -R -L3" + functionName);
 }
 
 // Parses cscope output and returns a vector of the unique files 

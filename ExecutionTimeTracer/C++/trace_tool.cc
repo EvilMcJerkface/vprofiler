@@ -1,16 +1,23 @@
-#include "my_global.h"
+// VProf headers
 #include "trace_tool.h"
-#include <algorithm>
+
+// C headers
+#include <sys/mman.h>
+#include <limits.h>
 #include <pthread.h>
-#include <fstream>
 #include <time.h>
+#include <fcntl.h>
+
+// C++ headers
+#include <algorithm>
+#include <fstream>
 #include <cstring>
 #include <sstream>
 #include <cstdlib>
 #include <cassert>
 
 #define TARGET_PATH_COUNT 0
-#define NUMBER_OF_FUNCTIONS 0
+#define NUMBER_OF_FUNCTIONS 200
 #define LATENCY
 #define MONITOR
 
@@ -20,20 +27,22 @@
 #define DELIVERY_MARKER "SELECT NO_O_ID FROM NEW_ORDER WHERE NO_D_ID ="
 #define STOCK_LEVEL_MARKER "SELECT D_NEXT_O_ID FROM DISTRICT WHERE D_W_ID ="
 
-using std::endl;
-using std::ifstream;
-using std::ofstream;
-using std::vector;
-using std::stringstream;
-using std::sort;
-using std::getline;
+using namespace std;
+//using std::endl;
+//using std::ifstream;
+//using std::ofstream;
+//using std::vector;
+//using std::stringstream;
+//using std::sort;
+//using std::getline;
 
-ulint transaction_id = 0;
+shared_ptr<VProfSharedMemory> VProfSharedMemory::instance = nullptr;
+bool VProfSharedMemory::singletonInitialized = false;
 
-TraceTool *TraceTool::instance = NULL;
+std::shared_ptr<TraceTool> TraceTool::instance = nullptr;
 pthread_mutex_t TraceTool::instance_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_rwlock_t TraceTool::data_lock = PTHREAD_RWLOCK_INITIALIZER;
-__thread ulint TraceTool::current_transaction_id = 0;
+__thread ulint TraceTool::current_transaction_id;
 
 timespec TraceTool::global_last_query;
 pthread_mutex_t TraceTool::last_query_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -44,6 +53,14 @@ __thread bool TraceTool::commit_successful = true;
 __thread bool TraceTool::new_transaction = true;
 __thread timespec TraceTool::trans_start;
 __thread transaction_type TraceTool::type = NONE;
+
+unique_ptr<SynchronizationTraceTool> SynchronizationTraceTool::instance = nullptr;
+mutex SynchronizationTraceTool::singletonMutex;
+
+thread_local OperationLog SynchronizationTraceTool::currOpLog;
+thread_local FunctionLog SynchronizationTraceTool::currFuncLog;
+std::mutex SynchronizationTraceTool::dataMutex;
+pid_t SynchronizationTraceTool::lastPID;
 
 static const size_t NEW_ORDER_LENGTH = strlen(NEW_ORDER_MARKER);
 static const size_t PAYMENT_LENGTH = strlen(PAYMENT_MARKER);
@@ -75,8 +92,7 @@ void TRACE_FUNCTION_END()
   if (TraceTool::should_monitor())
   {
     clock_gettime(CLOCK_REALTIME, &function_end);
-    long duration = TraceTool::difftime(function_start, function_end);
-    TraceTool::get_instance()->add_record(0, duration);
+    TraceTool::get_instance()->add_record(0, function_start, function_end);
   }
 #endif
 }
@@ -98,8 +114,7 @@ bool TRACE_END(int index)
   if (TraceTool::should_monitor())
   {
     clock_gettime(CLOCK_REALTIME, &call_end);
-    long duration = TraceTool::difftime(call_start, call_end);
-    TraceTool::get_instance()->add_record(index, duration);
+    TraceTool::get_instance()->add_record(index, call_start, call_end);
   }
 #endif
   return false;
@@ -122,18 +137,88 @@ void SESSION_END(bool successfully)
 #endif
 }
 
+void SYNCHRONIZATION_CALL_START(int op, void* obj) {
+    SynchronizationTraceTool::SynchronizationCallStart(static_cast<Operation>(op), obj);
+}
+
+void SYNCHRONIZATION_CALL_END() {
+    SynchronizationTraceTool::SynchronizationCallEnd();
+}
+
+const char* VProfSharedMemory::GetExecutableName() const {
+    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32) || !defined(__CYGWIN__)
+    //#include <Windows.h>
+    wchar_t filename[MAX_PATH];
+    //GetModuleFilename(NULL, filename, MAX_PATH);
+
+    // Eventually need some other directive for Mac OS
+    #else
+    char *filename[PATH_MAX];
+    readlink("/proc/self/exe", filename, PATH_MAX);
+
+    #endif
+
+    return filename;
+}
+
+VProfSharedMemory::VProfSharedMemory() {
+    SharedMem *shm;
+    const char *filename = GetExecutableName();
+
+    int fd = shm_open(filename, O_RDWR | O_CREAT | O_EXCL, 0666);
+
+    // We're the first process to create the shared memory.
+    if (fd != -1) {
+        // Set shared memory size.
+        // TODO handle error.
+        if (ftruncate(fd, sizeof(VProfSharedMemory)) == -1) {
+            // noop
+            (void)0;
+        }
+
+        shm = static_cast<SharedMem*>(mmap(NULL, sizeof(VProfSharedMemory), 
+                                                   PROT_READ | PROT_WRITE,
+                                                   MAP_SHARED, fd, 0));
+        shm->transaction_id = 0;
+        shm->sharedMemInitialized = true;
+    }
+    else {
+        fd = shm_open(filename, O_RDWR, 0666);
+        shm = static_cast<SharedMem*>(mmap(NULL, sizeof(VProfSharedMemory), 
+                                                   PROT_READ | PROT_WRITE,
+                                                   MAP_SHARED, fd, 0));
+
+        // Wait for shm to be initialized. Maybe add cv in shm?
+        while (!shm->sharedMemInitialized) {}
+    }
+
+    transaction_id = &shm->transaction_id;
+}
+
+/********************************************************************//**
+Get shared memory instance. */
+std::shared_ptr<VProfSharedMemory> VProfSharedMemory::GetInstance() {
+    if (!singletonInitialized) {
+        instance = std::shared_ptr<VProfSharedMemory>(new VProfSharedMemory());
+
+        singletonInitialized = true;
+    }
+
+    return instance;
+}
+
 /********************************************************************//**
 Get the current TraceTool instance. */
-TraceTool *TraceTool::get_instance()
+std::shared_ptr<TraceTool> TraceTool::get_instance()
 {
-  if (instance == NULL)
+  if (instance == nullptr)
   {
     pthread_mutex_lock(&instance_mutex);
     /* Check instance again after entering the ciritical section
        to prevent double initilization. */
-    if (instance == NULL)
+    if (instance == nullptr)
     {
-      instance = new TraceTool;
+      instance = std::shared_ptr<TraceTool>(new TraceTool());
 #ifdef LATENCY
       /* Create a background thread for dumping function running time
          and latency data. */
@@ -151,12 +236,14 @@ TraceTool::TraceTool() : function_times()
   /* Open the log file in append mode so that it won't be overwritten */
   log_file.open("logs/trace.log");
   const int number_of_functions = NUMBER_OF_FUNCTIONS + 1;
-  vector<long> function_time;
-  function_time.push_back(0);
+  vector<vector<FunctionLog>> function_time;
   for (int index = 0; index < number_of_functions; index++)
   {
     function_times.push_back(function_time);
     function_times[index].reserve(500000);
+    for (int j = 0; j < 500000; j++) {
+        function_times[index][j].reserve(500);
+    }
   }
   transaction_start_times.reserve(500000);
   transaction_start_times.push_back(0);
@@ -178,9 +265,9 @@ void *TraceTool::check_write_log(void *arg)
      dump data to log files. */
   while (true)
   {
-    sleep(5);
+    std::this_thread::sleep_for(std::chrono::seconds(5));
     timespec now = get_time();
-    if (now.tv_sec - global_last_query.tv_sec >= 5 && transaction_id > 0)
+    if (now.tv_sec - global_last_query.tv_sec >= 5 && *(VProfSharedMemory::GetInstance()->transaction_id) > 0)
     {
       /* Create a back up of the debug log file in case it's overwritten. */
       std::ifstream src("logs/trace.log", std::ios::binary);
@@ -190,17 +277,16 @@ void *TraceTool::check_write_log(void *arg)
       dst.close();
       
       /* Create a new TraceTool instnance. */
-      TraceTool *old_instace = instance;
-      instance = new TraceTool;
+      std::shared_ptr<TraceTool> old_instace = instance;
+      instance = std::shared_ptr<TraceTool>(new TraceTool());
       
       /* Reset the global transaction ID. */
-      transaction_id = 0;
+      *(VProfSharedMemory::GetInstance()->transaction_id) = 0;
       
       /* Dump data in the old instance to log files and
          reclaim memory. */
       // Should this section be locked?
       old_instace->write_log();
-      delete old_instace;
     }
   }
   return NULL;
@@ -231,7 +317,7 @@ void TraceTool::start_new_query()
 {
   is_commit = false;
   /* This happens when a log write happens, which marks the end of a phase. */
-  if (current_transaction_id > transaction_id)
+  if (current_transaction_id > *(VProfSharedMemory::GetInstance()->transaction_id))
   {
     current_transaction_id = 0;
     new_transaction = true;
@@ -246,14 +332,8 @@ void TraceTool::start_new_query()
     commit_successful = true;
     /* Use a write lock here because we are appending content to the vector. */
     pthread_rwlock_wrlock(&data_lock);
-    current_transaction_id = transaction_id++;
+    current_transaction_id = *(VProfSharedMemory::GetInstance()->transaction_id)++;
     transaction_start_times[current_transaction_id] = now_micro();
-    for (vector<vector<long> >::iterator iterator = function_times.begin();
-         iterator != function_times.end();
-         ++iterator)
-    {
-      iterator->push_back(0);
-    }
     transaction_start_times.push_back(0);
     transaction_types.push_back(NONE);
     pthread_rwlock_unlock(&data_lock);
@@ -317,9 +397,8 @@ void TraceTool::end_transaction()
 {
 #ifdef LATENCY
   timespec now = get_time();
-  long latency = difftime(trans_start, now);
   pthread_rwlock_rdlock(&data_lock);
-  function_times.back()[current_transaction_id] = latency;
+  function_times.back()[current_transaction_id].push_back(FunctionLog(current_transaction_id, trans_start, now));
   if (!commit_successful)
   {
     transaction_start_times[current_transaction_id] = 0;
@@ -330,14 +409,16 @@ void TraceTool::end_transaction()
   type = NONE;
 }
 
-void TraceTool::add_record(int function_index, long duration)
+void TraceTool::add_record(int function_index, 
+                           timespec &start_time, 
+                           timespec &end_time)
 {
-  if (current_transaction_id > transaction_id)
+  if (current_transaction_id > *(VProfSharedMemory::GetInstance()->transaction_id))
   {
     current_transaction_id = 0;
   }
   pthread_rwlock_rdlock(&data_lock);
-  function_times[function_index][current_transaction_id] += duration;
+  function_times[function_index][current_transaction_id].push_back(FunctionLog(current_transaction_id, start_time, end_time));
   pthread_rwlock_unlock(&data_lock);
 }
 
@@ -363,7 +444,7 @@ void TraceTool::write_latency(string dir)
     ulint start_time = transaction_start_times[index];
     if (start_time > 0)
     {
-      tpcc_log << start_time << endl;
+      tpcc_log << index << ',' << start_time << endl;
       switch (transaction_types[index])
       {
         case NEW_ORDER:
@@ -388,34 +469,35 @@ void TraceTool::write_latency(string dir)
   }
   
   int function_index = 0;
-  for (vector<vector<long> >::iterator iterator = function_times.begin(); iterator != function_times.end(); ++iterator)
+  for (vector<vector<vector<FunctionLog>>>::iterator iterator = function_times.begin(); iterator != function_times.end(); ++iterator)
   {
     ulint number_of_transactions = iterator->size();
     for (ulint index = 0; index < number_of_transactions; ++index)
     {
       if (transaction_start_times[index] > 0)
       {
-        long latency = (*iterator)[index];
-        tpcc_log << function_index << ',' << latency << endl;
-        switch (transaction_types[index])
-        {
-          case NEW_ORDER:
-            new_order_log << function_index << ',' << latency << endl;
-            break;
-          case PAYMENT:
-            payment_log << function_index << ',' << latency << endl;
-            break;
-          case ORDER_STATUS:
-            order_status_log << function_index << ',' << latency << endl;
-            break;
-          case DELIVERY:
-            delivery_log << function_index << ',' << latency << endl;
-            break;
-          case STOCK_LEVEL:
-            stock_level_log << function_index << ',' << latency << endl;
-            break;
-          default:
-            break;
+        for (vector<FunctionLog>::iterator innerIt = (*iterator)[index].begin(); innerIt != (*iterator)[index].end(); innerIt++) {
+            tpcc_log << function_index << ',' << (*innerIt);
+            switch (transaction_types[index])
+            {
+              case NEW_ORDER:
+                new_order_log << function_index << ',' << (*innerIt);
+                break;
+              case PAYMENT:
+                payment_log << function_index << ',' << (*innerIt);
+                break;
+              case ORDER_STATUS:
+                order_status_log << function_index << ',' << (*innerIt);
+                break;
+              case DELIVERY:
+                delivery_log << function_index << ',' << (*innerIt);
+                break;
+              case STOCK_LEVEL:
+                stock_level_log << function_index << ',' << (*innerIt);
+                break;
+              default:
+                break;
+            }
         }
       }
     }
@@ -436,3 +518,164 @@ void TraceTool::write_log()
 { 
   write_latency("latency/");
 }
+
+
+SynchronizationTraceTool::SynchronizationTraceTool() {
+    opLogs = new vector<OperationLog>;
+    funcLogs = new vector<FunctionLog>;
+    doneWriting = false;
+
+    opLogs->reserve(1000000);
+    funcLogs->reserve(1000000);
+
+    lastPID = ::getpid();
+
+    logFile.open("latency/SynchronizationLog_" + std::to_string(lastPID), std::ios_base::trunc);
+
+    writerThread = thread(writeLogWorker);
+}
+
+SynchronizationTraceTool::~SynchronizationTraceTool() {
+    
+    // opLogs and funcLogs are deleted in here.  Maybe move that
+    // functionality to a cleanup function.
+    writeLogs(instance->opLogs, instance->funcLogs);
+
+    dataMutex.lock();
+    doneWriting = true;
+    dataMutex.unlock();
+
+    writerThread.join();
+}
+
+void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj) {
+    if (instance == nullptr) {
+        maybeCreateInstance();
+    }
+
+    dataMutex.lock();
+    instance->opLogs->push_back(OperationLog(obj, op));
+    dataMutex.unlock();
+
+    currFuncLog = FunctionLog(TraceTool::current_transaction_id);
+
+    timespec startTime;
+    clock_gettime(CLOCK_REALTIME, &startTime);
+
+    currFuncLog.setFunctionStart(startTime);
+}
+
+void SynchronizationTraceTool::SynchronizationCallEnd() {
+    timespec endTime;
+    clock_gettime(CLOCK_REALTIME, &endTime);
+    currFuncLog.setFunctionEnd(endTime);
+
+    dataMutex.lock();
+    instance->opLogs->push_back(currOpLog);
+    instance->funcLogs->push_back(currFuncLog);
+    dataMutex.unlock();
+}
+
+void SynchronizationTraceTool::maybeCreateInstance() {
+    singletonMutex.lock();
+
+    if (instance == nullptr) {
+        instance = unique_ptr<SynchronizationTraceTool>(new SynchronizationTraceTool());
+    }
+
+    singletonMutex.unlock();
+}
+
+void SynchronizationTraceTool::checkFileClean() {
+    pid_t currPID = ::getpid();
+
+    if (currPID != lastPID) {
+        instance->logFile.close();
+
+        instance->logFile.open("latency/SynchronizationLog_" + std::to_string(currPID), std::ios_base::trunc);
+    }
+}
+
+void SynchronizationTraceTool::writeLogWorker() {
+    bool stopLogging = false;
+
+    // Loop forever writing logs
+    while (!stopLogging) {
+        this_thread::sleep_for(chrono::seconds(5));
+        if (instance != nullptr) {
+            checkFileClean();
+
+            vector<OperationLog> *newOpLogs = new vector<OperationLog>;
+            vector<FunctionLog> *newFuncLogs = new vector<FunctionLog>;
+
+            // TODO TODO TODO experiment with this size!!!!
+            newOpLogs->reserve(instance->opLogs->size() * 4);
+            newFuncLogs->reserve(instance->funcLogs->size() * 4);
+
+            dataMutex.lock();
+
+            vector<OperationLog> *oldOpLogs = instance->opLogs;
+            vector<FunctionLog> *oldFuncLogs = instance->funcLogs;
+
+            instance->opLogs = newOpLogs;
+            instance->funcLogs = newFuncLogs;
+
+            if (instance->doneWriting) {
+                stopLogging = true;
+            }
+
+            dataMutex.unlock();
+
+            writeLogs(oldOpLogs, oldFuncLogs);
+        }
+    }
+}
+
+void SynchronizationTraceTool::writeLogs(vector<OperationLog> *opLogs, 
+                                         vector<FunctionLog> *funcLogs) {
+    for (OperationLog &opLog : *opLogs) {
+        instance->logFile << "0," << opLog;
+    }
+
+    for (FunctionLog &funcLog : *funcLogs) {
+        instance->logFile << "1," << funcLog;
+    }
+
+    delete opLogs;
+    delete funcLogs;
+}
+
+std::ostream& operator<<(std::ostream &os, const Operation &op) {
+    switch (op) {
+        case MUTEX_LOCK:
+            os << "ML";
+            break;
+        case MUTEX_UNLOCK:
+            os << "MU";
+            break;
+        case CV_WAIT:
+            os << "CVW";
+            break;
+        case CV_BROADCAST:
+            os << "CVB";
+            break;
+        case CV_SIGNAL:
+            os << "CVS";
+            break;
+        case QUEUE_ENQUEUE:
+            os << "QE";
+            break;
+        case QUEUE_DEQUEUE:
+            os << "QD";
+            break;
+        case MESSAGE_SEND:
+            os << "MS";
+            break;
+        case MESSAGE_RECEIVE:
+            os << "MR";
+            break;
+    }
+
+    return os;
+}
+

@@ -36,14 +36,18 @@ vector<string> WrapperGenerator::getFilenames() {
 
 void WrapperGenerator::GenerateHeader() {
     vector<string> includeNames = getFilenames();
+    headerFile << "#ifndef VPROFEVENTWRAPPERS_H\n#define VPROFEVENTWRAPPERS_H\n";
     for (string &includeName : includeNames) {
         headerFile << "#include \"" + includeName + "\"\n";
     }
-    headerFile << "#include \"TraceTool.h\"\n\n";
+    headerFile << "#include \"trace_tool.h\"\n\n"
+                  "#ifdef __cplusplus\nextern \"C\" {\n#endif";
 
     for (auto kv : *prototypeMap) {
         headerFile << kv.second.functionPrototype + ";\n\n";
     }
+
+    headerFile << "$ifdef __cplusplus\n}\n#endif\n\n#endif";
 
     headerFile.close();
 }
@@ -58,8 +62,11 @@ void WrapperGenerator::GenerateImplementations() {
             implementationFile << kv.second.returnType + " result;\n\t";
         }
 
-        implementationFile << "SynchronizationTraceTool::SynchronizationCallStart(" + 
-                              (*operationMap)[kv.first] + ", static_cast<void*>(obj));\n\t";
+        string object = kv.second.isMemberCall ? "obj" : kv.second.paramVars[0];
+
+        implementationFile << "SYNCHRONIZATION_CALL_START(" + 
+                              (*operationMap)[kv.first] + 
+                              ", static_cast<void*>(" + object + "));\n\t";
 
         if (kv.second.returnType != "void") {
             implementationFile << "result = ";
@@ -80,7 +87,7 @@ void WrapperGenerator::GenerateImplementations() {
         // NOTE TODO. I think we need to add some mutex which we lock here. 
         // Think through this.
 
-        implementationFile << "SynchronizationTraceTool::SynchronizationCallEnd();\n";
+        implementationFile << "SYNCHRONIZATION_CALL_END();\n";
 
         if (kv.second.returnType != "void") {
             implementationFile << "\treturn result;\n";

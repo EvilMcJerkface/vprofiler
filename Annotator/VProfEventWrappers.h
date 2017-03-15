@@ -3,10 +3,26 @@
  // Please do not change the contents of this file! // 
  ///////////////////////////////////////////////////// 
 
-#include "./Classes.h"
-#include "TraceTool.h"
+#include "/home/jiamin/httpd/srclib/apr/include/apr_thread_cond.h"
+#include "/home/jiamin/httpd/srclib/apr/include/apr_thread_mutex.h"
+#include "/home/jiamin/httpd/srclib/apr/include/apr_global_mutex.h"
+#include "/home/jiamin/httpd/srclib/apr/include/apr_proc_mutex.h"
+#include "trace_tool.h"
 
-class B A__getb_vprofiler(class A * obj);
+apr_status_t apr_thread_cond_broadcast_vprofiler(apr_thread_cond_t * cond);
 
-void D_int___setD_vprofiler(class D<int> * obj, int val);
+apr_status_t apr_thread_cond_wait_vprofiler(apr_thread_cond_t * cond, apr_thread_mutex_t * mutex);
 
+apr_status_t apr_thread_mutex_unlock_vprofiler(apr_thread_mutex_t * mutex);
+
+apr_status_t apr_thread_cond_signal_vprofiler(apr_thread_cond_t * cond);
+
+apr_status_t apr_thread_mutex_lock_vprofiler(apr_thread_mutex_t * mutex);
+
+apr_status_t apr_global_mutex_lock_vprofiler(apr_global_mutex_t * mutex);
+
+apr_status_t apr_global_mutex_unlock_vprofiler(apr_global_mutex_t * mutex);
+
+apr_status_t apr_proc_mutex_lock_vprofiler(apr_proc_mutex_t * mutex);
+
+apr_status_t apr_proc_mutex_unlock_vprofiler(apr_proc_mutex_t * mutex);

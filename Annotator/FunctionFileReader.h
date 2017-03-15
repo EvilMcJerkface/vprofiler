@@ -3,7 +3,6 @@
 
 // VProf libs
 #include "Utils.h"
-#include "../ExecutionTimeTracer/C++/OperationLog.h"
 
 // STL libs
 #include <memory>
@@ -14,6 +13,16 @@
 #include <fstream>
 #include <stdexcept>
 #include <algorithm>
+
+enum Operation  { MUTEX_LOCK,
+                  MUTEX_UNLOCK,
+                  CV_WAIT,
+                  CV_BROADCAST,
+                  CV_SIGNAL,
+                  QUEUE_ENQUEUE,
+                  QUEUE_DEQUEUE,
+                  MESSAGE_SEND,
+                  MESSAGE_RECEIVE };
 
 struct LogInformation {
     unsigned int functionID;

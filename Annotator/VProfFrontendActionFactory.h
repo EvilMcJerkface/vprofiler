@@ -20,6 +20,7 @@ class VProfFrontendActionFactory : public clang::tooling::FrontendActionFactory 
 
         // Maps qualified function name to FunctionPrototype object.
         std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> prototypeMap;
+
     public:
         VProfFrontendActionFactory(std::shared_ptr<std::unordered_map<std::string, 
                                    std::string>> _functionNameMap,

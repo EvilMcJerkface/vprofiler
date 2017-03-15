@@ -1,4 +1,4 @@
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 
 # Abstract base class for synchronization objects
 class SynchronizationObject:
@@ -27,11 +27,9 @@ class OwnableObject(SynchronizationObject):
         valToAppend = None
 
         if len(self.ownershipTimeSeries) > 0 and self.ownershipTimeSeries[-1].otherThreadTriedToAcquire:
-            valToAppend = OwnershipTimeInterval(threadID, self.ownershipTimeSeries[-1].endTime)
-        else:
-            valToAppend = OwnershipTimeInterval(threadID, startTime)
-
-        self.ownershipTimeSeries.append(valToAppend)
+            self.ownershipTimeSeries[-1].endTime = startTime
+        
+        self.ownershipTimeSeries.append(OwnershipTimeInterval(threadID, startTime))
 
     def SetLatestOwnershipHadAcquireReq(self, val):
         self.ownershipTimeSeries[-1].otherThreadTriedToAcquire = val
@@ -42,8 +40,8 @@ class OwnableObject(SynchronizationObject):
 
     def RegisterObjectAcquisitionRequest(self, timestamp):
         if len(self.ownershipTimeSeries) > 0:
-            if self.ownershipTimeSeries[-1].startTime <= timestamp and
-              (self.ownershipTimeSeries[-1].endTime == None or
+            if self.ownershipTimeSeries[-1].startTime <= timestamp and \
+              (self.ownershipTimeSeries[-1].endTime is None or \
                timestamp <= self.ownershipTimeSeries[-1].endTime):
                   self.ownershipTimeSeries[-1].otherThreadTriedToAcquire = True
 
@@ -53,11 +51,15 @@ class OwnableObject(SynchronizationObject):
         resultIdx = -1
         for i in range(len(self.ownershipTimeSeries)):
             if self.ownershipTimeSeries[i].startTime == timestamp:
-                resultIdx = i - 1
+                if self.ownershipTimeSeries[i].otherThreadTriedToAcquire:
+                    resultIdx = i - 1
                 break
 
-        return self.ownershipTimeSeries[resultIdx].endTime, \
-               self.ownershipTimeSeries[resultIdx].threadID
+        if resultIdx == -1:
+            return None, None
+        else:
+            return self.ownershipTimeSeries[resultIdx].endTime, \
+                   self.ownershipTimeSeries[resultIdx].threadID
 
 # User should provide function which returns a unique ID of the event so we can
 # track it

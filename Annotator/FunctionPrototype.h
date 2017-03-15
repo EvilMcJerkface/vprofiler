@@ -12,8 +12,8 @@
 class FunctionPrototype {
     public:
         FunctionPrototype():
-        functionPrototype(""), innerCallPrefix(""), 
-        paramVars(), returnType(""), filename("") {}
+        functionPrototype(""), innerCallPrefix(""), paramVars(),
+        returnType(""), filename(""), isMemberCall(false) {}
 
         std::string functionPrototype;
         std::string innerCallPrefix;
@@ -23,6 +23,8 @@ class FunctionPrototype {
         std::string returnType;
 
         std::string filename;
+
+        bool isMemberCall;
 };
 
 #endif
