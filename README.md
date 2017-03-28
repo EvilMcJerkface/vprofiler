@@ -64,17 +64,15 @@ must generate a `compile_commands.json` file for their system.  A guide on how t
 `<fully qualified function name> <function type>`
 where fully qualified function name includes the templated type if one exists.  Function type specifies what type of synchronization function the function name is. Acceptable values are as follows:
 
-Function Type |
------------- |
-**MUTEX\_LOCK** |
-**MUTEX\_UNLOCK** |
-**CV\_WAIT** |
-**CV\_SIGNAL** |
-**CV\_BROADCAST** |
-**QUEUE\_ENQUEUE** |
-**QUEUE\_DEQUEUE** |
-**MESSAGE\_SEND** |
-**MESSAGE\_RECEIVE** |
+* MUTEX\_LOCK
+* MUTEX\_UNLOCK
+* CV\_WAIT
+* CV\_SIGNAL
+* CV\_BROADCAST
+* QUEUE\_ENQUEUE
+* QUEUE\_DEQUEUE
+* MESSAGE\_SEND
+* MESSAGE\_RECEIVE
 
 2. Run the following:
     ```
