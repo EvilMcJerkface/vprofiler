@@ -20,11 +20,13 @@ class SynchronizationObjectAggregator:
             # ownership of an object and it's the first thread to own the object.
             if objID not in self.objectMap:
                 self.objectMap[objID] = OwnableObject()
-            elif opID == Operation.MUTEX_UNLOCK or \
-                 opID == Operation.CV_BROADCAST or \
-                 opID == Operation.CV_SIGNAL:
+
+            if opID == Operation.MUTEX_UNLOCK:# or \
+                 #opID == Operation.CV_BROADCAST or \
+                 #opID == Operation.CV_SIGNAL:
                 self.objectMap[objID].SetLatestOwnershipEndTime(operationTimeEnd)
-            else:
+            #else:
+            elif opID == Operation.MUTEX_LOCK:
                 self.objectMap[objID].RegisterObjectAcquisitionRequest(operationTimeStart)
                 self.objectMap[objID].StartNewOwnership(threadID, operationTimeEnd)
 

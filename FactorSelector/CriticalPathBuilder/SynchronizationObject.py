@@ -27,11 +27,9 @@ class OwnableObject(SynchronizationObject):
         valToAppend = None
 
         if len(self.ownershipTimeSeries) > 0 and self.ownershipTimeSeries[-1].otherThreadTriedToAcquire:
-            valToAppend = OwnershipTimeInterval(threadID, self.ownershipTimeSeries[-1].endTime)
-        else:
-            valToAppend = OwnershipTimeInterval(threadID, startTime)
+            self.ownershipTimeSeries[-1].endTime = startTime
 
-        self.ownershipTimeSeries.append(valToAppend)
+        self.ownershipTimeSeries.append(OwnershipTimeInterval(threadID, startTime))
 
     def SetLatestOwnershipHadAcquireReq(self, val):
         self.ownershipTimeSeries[-1].otherThreadTriedToAcquire = val
@@ -43,7 +41,7 @@ class OwnableObject(SynchronizationObject):
     def RegisterObjectAcquisitionRequest(self, timestamp):
         if len(self.ownershipTimeSeries) > 0:
             if self.ownershipTimeSeries[-1].startTime <= timestamp and \
-              (self.ownershipTimeSeries[-1].endTime == None or \
+              (self.ownershipTimeSeries[-1].endTime is None or \
                timestamp <= self.ownershipTimeSeries[-1].endTime):
                   self.ownershipTimeSeries[-1].otherThreadTriedToAcquire = True
 
@@ -53,7 +51,7 @@ class OwnableObject(SynchronizationObject):
         resultIdx = -1
         for i in range(len(self.ownershipTimeSeries)):
             if self.ownershipTimeSeries[i].startTime == timestamp:
-                if self.ownershipTimeSeries[i - 1] .otherThreadTriedToAcquire:
+                if self.ownershipTimeSeries[i - 1].otherThreadTriedToAcquire:
                     resultIdx = i - 1
                 break
 

@@ -38,11 +38,12 @@ def collect_exec_time(function_file, path):
     functions = open(path + function_file, 'r')
     functions.readline()
     function_names = [function.strip() for function in functions]
-    function_names.insert(0, function_file)
-    function_names.append('latency')
 
     latencyAggregator = LatencyAggregator(path)
-    function_exec_time = latencyAggregator.GetLatencies(path + "tpcc", len(function_names))
+    function_exec_time = latencyAggregator.GetLatencies(path, len(function_names))
+
+    function_names.insert(0, function_file)
+    function_names.append('latency')
 #    function_exec_time = []
 #    function_exec_time_file = open('tpcc', 'r')
 #    current_function_index = -1
@@ -69,8 +70,8 @@ def break_down(function_file, path, var_tree_file):
     caller = function_names[0]
     function_names[0] = 'img_' + function_names[0]
 
-    latency_data = function_exec_time[-1]
-    imaginary_records = function_exec_time[0]
+    latency_data = function_exec_time[0]
+    imaginary_records = function_exec_time[-1]
     variance_of_latency = np.var(latency_data)
     std_of_latency = np.std(latency_data)
     mean_of_latency = np.mean(latency_data)
