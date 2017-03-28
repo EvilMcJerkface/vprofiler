@@ -66,15 +66,15 @@ where fully qualified function name includes the templated type if one exists.  
 
 Function Type |
 ------------ |
-`MUTEX_LOCK` |
-`MUTEX_UNLOCK` |
-`CV_WAIT` |
-`CV_SIGNAL` |
-`CV_BROADCAST` |
-`QUEUE_ENQUEUE` |
-`QUEUE_DEQUEUE` |
-`MESSAGE_SEND` |
-`MESSAGE_RECEIVE` |
+**MUTEX\_LOCK** |
+**MUTEX\_UNLOCK** |
+**CV\_WAIT** |
+**CV\_SIGNAL** |
+**CV\_BROADCAST** |
+**QUEUE\_ENQUEUE** |
+**QUEUE\_DEQUEUE** |
+**MESSAGE\_SEND** |
+**MESSAGE\_RECEIVE** |
 
 2. Run the following:
     ```
