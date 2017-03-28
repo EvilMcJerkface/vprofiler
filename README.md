@@ -52,9 +52,9 @@ The execution time tracer needs to be integrated into the target software system
 
 To building factor selector, simply do a `make` at the top level folder.
 
-## 5. Usage Guide
+### 5. Usage Guide
 
-### Annotator Usage
+#### Annotator Usage
 
 VProfiler offers an abstraction to attempt to determine which particular operations influenced the predictability of the user's execution.  This abstraction uses the idea that only one thread finishes the segment of execution between `SESSION_START` and `SESSION_END`, and so VProfiler determines the particular operations which influenced the predictability by tracking calls to synchronization APIs.  VProfiler will run correctly without this step, but the results may not be as accurate.
 VProfiler uses clang's libtooling to instrument code. To instrument the source code properly, VProfiler must know the compilation options used for each file in the source tree.  The mechanism it uses for this is a compilation database represented by a `compile_commands.json` file.  This file details exactly how each file is compiled in the source tree so that VProfiler can instrument exactly what the compiler sees at compile time of the user's system.  To use VProfiler, then, the user
@@ -64,17 +64,17 @@ must generate a `compile_commands.json` file for their system.  A guide on how t
 `<fully qualified function name> <function type>`
 where fully qualified function name includes the templated type if one exists.  Function type specifies what type of synchronization function the function name is. Acceptable values are as follows:
 
-Function Type
-------------
-`MUTEX_LOCK`
-`MUTEX_UNLOCK`
-`CV_WAIT`
-`CV_SIGNAL`
-`CV_BROADCAST`
-`QUEUE_ENQUEUE`
-`QUEUE_DEQUEUE`
-`MESSAGE_SEND`
-`MESSAGE_RECEIVE`
+Function Type |
+------------ |
+`MUTEX_LOCK` |
+`MUTEX_UNLOCK` |
+`CV_WAIT` |
+`CV_SIGNAL` |
+`CV_BROADCAST` |
+`QUEUE_ENQUEUE` |
+`QUEUE_DEQUEUE` |
+`MESSAGE_SEND` |
+`MESSAGE_RECEIVE` |
 
 2. Run the following:
     ```
@@ -82,10 +82,10 @@ Function Type
     ```
 Here, function\_filename is the name of the file created in step 1.  source\_tree\_base\_dir is the base directory of the source tree that the user is attempting to instrument.  Note that all arguments are required and that they must follow the order given above.
 
-#### Generating compile_commands.json
+##### Generating compile_commands.json
 There are a number of options for generating `compile_commands.json`.  If you are using cmake, add **-DCMAKE_EXPORT_COMPILE_COMMANDS=on** to the command you usually run cmake with.  If you are using a build system besides cmake, look at [Bear](https://github.com/rizsotto/Bear), a system for generating `compile_commands.json` with various build systems.
 
-### Factor Selector Usage
+#### Factor Selector Usage
 
 The factor selector runs in the following loop:
 
