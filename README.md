@@ -7,7 +7,7 @@ VProfiler is a profiling tool that can efficiently and rigorously decompose the 
 
 ### 0. Package Overview
 
-VProfiler consists of three parts: 1) Synchronization call annotator 2) Execution time tracer 2) Factor selector
+VProfiler consists of three parts: 1) Synchronization call annotator 2) Execution time tracer 3) Factor selector
 
 The files overwritten by the synchronization call annotator and the generated wrapper files must be integrated into and compiled as part of the target system.  It's located in the folder 'Annotator'.
 
