@@ -74,6 +74,8 @@ where fully qualified function name includes the templated type if one exists.  
 * MESSAGE\_SEND
 * MESSAGE\_RECEIVE
 
+An example function file can be found in the `Examples` directory.
+
 2. Run the following:
     ```
     ./EventAnnotator.sh -f <function_filename> -s <source_tree_base_dir> compile_commands.json
