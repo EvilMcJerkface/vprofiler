@@ -1,0 +1,9 @@
+std::mutex::lock MUTEX_LOCK
+std::mutex::unlock MUTEX_UNLOCK
+std::condition_variable::wait CV_WAIT
+std::condition_variable::signal CV_SIGNAL
+std::contition_variable::broadcast CV_BROADCAST
+std::queue<EventMessage>::push QUEUE_ENQUEUE
+std::queue<EventMessage>::pop QUEUE_DEQUEUE
+send MESSAGE_SEND
+recv MESSAGE_RECEIVE
