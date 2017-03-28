@@ -20,7 +20,7 @@ class CriticalPathBuilder:
 
             for log in synchroOpLogReader:
                 if len(log) == 5 and '' not in operation:
-                    if log[0] == 0: 
+                    if log[0] == 0:
                         self.requestTracker.AddOperation(log[1:])
                     else:
                         self.requestTracker.AddFunctionTime(log[1:)
@@ -65,6 +65,10 @@ class CriticalPathBuilder:
             timeSeries.appendleft((currThreadID, requestTime.endTime, segmentEndTime))
 
             leftTimeBound, nextThreadID = self.synchObjAgg.GetDependenceEdge(requestTime, objID, opType)
+
+            if leftTimeBound is None or nextThreadID is None:
+                leftTimeBound = requestTime
+                nextThreadID = currThreadID
 
         return self.__BuildHelper(leftTimeBound, nextThreadID, timeSeries)
 

@@ -53,11 +53,15 @@ class OwnableObject(SynchronizationObject):
         resultIdx = -1
         for i in range(len(self.ownershipTimeSeries)):
             if self.ownershipTimeSeries[i].startTime == timestamp:
-                resultIdx = i - 1
+                if self.ownershipTimeSeries[i - 1] .otherThreadTriedToAcquire:
+                    resultIdx = i - 1
                 break
 
-        return self.ownershipTimeSeries[resultIdx].endTime, \
-               self.ownershipTimeSeries[resultIdx].threadID
+        if resultIdx == -1:
+            return None, None
+        else:
+            return self.ownershipTimeSeries[resultIdx].endTime, \
+                   self.ownershipTimeSeries[resultIdx].threadID
 
 # User should provide function which returns a unique ID of the event so we can
 # track it
