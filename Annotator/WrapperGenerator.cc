@@ -8,7 +8,11 @@ WrapperGenerator::WrapperGenerator(shared_ptr<unordered_map<string,
                                    std::string>> _operationMap,
                                    string pathPrefix):
                                    prototypeMap(_prototypeMap),
-                                   operationMap(_operationMap) {
+                                   operationMap(_operationMap),
+                                   vprofInternalOps({{MKNOD, true}, {READ, true},
+                                                     {WRITE, true}, {PIPE, true},
+                                                     {MSGGET, true}, {MSGSND, true},
+                                                     {MSGRCV, true}}) {
     headerFile.open(pathPrefix + "VProfEventWrappers.h");
     implementationFile.open(pathPrefix + "VProfEventWrappers.cpp");
 
@@ -20,6 +24,13 @@ WrapperGenerator::WrapperGenerator(shared_ptr<unordered_map<string,
 
     headerFile << generatedFileMessage; 
     implementationFile << generatedFileMessage;
+}
+
+bool WrapperGenerator::isIPCOperation(const Operation op) const { 
+    return vprofInternalOps.find(op) != vprofInternalOps.end();
+}
+
+void instrumentIPCFunction(std::string &functionName, FunctionPrototype &prototype) {
 }
 
 vector<string> WrapperGenerator::getFilenames() {
@@ -47,7 +58,7 @@ void WrapperGenerator::GenerateHeader() {
         headerFile << kv.second.functionPrototype + ";\n\n";
     }
 
-    headerFile << "$ifdef __cplusplus\n}\n#endif\n\n#endif";
+    headerFile << "#ifdef __cplusplus\n}\n#endif\n\n#endif";
 
     headerFile.close();
 }
@@ -63,6 +74,10 @@ void WrapperGenerator::GenerateImplementations() {
         }
 
         string object = kv.second.isMemberCall ? "obj" : kv.second.paramVars[0];
+
+        if (isIPCOperation((*operationMap)[kv.first])) {
+            addIPCInstumentation(kv.first, kv.second);
+        }
 
         implementationFile << "SYNCHRONIZATION_CALL_START(" + 
                               (*operationMap)[kv.first] + 

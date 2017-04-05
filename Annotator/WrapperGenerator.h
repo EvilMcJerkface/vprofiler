@@ -9,6 +9,7 @@
 #include <fstream>
 #include <algorithm>
 #include <vector>
+#include <functional>
 
 class WrapperGenerator {
     private:
@@ -18,11 +19,18 @@ class WrapperGenerator {
 
         std::shared_ptr<std::unordered_map<std::string, std::string>> operationMap;
 
+        // Maps an IPC function name to the function to be used to generate the code
+        const std::unordered_map<std::string, std::function<void(FunctionPrototype &)>> ipcWrapperGenMap;
+
         // File handle for header file.
         std::ofstream headerFile;
 
         // File handle for implementation file.
         std::ofstream implementationFile;
+
+        bool isIPCOperation(const std::string &op) const;
+
+        void instrumentIPCFunction(std::string &functionName, FunctionPrototype &prototype);
 
         std::vector<std::string> getFilenames();
 
