@@ -1,9 +1,9 @@
 #include <string>
 #include <vector>
 
-class IPCWrapperGenState {
+class WrapperGenState {
     public:
-        IPCWrapperGenState(std::string _internalCallPrefix,
+        WrapperGenState(std::string _internalCallPrefix,
                            std::vector<int> _argIdxs,
                            bool _usesResult): internalCallPrefix(_internalCallPrefix),
                                               argumentIndices(_argIdxs),

@@ -2,22 +2,41 @@
 
 #define noop (void)0
 
-std::string IPCWrapperGenerator::BuildFunctionCallFromParams(std::string &fname,
-                                                             FunctionPrototype &prototype) {
+TracingInnerWrapperGenerator::TracingInnerWrapperGenerator(std::shared_ptr<std::unordered_map<std::string, std::string>> operationMap):
+    prologuePrefix("SYNCHRONIZATION_CALL_START("), 
+    epiloguePrefix("SYNCHRONIZATION_CALL_END("), 
+    operationMap(_operationMap) {}
+
+void TracingInnerWrapperGenerator::GenerateWrapperPrologue(std::string &fname,
+                                                           FunctionPrototype &prototype) {
+    string object = prototype.isMemberCall ? "obj" : prototype.paramVars[0];
+
+    implementationFile << "SYNCHRONIZATION_CALL_START(" + 
+                          (*operationMap)[fname] + 
+                          ", static_cast<void*>(" + object + "));\n\t";
+}
+
+void TracingInnerWrapperGenerator::GenerateWrapperPrologue(std::string &fname,
+                                                           FunctionPrototype &prototype) {
+    implementationFile << "SYNCHRONIZATION_CALL_END();\n";
+}
+
+std::string IPCInnerWrapperGenerator::BuildFunctionCallFromParams(WrapperGenState &funcToInstrument,
+                                                                  FunctionPrototype &prototype) {
     std::string callFromParameters = "";
 
     int argumentIndex;
-    int argumentsNeeded = assignedFunctionState[fname].usedIndices.size();
+    int argumentsNeeded = funcToInstrument.usedIndices.size();
     for (int i = 0; i < argumentsNeeded; i++) {
-        argumentIndex = assignedFunctionState[fname].usedIndices[i];
+        argumentIndex = funcToInstrument.usedIndices[i];
         callFromParameters += prototype.arguments[argumentIndex];
 
-        if (assignedFunctionState[fname].usesResult || i != argumentsNeeded - 1) {
+        if (funcToInstrument.usesResult || i != argumentsNeeded - 1) {
             callFromParameters += ", ";
         }
     }
 
-    if (assignedFunctionState[fname].usesResult) {
+    if (funcToInstrument.usesResult) {
         callFromParameters += "result";
     }
 
@@ -48,6 +67,7 @@ void CachingIPCWrapperGenerator::GenerateWrapperPrologue(std::string &fname,
 
 void CachingIPCWrapperGenerator::GenerateWrapperEpilogue(std::string &fname, 
                                                          FunctionPrototype &prototype) {
+    WrapperGenState 
     std::string cachingCall = assignedFunctionState[fname].internalCallPrefix;
 
     cachingCall += BuildFunctionCallFromParams(fname, prototype);

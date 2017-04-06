@@ -11,6 +11,8 @@
 #include <vector>
 #include <functional>
 
+typedef std::unordered_map<std::string, std::shared_ptr<InnerWrapperGenerator>> WrapperGenMap
+
 class WrapperGenerator {
     private:
         // Map from fully qualified names to instrument to a FunctionPrototype object
@@ -18,6 +20,10 @@ class WrapperGenerator {
         std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> prototypeMap;
 
         std::shared_ptr<std::unordered_map<std::string, std::string>> operationMap;
+
+        // Map takes an operation to the wrapper generator that should be used to generate
+        // the wrapped function's wrapper.
+        WrapperGenMap operationToGenerator;
 
         // Maps an IPC function name to the function to be used to generate the code
         const std::unordered_map<std::string, std::function<void(FunctionPrototype &)>> ipcWrapperGenMap;
@@ -33,6 +39,9 @@ class WrapperGenerator {
         void instrumentIPCFunction(std::string &functionName, FunctionPrototype &prototype);
 
         std::vector<std::string> getFilenames();
+
+        // For initialization only
+        void initOpToGenMap();
 
     public:
         WrapperGenerator(std::shared_ptr<std::unordered_map<std::string, 

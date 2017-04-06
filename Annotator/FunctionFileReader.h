@@ -1,6 +1,4 @@
-#ifndef FUNCTIONFILEREADER_H
-#define FUNCTIONFILEREADER_H
-
+#ifndef FUNCTIONFILEREADER_H #define FUNCTIONFILEREADER_H 
 // VProf libs
 #include "Utils.h"
 
@@ -18,7 +16,7 @@ enum Operation  { MUTEX_LOCK, MUTEX_UNLOCK,         // Mutexes
                   CV_WAIT, CV_BROADCAST, CV_SIGNAL, // CVs
                   QUEUE_ENQUEUE, QUEUE_DEQUEUE,     // Queues
                   MESSAGE_SEND, MESSAGE_RECEIVE,    // Messaging 
-                  MKNOD, READ, WRITE, PIPE,         // IPC FIFO/pipe
+                  MKNOD, OPEN, READ, WRITE, PIPE,   // IPC FIFO/pipe
                   MSGGET, MSGSND, MSGRCV };         // IPC message queue
 
 struct LogInformation {
