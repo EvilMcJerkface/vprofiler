@@ -3,6 +3,9 @@
 
 class WrapperGenState {
     public:
+        WrapperGenState():
+            internalCallPrefix(""), argumentIndices(), usesResult(false) {}
+
         WrapperGenState(std::string _internalCallPrefix,
                            std::vector<int> _argIdxs,
                            bool _usesResult): internalCallPrefix(_internalCallPrefix),

@@ -1,9 +1,10 @@
 #include "FunctionPrototype.h"
-#include "IPCWrapperGenState.h"
+#include "WrapperGenState.h"
 
 #include <string>
 #include <unordered_map>
 #include <memory>
+#include <fstream>
 
 typedef std::unordered_map<std::string, WrapperGenState> WrapperGenMap;
 
@@ -13,8 +14,8 @@ class InnerWrapperGenerator {
         virtual void GenerateWrapperEpilogue(std::string &fname, FunctionPrototype &prototype) = 0;
 
     protected:
-        std::fstream implementationFile;
-}
+        std::ofstream implementationFile;
+};
 
 class TracingInnerWrapperGenerator : public InnerWrapperGenerator {
     public:
@@ -28,13 +29,13 @@ class TracingInnerWrapperGenerator : public InnerWrapperGenerator {
         const std::string epiloguePrefix;
 
         std::shared_ptr<std::unordered_map<std::string, std::string>> operationMap;
-}
+};
 
 class IPCInnerWrapperGenerator : public InnerWrapperGenerator {
     protected:
-        const IPCWrapperGenMap assignedFunctionState;
+        WrapperGenMap assignedFunctionState;
 
-        IPCWrapperGenerator(IPCWrapperGenMap _assignedFunctionState): 
+        IPCInnerWrapperGenerator(WrapperGenMap _assignedFunctionState): 
             assignedFunctionState(_assignedFunctionState) {}
 
         std::string BuildFunctionCallFromParams(WrapperGenState &funcToInstrument, 
@@ -43,15 +44,15 @@ class IPCInnerWrapperGenerator : public InnerWrapperGenerator {
 
 class CachingIPCInnerWrapperGenerator : public IPCInnerWrapperGenerator {
     public:
-        CachingIPCWrapperGenerator();
+        CachingIPCInnerWrapperGenerator();
 
         void GenerateWrapperPrologue(std::string &fname, FunctionPrototype &prototype);
         void GenerateWrapperEpilogue(std::string &fname, FunctionPrototype &prototype);        
 };
 
-class NonCachingIPCWrapperGenerator : public IPCInnerWrapperGenerator {
+class NonCachingIPCInnerWrapperGenerator : public IPCInnerWrapperGenerator {
     public:
-        NonCachingIPCWrapperGenerator();
+        NonCachingIPCInnerWrapperGenerator();
 
         void GenerateWrapperPrologue(std::string &fname, FunctionPrototype &prototype);
         void GenerateWrapperEpilogue(std::string &fname, FunctionPrototype &prototype);        

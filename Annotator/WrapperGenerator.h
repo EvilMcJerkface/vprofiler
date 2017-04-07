@@ -1,6 +1,7 @@
 // VProf libs
 #include "FunctionPrototype.h"
 #include "FunctionFileReader.h"
+#include "WrapperGenModules.h"
 
 // STL libs
 #include <unordered_map>
@@ -11,7 +12,7 @@
 #include <vector>
 #include <functional>
 
-typedef std::unordered_map<std::string, std::shared_ptr<InnerWrapperGenerator>> WrapperGenMap
+typedef std::unordered_map<std::string, std::shared_ptr<InnerWrapperGenerator>> WrapperGenMap;
 
 class WrapperGenerator {
     private:
@@ -24,9 +25,6 @@ class WrapperGenerator {
         // Map takes an operation to the wrapper generator that should be used to generate
         // the wrapped function's wrapper.
         WrapperGenMap operationToGenerator;
-
-        // Maps an IPC function name to the function to be used to generate the code
-        const std::unordered_map<std::string, std::function<void(FunctionPrototype &)>> ipcWrapperGenMap;
 
         // File handle for header file.
         std::ofstream headerFile;
