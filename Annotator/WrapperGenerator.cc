@@ -11,23 +11,23 @@ void WrapperGenerator::initOpToGenMap() {
     cachingIPCGen = make_shared<CachingIPCInnerWrapperGenerator>();
     nonCachingIPCGen = make_shared<NonCachingIPCInnerWrapperGenerator>();
 
-    wrapperToGenMap = WrapperGenMap({{"MUTEX_LOCK", traceGen}, 
-                                     {"MUTEX_UNLOCK", traceGen},
-                                     {"CV_WAIT", traceGen},
-                                     {"CV_BROADCAST", traceGen},
-                                     {"CV_SIGNAL", traceGen},
-                                     {"QUEUE_ENQUEUE", traceGen},
-                                     {"QUEUE_DEQUEUE", traceGen},
-                                     {"MESSAGE_SEND", traceGen},
-                                     {"MESSAGE_RECEIVE", traceGen},
-                                     {"MKNOD", cachingIPCGen},
-                                     {"OPEN", cachingIPCGen},
-                                     {"PIPE", cachingIPCGen},
-                                     {"MSGGET", cachingIPCGen},
-                                     {"READ", nonCachingIPCGen},
-                                     {"WRITE", nonCachingIPCGen},
-                                     {"MSGRCV", nonCachingIPCGen},
-                                     {"MSGSND", nonCachingIPCGen}});
+    operationToGenerator = WrapperGenMap({{"MUTEX_LOCK", traceGen}, 
+                                          {"MUTEX_UNLOCK", traceGen},
+                                          {"CV_WAIT", traceGen},
+                                          {"CV_BROADCAST", traceGen},
+                                          {"CV_SIGNAL", traceGen},
+                                          {"QUEUE_ENQUEUE", traceGen},
+                                          {"QUEUE_DEQUEUE", traceGen},
+                                          {"MESSAGE_SEND", traceGen},
+                                          {"MESSAGE_RECEIVE", traceGen},
+                                          {"MKNOD", cachingIPCGen},
+                                          {"OPEN", cachingIPCGen},
+                                          {"PIPE", cachingIPCGen},
+                                          {"MSGGET", cachingIPCGen},
+                                          {"READ", nonCachingIPCGen},
+                                          {"WRITE", nonCachingIPCGen},
+                                          {"MSGRCV", nonCachingIPCGen},
+                                          {"MSGSND", nonCachingIPCGen}});
 }
 
 WrapperGenerator::WrapperGenerator(shared_ptr<unordered_map<string, 
@@ -36,11 +36,7 @@ WrapperGenerator::WrapperGenerator(shared_ptr<unordered_map<string,
                                    std::string>> _operationMap,
                                    string pathPrefix):
                                    prototypeMap(_prototypeMap),
-                                   operationMap(_operationMap),
-                                   vprofInternalOps({{MKNOD, true}, {READ, true},
-                                                     {WRITE, true}, {PIPE, true},
-                                                     {MSGGET, true}, {MSGSND, true},
-                                                     {MSGRCV, true}}) {
+                                   operationMap(_operationMap) {
     initOpToGenMap();
 
     headerFile.open(pathPrefix + "VProfEventWrappers.h");
@@ -54,13 +50,6 @@ WrapperGenerator::WrapperGenerator(shared_ptr<unordered_map<string,
 
     headerFile << generatedFileMessage; 
     implementationFile << generatedFileMessage;
-}
-
-bool WrapperGenerator::isIPCOperation(const Operation op) const { 
-    return vprofInternalOps.find(op) != vprofInternalOps.end();
-}
-
-void instrumentIPCFunction(std::string &functionName, FunctionPrototype &prototype) {
 }
 
 vector<string> WrapperGenerator::getFilenames() {
@@ -106,7 +95,7 @@ void WrapperGenerator::GenerateImplementations() {
             implementationFile << kv.second.returnType + " result;\n\t";
         }
 
-        operationToGenMap[operation]->GenerateWrapperPrologue(kv.first, kv.second);
+        operationToGenerator[operation]->GenerateWrapperPrologue(kv.first, kv.second);
 
         if (kv.second.returnType != "void") {
             implementationFile << "result = ";
@@ -124,7 +113,7 @@ void WrapperGenerator::GenerateImplementations() {
 
         implementationFile <<");\n\t";
 
-        operationToGenMap[operation]->GenerateWrapperEpilogue(kv.first, kv.second);
+        operationToGenerator[operation]->GenerateWrapperEpilogue(kv.first, kv.second);
 
         if (kv.second.returnType != "void") {
             implementationFile << "\treturn result;\n";
