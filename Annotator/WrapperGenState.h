@@ -1,3 +1,6 @@
+#ifndef WRAPPER_GEN_STATE_H
+#define WRAPPER_GEN_STATE_H
+
 #include <string>
 #include <vector>
 
@@ -34,3 +37,5 @@ class WrapperGenState {
         // call.
         bool usesResult;
 };
+
+#endif

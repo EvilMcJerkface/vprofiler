@@ -9,8 +9,8 @@ TracingInnerWrapperGenerator::TracingInnerWrapperGenerator(shared_ptr<unordered_
     epiloguePrefix("SYNCHRONIZATION_CALL_END("), 
     operationMap(_operationMap) {}
 
-void TracingInnerWrapperGenerator::GenerateWrapperPrologue(string &fname,
-                                                           FunctionPrototype &prototype) {
+void TracingInnerWrapperGenerator::GenerateWrapperPrologue(const string &fname,
+                                                           const FunctionPrototype &prototype) {
     string object = prototype.isMemberCall ? "obj" : prototype.paramVars[0];
 
     implementationFile << "SYNCHRONIZATION_CALL_START(" + 
@@ -18,13 +18,13 @@ void TracingInnerWrapperGenerator::GenerateWrapperPrologue(string &fname,
                           ", static_cast<void*>(" + object + "));\n\t";
 }
 
-void TracingInnerWrapperGenerator::GenerateWrapperEpilogue(string &fname,
-                                                           FunctionPrototype &prototype) {
+void TracingInnerWrapperGenerator::GenerateWrapperEpilogue(const string &fname,
+                                                           const FunctionPrototype &prototype) {
     implementationFile << "SYNCHRONIZATION_CALL_END();\n";
 }
 
-string IPCInnerWrapperGenerator::BuildFunctionCallFromParams(WrapperGenState &funcToInstrument,
-                                                             FunctionPrototype &prototype) {
+string IPCInnerWrapperGenerator::BuildFunctionCallFromParams(const WrapperGenState &funcToInstrument,
+                                                             const FunctionPrototype &prototype) {
     string callFromParameters = "";
 
     int argumentIndex;
@@ -62,13 +62,13 @@ NonCachingIPCInnerWrapperGenerator::NonCachingIPCInnerWrapperGenerator():
                               {"write", WrapperGenState("on_write(", {0}, false)}}) {}
 
 // Do nothing
-void CachingIPCInnerWrapperGenerator::GenerateWrapperPrologue(string &fname, 
-                                                              FunctionPrototype &prototype) {
+void CachingIPCInnerWrapperGenerator::GenerateWrapperPrologue(const string &fname, 
+                                                              const FunctionPrototype &prototype) {
     noop;
 }
 
-void CachingIPCInnerWrapperGenerator::GenerateWrapperEpilogue(string &fname, 
-                                                              FunctionPrototype &prototype) {
+void CachingIPCInnerWrapperGenerator::GenerateWrapperEpilogue(const string &fname, 
+                                                              const FunctionPrototype &prototype) {
     string cachingCall = assignedFunctionState[fname].internalCallPrefix;
 
     cachingCall += BuildFunctionCallFromParams(assignedFunctionState[fname], prototype);
@@ -76,8 +76,8 @@ void CachingIPCInnerWrapperGenerator::GenerateWrapperEpilogue(string &fname,
     implementationFile << cachingCall;
 }
 
-void NonCachingIPCInnerWrapperGenerator::GenerateWrapperPrologue(string &fname,
-                                                                 FunctionPrototype &prototype) {
+void NonCachingIPCInnerWrapperGenerator::GenerateWrapperPrologue(const string &fname,
+                                                                 const FunctionPrototype &prototype) {
     string lockCall = "FIFOLockingAgent::LockFIFO(";
 
     lockCall += BuildFunctionCallFromParams(assignedFunctionState[fname], prototype);
@@ -85,8 +85,8 @@ void NonCachingIPCInnerWrapperGenerator::GenerateWrapperPrologue(string &fname,
     implementationFile << lockCall;
 }
 
-void NonCachingIPCInnerWrapperGenerator::GenerateWrapperEpilogue(string &fname,
-                                                                 FunctionPrototype &prototype) {
+void NonCachingIPCInnerWrapperGenerator::GenerateWrapperEpilogue(const string &fname,
+                                                                 const FunctionPrototype &prototype) {
     string loggingCall = assignedFunctionState[fname].internalCallPrefix;
     string unlockCall = "FIFOLockingAgent::UnlockFIFO(";
     string callSuffix = BuildFunctionCallFromParams(assignedFunctionState[fname], prototype);

@@ -1,4 +1,6 @@
-#ifndef FUNCTIONFILEREADER_H #define FUNCTIONFILEREADER_H 
+#ifndef FUNCTIONFILEREADER_H 
+#define FUNCTIONFILEREADER_H 
+
 // VProf libs
 #include "Utils.h"
 
