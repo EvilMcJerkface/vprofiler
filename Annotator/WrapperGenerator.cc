@@ -2,6 +2,34 @@
 
 using namespace std;
 
+void WrapperGenerator::initOpToGenMap() {
+    shared_ptr<TracingInnerWrapperGenerator> traceGen;
+    shared_ptr<CachingIPCInnerWrapperGenerator> cachingIPCGen;
+    shared_ptr<NonCachingIPCInnerWrapperGenerator> nonCachingIPCGen;
+
+    traceGen = make_shared<TracingInnerWrapperGenerator>(operationMap);
+    cachingIPCGen = make_shared<CachingIPCInnerWrapperGenerator>();
+    nonCachingIPCGen = make_shared<NonCachingIPCInnerWrapperGenerator>();
+
+    operationToGenerator = WrapperGenMap({{"MUTEX_LOCK", traceGen}, 
+                                          {"MUTEX_UNLOCK", traceGen},
+                                          {"CV_WAIT", traceGen},
+                                          {"CV_BROADCAST", traceGen},
+                                          {"CV_SIGNAL", traceGen},
+                                          {"QUEUE_ENQUEUE", traceGen},
+                                          {"QUEUE_DEQUEUE", traceGen},
+                                          {"MESSAGE_SEND", traceGen},
+                                          {"MESSAGE_RECEIVE", traceGen},
+                                          {"MKNOD", cachingIPCGen},
+                                          {"OPEN", cachingIPCGen},
+                                          {"PIPE", cachingIPCGen},
+                                          {"MSGGET", cachingIPCGen},
+                                          {"READ", nonCachingIPCGen},
+                                          {"WRITE", nonCachingIPCGen},
+                                          {"MSGRCV", nonCachingIPCGen},
+                                          {"MSGSND", nonCachingIPCGen}});
+}
+
 WrapperGenerator::WrapperGenerator(shared_ptr<unordered_map<string, 
                                    FunctionPrototype>> _prototypeMap,
                                    std::shared_ptr<std::unordered_map<std::string, 
@@ -9,6 +37,8 @@ WrapperGenerator::WrapperGenerator(shared_ptr<unordered_map<string,
                                    string pathPrefix):
                                    prototypeMap(_prototypeMap),
                                    operationMap(_operationMap) {
+    initOpToGenMap();
+
     headerFile.open(pathPrefix + "VProfEventWrappers.h");
     implementationFile.open(pathPrefix + "VProfEventWrappers.cpp");
 
@@ -53,20 +83,19 @@ void WrapperGenerator::GenerateHeader() {
 }
 
 void WrapperGenerator::GenerateImplementations() {
+    string operation;
     implementationFile << "#include \"VProfEventWrappers.h\"\n\n";
 
     for (auto kv : *prototypeMap) {
+        operation = (*operationMap)[kv.first];
+        
         implementationFile << kv.second.functionPrototype + " {\n\t";
 
         if (kv.second.returnType != "void") {
             implementationFile << kv.second.returnType + " result;\n\t";
         }
 
-        string object = kv.second.isMemberCall ? "obj" : kv.second.paramVars[0];
-
-        implementationFile << "SYNCHRONIZATION_CALL_START(" + 
-                              (*operationMap)[kv.first] + 
-                              ", static_cast<void*>(" + object + "));\n\t";
+        operationToGenerator[operation]->GenerateWrapperPrologue(kv.first, kv.second);
 
         if (kv.second.returnType != "void") {
             implementationFile << "result = ";
@@ -84,10 +113,7 @@ void WrapperGenerator::GenerateImplementations() {
 
         implementationFile <<");\n\t";
 
-        // NOTE TODO. I think we need to add some mutex which we lock here. 
-        // Think through this.
-
-        implementationFile << "SYNCHRONIZATION_CALL_END();\n";
+        operationToGenerator[operation]->GenerateWrapperEpilogue(kv.first, kv.second);
 
         if (kv.second.returnType != "void") {
             implementationFile << "\treturn result;\n";

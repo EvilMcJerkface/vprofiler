@@ -1,6 +1,11 @@
 #include "FunctionFileReader.h"
 
 void FunctionFileReader::Parse() {
+    Parse(userFilename);
+    Parse("VProfPermanentFunctions.txt");
+}
+
+void FunctionFileReader::Parse(const std::string &filename) {
     std::ifstream infile(filename.c_str());
     std::vector<std::string> lines;
     std::string line; 

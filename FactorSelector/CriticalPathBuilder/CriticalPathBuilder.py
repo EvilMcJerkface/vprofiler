@@ -24,12 +24,12 @@ class CriticalPathBuilder:
                 numLines = sum(1 for line in synchroLogFile)
                 print(synchroLogName)
                 pbar = ProgressBar(max_value = numLines).start()
-                
+
                 synchroLogFile.seek(0)
                 synchroLogReader = reader(synchroLogFile)
 
                 for i, log in enumerate(synchroLogReader):
-                    if log[0] == '0': 
+                    if log[0] == '0':
                         self.requestTracker.AddOperation(log[1:])
                     else:
                         self.requestTracker.AddFunctionTime(log[1:])
@@ -39,7 +39,7 @@ class CriticalPathBuilder:
                         self.requestTracker.GetLastAddedOperationForTID(threadID))
 
                     pbar.update(i + 1)
-                    
+
 
     def __BuildHelper(self, segmentEndTime, currThreadID, timeSeries):
         precedingRequest = self.requestTracker.FindPrecedingRequest(currThreadID, segmentEndTime)
@@ -93,6 +93,10 @@ class CriticalPathBuilder:
         else:
             if precedingRequest.timeEnd != segmentEndTime:
                 timeSeries.appendleft((precedingRequest.timeEnd, segmentEndTime, currThreadID))
+
+            if leftTimeBound is None or nextThreadID is None:
+                leftTimeBound = requestTime
+                nextThreadID = currThreadID
 
         return self.__BuildHelper(leftTimeBound, nextThreadID, timeSeries)
 

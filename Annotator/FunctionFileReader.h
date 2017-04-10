@@ -1,5 +1,5 @@
-#ifndef FUNCTIONFILEREADER_H
-#define FUNCTIONFILEREADER_H
+#ifndef FUNCTIONFILEREADER_H 
+#define FUNCTIONFILEREADER_H 
 
 // VProf libs
 #include "Utils.h"
@@ -14,15 +14,12 @@
 #include <stdexcept>
 #include <algorithm>
 
-enum Operation  { MUTEX_LOCK,
-                  MUTEX_UNLOCK,
-                  CV_WAIT,
-                  CV_BROADCAST,
-                  CV_SIGNAL,
-                  QUEUE_ENQUEUE,
-                  QUEUE_DEQUEUE,
-                  MESSAGE_SEND,
-                  MESSAGE_RECEIVE };
+enum Operation  { MUTEX_LOCK, MUTEX_UNLOCK,         // Mutexes
+                  CV_WAIT, CV_BROADCAST, CV_SIGNAL, // CVs
+                  QUEUE_ENQUEUE, QUEUE_DEQUEUE,     // Queues
+                  MESSAGE_SEND, MESSAGE_RECEIVE,    // Messaging 
+                  MKNOD, OPEN, READ, WRITE, PIPE,   // IPC FIFO/pipe
+                  MSGGET, MSGSND, MSGRCV };         // IPC message queue
 
 struct LogInformation {
     unsigned int functionID;
@@ -31,15 +28,16 @@ struct LogInformation {
 
 class FunctionFileReader {
     public:
-        FunctionFileReader(const std::string _filename): 
-        filename(_filename),
+        FunctionFileReader(const std::string _userFilename): 
+        userFilename(_userFilename),
         funcMap(std::make_shared<std::unordered_map<std::string, std::string>>()), 
         opMap(std::make_shared<std::unordered_map<std::string, std::string>>()), 
         unqualifiedNames(std::make_shared<std::vector<std::string>>()), 
         qualifiedNames(std::make_shared<std::vector<std::string>>()),
         operationStrings({ "MUTEX_LOCK", "MUTEX_UNLOCK", "CV_WAIT",
                            "CV_BROADCAST", "CV_SIGNAL", "QUEUE_ENQUEUE",
-                           "QUEUE_DEQUEUE", "MESSAGE_SEND", "MESSAGE_RECEIVE" }),
+                           "QUEUE_DEQUEUE", "MESSAGE_SEND", "MESSAGE_RECEIVE", 
+                           "VPROF_INTERNAL" }),
         beenParsed(false) {}
         
         // Parse the file
@@ -61,7 +59,7 @@ class FunctionFileReader {
         std::shared_ptr<std::vector<std::string>> GetUnqualifiedFunctionNames();
 
     private:
-        const std::string filename;
+        const std::string userFilename;
         std::shared_ptr<std::unordered_map<std::string, std::string>> funcMap;
         std::shared_ptr<std::unordered_map<std::string, std::string>> opMap;
         std::shared_ptr<std::vector<std::string>> unqualifiedNames;
@@ -70,6 +68,8 @@ class FunctionFileReader {
         std::set<std::string> operationStrings;
 
         bool beenParsed;
+
+        void Parse(const std::string &filename);
 };
 
 #endif
