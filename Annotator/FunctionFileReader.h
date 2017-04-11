@@ -37,7 +37,8 @@ class FunctionFileReader {
         operationStrings({ "MUTEX_LOCK", "MUTEX_UNLOCK", "CV_WAIT",
                            "CV_BROADCAST", "CV_SIGNAL", "QUEUE_ENQUEUE",
                            "QUEUE_DEQUEUE", "MESSAGE_SEND", "MESSAGE_RECEIVE", 
-                           "VPROF_INTERNAL" }),
+                           "MKNOD", "OPEN", "READ", "WRITE", "PIPE",
+			   "MSGGET", "MSGSND", "MSGRCV" }),
         beenParsed(false) {}
         
         // Parse the file

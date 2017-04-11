@@ -4,7 +4,35 @@
 
 using namespace std;
 
-TracingInnerWrapperGenerator::TracingInnerWrapperGenerator(shared_ptr<unordered_map<string, string>> _operationMap):
+void InnerWrapperGenerator::GenerateFunctionImplementation(const string &fname,
+                                                           const FunctionPrototype &prototype) {
+    GenerateWrapperPrologue(fname, prototype);
+    GenerateWrapperInterlude(fname, prototype);
+    GenerateWrapperEpilogue(fname, prototype);
+}
+
+void InnerWrapperGenerator::GenerateWrapperInterlude(const string &fname,
+                                                     const FunctionPrototype &prototype) {
+    if (prototype.returnType != "void") {
+        implementationFile << "result = ";
+    }
+
+    implementationFile << prototype.innerCallPrefix + "(";
+
+    for (int i = 0, j = prototype.paramVars.size(); i < j; i++) {
+        implementationFile << prototype.paramVars[i];
+
+        if (i != (j - 1)) {
+            implementationFile << ", ";
+        }
+    }
+
+    implementationFile << ");\n\t";
+}
+
+TracingInnerWrapperGenerator::TracingInnerWrapperGenerator(std::ofstream &_implementationFile, 
+                                                          shared_ptr<unordered_map<string, string>> _operationMap):
+    InnerWrapperGenerator(_implementationFile),
     prologuePrefix("SYNCHRONIZATION_CALL_START("), 
     epiloguePrefix("SYNCHRONIZATION_CALL_END("), 
     operationMap(_operationMap) {}
@@ -47,19 +75,21 @@ string IPCInnerWrapperGenerator::BuildFunctionCallFromParams(const WrapperGenSta
     return callFromParameters;
 }
 
-CachingIPCInnerWrapperGenerator::CachingIPCInnerWrapperGenerator():
-    IPCInnerWrapperGenerator({{"mknod", WrapperGenState("on_mknod(", {0, 1}, false)},
-                              {"open", WrapperGenState("on_open(", {0}, true)},
-                              {"msgget", WrapperGenState("on_msgget(", {}, true)},
-                              {"close", WrapperGenState("on_close(", {0}, false)},
-                              {"pipe", WrapperGenState("on_pipe(", {0}, false)},
-                              {"pipe2", WrapperGenState("on_pipe(", {0}, false)}}) {}
+CachingIPCInnerWrapperGenerator::CachingIPCInnerWrapperGenerator(std::ofstream &_implementationFile):
+    IPCInnerWrapperGenerator(_implementationFile,
+                             {{"mknod", WrapperGenState("ON_MKNOD(", {0, 1}, false)},
+                              {"open", WrapperGenState("ON_OPEN(", {0}, true)},
+                              {"msgget", WrapperGenState("ON_MSGGET(", {}, true)},
+                              {"close", WrapperGenState("ON_CLOSE(", {0}, false)},
+                              {"pipe", WrapperGenState("ON_PIPE(", {0}, false)},
+                              {"pipe2", WrapperGenState("ON_PIPE(", {0}, false)}}) {}
 
-NonCachingIPCInnerWrapperGenerator::NonCachingIPCInnerWrapperGenerator():
-    IPCInnerWrapperGenerator({{"msgrcv", WrapperGenState("on_msgrcv(", {0}, false)},
-                              {"msgsnd", WrapperGenState("on_msgsnd(", {0}, false)},
-                              {"read", WrapperGenState("on_read(", {0}, false)},
-                              {"write", WrapperGenState("on_write(", {0}, false)}}) {}
+NonCachingIPCInnerWrapperGenerator::NonCachingIPCInnerWrapperGenerator(std::ofstream &_implementationFile):
+    IPCInnerWrapperGenerator(_implementationFile,
+                             {{"msgrcv", WrapperGenState("ON_MSGRCV(", {0}, false)},
+                              {"msgsnd", WrapperGenState("ON_MSGSND(", {0}, false)},
+                              {"read", WrapperGenState("ON_READ(", {0}, false)},
+                              {"write", WrapperGenState("ON_WRITE(", {0}, false)}}) {}
 
 // Do nothing
 void CachingIPCInnerWrapperGenerator::GenerateWrapperPrologue(const string &fname, 
@@ -78,22 +108,18 @@ void CachingIPCInnerWrapperGenerator::GenerateWrapperEpilogue(const string &fnam
 
 void NonCachingIPCInnerWrapperGenerator::GenerateWrapperPrologue(const string &fname,
                                                                  const FunctionPrototype &prototype) {
-    string lockCall = "FIFOLockingAgent::LockFIFO(";
+    noop;
+}
 
-    lockCall += BuildFunctionCallFromParams(assignedFunctionState[fname], prototype);
+void NonCachingIPCInnerWrapperGenerator::GenerateWrapperInterlude(const string &fname,
+                                                                  const FunctionPrototype &prototype) {
+    FunctionPrototype dummyPrototype(prototype);
+    dummyPrototype.innerCallPrefix = assignedFunctionState[fname].internalCallPrefix;
 
-    implementationFile << lockCall;
+    InnerWrapperGenerator::GenerateWrapperInterlude(fname, dummyPrototype);
 }
 
 void NonCachingIPCInnerWrapperGenerator::GenerateWrapperEpilogue(const string &fname,
                                                                  const FunctionPrototype &prototype) {
-    string loggingCall = assignedFunctionState[fname].internalCallPrefix;
-    string unlockCall = "FIFOLockingAgent::UnlockFIFO(";
-    string callSuffix = BuildFunctionCallFromParams(assignedFunctionState[fname], prototype);
-
-    loggingCall += callSuffix;
-    unlockCall += callSuffix;
-
-    implementationFile << loggingCall;
-    implementationFile << unlockCall;
+    noop;
 }
