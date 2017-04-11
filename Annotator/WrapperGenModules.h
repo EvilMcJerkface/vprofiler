@@ -16,12 +16,21 @@ class InnerWrapperGenerator {
         InnerWrapperGenerator(std::ofstream &_implementationFile):
             implementationFile(_implementationFile) {}
 
+        void GenerateFunctionImplementation(const std::string &fname,
+                                            const FunctionPrototype &prototype);
+
+    protected:
         virtual void GenerateWrapperPrologue(const std::string &fname, 
                                              const FunctionPrototype &prototype) = 0;
+
+        // I don't know what to call what's between prologue and epilogue. 
+        // Writer blogs said interlude so that's what we're going with. \_(-_-)_/
+        virtual void GenerateWrapperInterlude(const std::string &fname,
+                                              const FunctionPrototype &prototype);
+
         virtual void GenerateWrapperEpilogue(const std::string &fname, 
                                              const FunctionPrototype &prototype) = 0;
 
-    protected:
         std::ofstream &implementationFile;
 };
 
@@ -30,10 +39,11 @@ class TracingInnerWrapperGenerator : public InnerWrapperGenerator {
         TracingInnerWrapperGenerator(std::ofstream &_implementationFile, 
                                      std::shared_ptr<std::unordered_map<std::string, std::string>> _operationMap);
 
-        void GenerateWrapperPrologue(const std::string &fname, 
-                                     const FunctionPrototype &prototype);
-        void GenerateWrapperEpilogue(const std::string &fname, 
-                                     const FunctionPrototype &prototype);        
+    protected:
+        virtual void GenerateWrapperPrologue(const std::string &fname, 
+                                             const FunctionPrototype &prototype);
+        virtual void GenerateWrapperEpilogue(const std::string &fname, 
+                                             const FunctionPrototype &prototype);        
 
     private:
         const std::string prologuePrefix;
@@ -59,20 +69,24 @@ class CachingIPCInnerWrapperGenerator : public IPCInnerWrapperGenerator {
     public:
         CachingIPCInnerWrapperGenerator(std::ofstream &_implementationFile);
 
-        void GenerateWrapperPrologue(const std::string &fname, 
-                                     const FunctionPrototype &prototype);
-        void GenerateWrapperEpilogue(const std::string &fname, 
-                                     const FunctionPrototype &prototype);        
+    protected:
+        virtual void GenerateWrapperPrologue(const std::string &fname, 
+                                             const FunctionPrototype &prototype);
+        virtual void GenerateWrapperEpilogue(const std::string &fname, 
+                                             const FunctionPrototype &prototype);        
 };
 
 class NonCachingIPCInnerWrapperGenerator : public IPCInnerWrapperGenerator {
     public:
         NonCachingIPCInnerWrapperGenerator(std::ofstream &_implementationFile);
 
-        void GenerateWrapperPrologue(const std::string &fname,
-                                     const FunctionPrototype &prototype);
-        void GenerateWrapperEpilogue(const std::string &fname, 
-                                     const FunctionPrototype &prototype);        
+    protected:
+        virtual void GenerateWrapperPrologue(const std::string &fname,
+                                             const FunctionPrototype &prototype);
+        virtual void GenerateWrapperInterlude(const std::string &fname,
+                                              const FunctionPrototype &prototype);
+        virtual void GenerateWrapperEpilogue(const std::string &fname, 
+                                             const FunctionPrototype &prototype);        
 };
 
 #endif
