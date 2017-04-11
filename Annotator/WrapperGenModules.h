@@ -13,18 +13,22 @@ typedef std::unordered_map<std::string, WrapperGenState> WrapperGenStateMap;
 
 class InnerWrapperGenerator {
     public:
+        InnerWrapperGenerator(std::ofstream &_implementationFile):
+            implementationFile(_implementationFile) {}
+
         virtual void GenerateWrapperPrologue(const std::string &fname, 
                                              const FunctionPrototype &prototype) = 0;
         virtual void GenerateWrapperEpilogue(const std::string &fname, 
                                              const FunctionPrototype &prototype) = 0;
 
     protected:
-        std::ofstream implementationFile;
+        std::ofstream &implementationFile;
 };
 
 class TracingInnerWrapperGenerator : public InnerWrapperGenerator {
     public:
-        TracingInnerWrapperGenerator(std::shared_ptr<std::unordered_map<std::string, std::string>> _operationMap);
+        TracingInnerWrapperGenerator(std::ofstream &_implementationFile, 
+                                     std::shared_ptr<std::unordered_map<std::string, std::string>> _operationMap);
 
         void GenerateWrapperPrologue(const std::string &fname, 
                                      const FunctionPrototype &prototype);
@@ -42,7 +46,9 @@ class IPCInnerWrapperGenerator : public InnerWrapperGenerator {
     protected:
         WrapperGenStateMap assignedFunctionState;
 
-        IPCInnerWrapperGenerator(WrapperGenStateMap _assignedFunctionState): 
+        IPCInnerWrapperGenerator(std::ofstream &_implementationFile, 
+                                 WrapperGenStateMap _assignedFunctionState): 
+            InnerWrapperGenerator(_implementationFile),
             assignedFunctionState(_assignedFunctionState) {}
 
         std::string BuildFunctionCallFromParams(const WrapperGenState &funcToInstrument, 
@@ -51,7 +57,7 @@ class IPCInnerWrapperGenerator : public InnerWrapperGenerator {
 
 class CachingIPCInnerWrapperGenerator : public IPCInnerWrapperGenerator {
     public:
-        CachingIPCInnerWrapperGenerator();
+        CachingIPCInnerWrapperGenerator(std::ofstream &_implementationFile);
 
         void GenerateWrapperPrologue(const std::string &fname, 
                                      const FunctionPrototype &prototype);
@@ -61,7 +67,7 @@ class CachingIPCInnerWrapperGenerator : public IPCInnerWrapperGenerator {
 
 class NonCachingIPCInnerWrapperGenerator : public IPCInnerWrapperGenerator {
     public:
-        NonCachingIPCInnerWrapperGenerator();
+        NonCachingIPCInnerWrapperGenerator(std::ofstream &_implementationFile);
 
         void GenerateWrapperPrologue(const std::string &fname,
                                      const FunctionPrototype &prototype);

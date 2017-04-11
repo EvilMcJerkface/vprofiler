@@ -4,7 +4,9 @@
 
 using namespace std;
 
-TracingInnerWrapperGenerator::TracingInnerWrapperGenerator(shared_ptr<unordered_map<string, string>> _operationMap):
+TracingInnerWrapperGenerator::TracingInnerWrapperGenerator(std::ofstream &_implementationFile, 
+                                                          shared_ptr<unordered_map<string, string>> _operationMap):
+    InnerWrapperGenerator(_implementationFile),
     prologuePrefix("SYNCHRONIZATION_CALL_START("), 
     epiloguePrefix("SYNCHRONIZATION_CALL_END("), 
     operationMap(_operationMap) {}
@@ -47,16 +49,18 @@ string IPCInnerWrapperGenerator::BuildFunctionCallFromParams(const WrapperGenSta
     return callFromParameters;
 }
 
-CachingIPCInnerWrapperGenerator::CachingIPCInnerWrapperGenerator():
-    IPCInnerWrapperGenerator({{"mknod", WrapperGenState("on_mknod(", {0, 1}, false)},
+CachingIPCInnerWrapperGenerator::CachingIPCInnerWrapperGenerator(std::ofstream &_implementationFile):
+    IPCInnerWrapperGenerator(_implementationFile,
+                             {{"mknod", WrapperGenState("on_mknod(", {0, 1}, false)},
                               {"open", WrapperGenState("on_open(", {0}, true)},
                               {"msgget", WrapperGenState("on_msgget(", {}, true)},
                               {"close", WrapperGenState("on_close(", {0}, false)},
                               {"pipe", WrapperGenState("on_pipe(", {0}, false)},
                               {"pipe2", WrapperGenState("on_pipe(", {0}, false)}}) {}
 
-NonCachingIPCInnerWrapperGenerator::NonCachingIPCInnerWrapperGenerator():
-    IPCInnerWrapperGenerator({{"msgrcv", WrapperGenState("on_msgrcv(", {0}, false)},
+NonCachingIPCInnerWrapperGenerator::NonCachingIPCInnerWrapperGenerator(std::ofstream &_implementationFile):
+    IPCInnerWrapperGenerator(_implementationFile,
+                             {{"msgrcv", WrapperGenState("on_msgrcv(", {0}, false)},
                               {"msgsnd", WrapperGenState("on_msgsnd(", {0}, false)},
                               {"read", WrapperGenState("on_read(", {0}, false)},
                               {"write", WrapperGenState("on_write(", {0}, false)}}) {}
