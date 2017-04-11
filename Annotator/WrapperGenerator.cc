@@ -95,25 +95,7 @@ void WrapperGenerator::GenerateImplementations() {
             implementationFile << kv.second.returnType + " result;\n\t";
         }
 
-        operationToGenerator[operation]->GenerateWrapperPrologue(kv.first, kv.second);
-
-        if (kv.second.returnType != "void") {
-            implementationFile << "result = ";
-        }
-
-        implementationFile << kv.second.innerCallPrefix + "(";
-
-        for (int i = 0, j = kv.second.paramVars.size(); i < j; i++) {
-            implementationFile << kv.second.paramVars[i];
-
-            if (i != (j - 1)) {
-                implementationFile << ", ";
-            }
-        }
-
-        implementationFile <<");\n\t";
-
-        operationToGenerator[operation]->GenerateWrapperEpilogue(kv.first, kv.second);
+        operationToGenerator[operation]->GenerateFunctionImplementation(kv.first, kv.second);
 
         if (kv.second.returnType != "void") {
             implementationFile << "\treturn result;\n";
