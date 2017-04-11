@@ -111,7 +111,7 @@ void WrapperGenerator::GenerateImplementations() {
             }
         }
 
-        implementationFile <<");\n\t";
+        implementationFile <<");\n\n";
 
         operationToGenerator[operation]->GenerateWrapperEpilogue(kv.first, kv.second);
 
