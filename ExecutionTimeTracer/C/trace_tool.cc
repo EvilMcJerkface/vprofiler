@@ -859,8 +859,8 @@ void SynchronizationTraceTool::writeLogs(vector<OperationLog> *opLogs,
     delete funcLogs;
 }
 
-void ON_MKNOD(const char *path, int flags) {
-    bool is_fifo = flags & ~S_IFIFO;
+void ON_MKNOD(const char *path, mode_t mode) {
+    bool is_fifo = mode & ~S_IFIFO;
     if (is_fifo) {
         SynchronizationTraceTool::GetInstance()->AddFIFOName(path);
     }

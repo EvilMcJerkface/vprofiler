@@ -77,7 +77,7 @@ These functions are called by the generated wrappers. */
 void SYNCHRONIZATION_CALL_START(Operation op, void* obj);
 void SYNCHRONIZATION_CALL_END();
 
-void ON_MKNOD(const char *path, int flags);
+void ON_MKNOD(const char *path, mode_t mode);
 void ON_OPEN(const char *path, int fd);
 size_t ON_READ(int fd, void *buf, size_t nbytes);
 size_t ON_WRITE(int fd, void *buf, size_t nbytes);
