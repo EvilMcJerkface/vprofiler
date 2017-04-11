@@ -71,7 +71,7 @@ void WrapperGenerator::GenerateHeader() {
         headerFile << "#include \"" + includeName + "\"\n";
     }
     headerFile << "#include \"trace_tool.h\"\n\n"
-                  "#ifdef __cplusplus\nextern \"C\" {\n#endif";
+                  "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n";
 
     for (auto kv : *prototypeMap) {
         headerFile << kv.second.functionPrototype + ";\n\n";

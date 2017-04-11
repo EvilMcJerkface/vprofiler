@@ -4,6 +4,9 @@
 // C headers
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
 #include <limits.h>
 #include <pthread.h>
 #include <time.h>
@@ -23,6 +26,8 @@
 #include <exception>
 #include <unordered_map>
 
+#include <boost/thread/shared_mutex.hpp>
+
 using std::ifstream;
 using std::ofstream;
 using std::getline;
@@ -34,6 +39,7 @@ using std::to_string;
 using std::set;
 using std::thread;
 using std::mutex;
+using std::unordered_map;
 
 #if (defined(WIN32) || defined(_WIN32) || defined(__WIN32)) && !defined(__CYGWIN__)
 #define WINDOWS
@@ -94,6 +100,14 @@ class FunctionLog {
 
         void setFunctionEnd(timespec val) {
             functionEnd = val;
+        }
+
+        void start() {
+            clock_gettime(CLOCK_REALTIME, &functionStart);
+        }
+
+        void end() {
+            clock_gettime(CLOCK_REALTIME, &functionEnd);
         }
 
         void appendToString(string &other) const {
@@ -214,12 +228,14 @@ public:
 class OperationLog {
     public:
         OperationLog(): 
-        semIntervalID(-1), obj(nullptr), op(MUTEX_LOCK), 
+        semIntervalID(-1), op(MUTEX_LOCK), 
         entityID(std::to_string(pthread_self()) + "_" + std::to_string(::getpid())) {}
 
 
-        OperationLog(const void* _obj, Operation _op):
-        semIntervalID(TraceTool::processToGlobalSID[TraceTool::current_transaction_id]), obj(_obj), 
+        OperationLog(const void* _obj, Operation _op): OperationLog(objToString(_obj), _op) {}
+
+        OperationLog(string id, Operation _op):
+        semIntervalID(TraceTool::processToGlobalSID[TraceTool::current_transaction_id]), objID(id), 
         op(_op), entityID(std::to_string(pthread_self()) + "_" + 
                           std::to_string(::getpid())) {}
 
@@ -227,14 +243,8 @@ class OperationLog {
             return semIntervalID;
         }
 
-        const void* getObj() {
-            return obj;
-        }
-
         void appendToString(string &other) const {
-            std::stringstream ss2;
-            ss2 << obj;
-            other.append(string("0," + entityID + ',' + std::to_string(semIntervalID) + ',' + ss2.str() + ',' + 
+            other.append(string("0," + entityID + ',' + std::to_string(semIntervalID) + ',' + objID + ',' + 
                                 std::to_string(op) + '\n'));
         }
 
@@ -245,17 +255,36 @@ class OperationLog {
         }
 
     private:
+        static string objToString(const void *obj) {
+            std::stringstream ss;
+            ss << obj;
+            return ss.str();
+        }
+
+
         string entityID;
         unsigned int semIntervalID;
-        const void* obj;
+        string objID;
         Operation op;
 };
 
 class SynchronizationTraceTool {
     public:
         static void SynchronizationCallStart(Operation op, void* obj);
-
         static void SynchronizationCallEnd();
+        static SynchronizationTraceTool *GetInstance();
+        
+        void AddFIFOName(const char *path);
+        void OnOpen(const char *path, int fd);
+        size_t OnRead(int fd, void *buf, size_t nbytes);
+        size_t OnWrite(int fd, void *buf, size_t nbytes);
+        void OnClose(int fd);
+        void OnPipe(int pipefd[2]);
+        void OnMsgGet(int msqid);
+        int OnMsgSnd(int fd, void *msgp, size_t msgsz, int msgflg);
+        ssize_t OnMsgRcv(int fd, void *msgp, size_t msgsz, long msgtyp, int msgflg);
+        void LockFIFO(int fd);
+        void UNLOCK_FIFO(int fd);
 
         ~SynchronizationTraceTool();
 
@@ -265,6 +294,21 @@ class SynchronizationTraceTool {
 
         static thread_local FunctionLog currFuncLog;
         static thread_local OperationLog currOpLog;
+
+        boost::shared_mutex fifoNamesMutex;
+        unordered_map<string, string> fifoNamesToIDs;
+        boost::shared_mutex fifoFdsMutex;
+        unordered_map<int, string> fifoFdsToIDs;
+        unordered_map<int, mutex> fifoAccessLockTable;
+
+        boost::shared_mutex pipeMutex;
+        unordered_map<int, string> pipeFdsToIDs;
+        unordered_map<string, mutex> pipeAccessLockTable;
+
+        boost::shared_mutex msgMutex;
+        unordered_map<int, string> msqids;
+        boost::shared_mutex msqidMutex;
+        unordered_map<int, mutex> msqAccessLockTable;
 
         std::ofstream logFile;
 
@@ -434,7 +478,6 @@ void SYNCHRONIZATION_CALL_START(Operation op, void* obj) {
 void SYNCHRONIZATION_CALL_END() {
     SynchronizationTraceTool::SynchronizationCallEnd();
 }
-
 
 timespec get_trx_start() {
     return TraceTool::get_instance()->trans_start;
@@ -724,20 +767,22 @@ void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj)
     instance->opLogs->push_back(OperationLog(obj, op));
     dataMutex.unlock();
 
-    timespec startTime;
-    clock_gettime(CLOCK_REALTIME, &startTime);
-
-    currFuncLog.setFunctionStart(startTime);
+    currFuncLog.start();
 }
 
 void SynchronizationTraceTool::SynchronizationCallEnd() {
-    timespec endTime;
-    clock_gettime(CLOCK_REALTIME, &endTime);
-    currFuncLog.setFunctionEnd(endTime);
+    currFuncLog.end();
 
     dataMutex.lock();
     instance->funcLogs->push_back(currFuncLog);
     dataMutex.unlock();
+}
+
+SynchronizationTraceTool* SynchronizationTraceTool::GetInstance() {
+    if (instance == nullptr) {
+        maybeCreateInstance();
+    }
+    return instance.get();
 }
 
 void SynchronizationTraceTool::maybeCreateInstance() {
@@ -813,6 +858,231 @@ void SynchronizationTraceTool::writeLogs(vector<OperationLog> *opLogs,
     delete opLogs;
     delete funcLogs;
 }
+
+void ON_MKNOD(const char *path, int flags) {
+    bool is_fifo = flags & ~S_IFIFO;
+    if (is_fifo) {
+        SynchronizationTraceTool::GetInstance()->AddFIFOName(path);
+    }
+}
+
+void ON_OPEN(const char *path, int fd) {
+    SynchronizationTraceTool::GetInstance()->OnOpen(path, fd);
+}
+
+size_t ON_READ(int fd, void *buf, size_t nbytes) {
+    return SynchronizationTraceTool::GetInstance()->OnRead(fd, buf, nbytes);
+}
+
+size_t ON_WRITE(int fd, void *buf, size_t nbytes) {
+    return SynchronizationTraceTool::GetInstance()->OnWrite(fd, buf, nbytes);
+}
+
+void ON_CLOSE(int fd) {
+    SynchronizationTraceTool::GetInstance()->OnClose(fd);
+}
+
+void ON_PIPE(int pipefd[2]) {
+    SynchronizationTraceTool::GetInstance()->OnPipe(pipefd);
+}
+
+void ON_MSGGET(int msqid) {
+    SynchronizationTraceTool::GetInstance()->OnMsgGet(msqid);
+}
+
+int ON_MSGSND(int fd, void *msgp, size_t msgsz, int msgflg) {
+    return SynchronizationTraceTool::GetInstance()->OnMsgSnd(fd, msgp, msgsz, msgflg);
+}
+
+ssize_t ON_MSGRCV(int fd, void *msgp, size_t msgsz, long msgtyp, int msgflg) {
+    return SynchronizationTraceTool::GetInstance()->OnMsgRcv(fd, msgp, msgsz, msgtyp, msgflg);
+}
+
+void SynchronizationTraceTool::AddFIFOName(const char *path_cstr) {
+    string path(path_cstr);
+    boost::unique_lock<boost::shared_mutex> lock(fifoNamesMutex);
+    string ID = "F" + std::to_string(fifoNamesToIDs.size());
+    fifoNamesToIDs[path] = ID;
+}
+
+void SynchronizationTraceTool::OnOpen(const char *path_cstr, int fd) {
+    unordered_map<string, string>::iterator it = fifoNamesToIDs.end();
+    {
+        string path(path_cstr);
+        boost::shared_lock<boost::shared_mutex> readFIFONamesLock(fifoNamesMutex);
+        it = fifoNamesToIDs.find(path);
+        if (it == fifoNamesToIDs.end()) {
+            return;
+        }
+    }
+    boost::unique_lock<boost::shared_mutex> writeMutexTableLock(fifoFdsMutex);
+    fifoFdsToIDs[fd] = it->second;
+}
+
+size_t SynchronizationTraceTool::OnRead(int fd, void *buf, size_t nbytes) {
+    size_t result = 0;
+    string ID;
+    mutex *mutexToLock = nullptr;
+    {
+        boost::shared_lock<boost::shared_mutex> readIDLock(fifoFdsMutex);
+        unordered_map<int, string>::iterator it = fifoFdsToIDs.end();
+        if (it != fifoFdsToIDs.end()) {
+            ID = it->second;
+            mutexToLock = &fifoAccessLockTable[fd];
+        }
+    }
+    if (mutexToLock == nullptr) {
+        boost::shared_lock<boost::shared_mutex> readIDLock(pipeMutex);
+        unordered_map<int, string>::iterator it = pipeFdsToIDs.end();
+        if (it != pipeFdsToIDs.end()) {
+            ID = it->second;
+            mutexToLock = &pipeAccessLockTable[ID];
+        }
+    }
+    if (mutexToLock != nullptr) {
+        mutexToLock->lock();
+        dataMutex.lock();
+        opLogs->push_back(OperationLog(ID, MESSAGE_RECEIVE));
+        currFuncLog = FunctionLog(TraceTool::processToGlobalSID[TraceTool::current_transaction_id]);
+        dataMutex.unlock();
+        currFuncLog.start();
+        result = read(fd, buf, nbytes);
+        mutexToLock->unlock();
+        currFuncLog.end();
+        dataMutex.lock();
+        instance->funcLogs->push_back(currFuncLog);
+        dataMutex.unlock();
+    } else {
+        result = read(fd, buf, nbytes);
+    }
+    return result;
+}
+
+size_t SynchronizationTraceTool::OnWrite(int fd, void *buf, size_t nbytes) {
+    size_t result = 0;
+    string ID;
+    mutex *mutexToLock = nullptr;
+    {
+        boost::shared_lock<boost::shared_mutex> readIDLock(fifoFdsMutex);
+        unordered_map<int, string>::iterator it = fifoFdsToIDs.end();
+        if (it != fifoFdsToIDs.end()) {
+            ID = it->second;
+            mutexToLock = &fifoAccessLockTable[fd];
+        }
+    }
+    if (mutexToLock == nullptr) {
+        boost::shared_lock<boost::shared_mutex> readIDLock(pipeMutex);
+        unordered_map<int, string>::iterator it = pipeFdsToIDs.end();
+        if (it != pipeFdsToIDs.end()) {
+            ID = it->second;
+            mutexToLock = &pipeAccessLockTable[ID];
+        }
+    }
+    if (mutexToLock != nullptr) {
+        mutexToLock->lock();
+        dataMutex.lock();
+        opLogs->push_back(OperationLog(ID, MESSAGE_RECEIVE));
+        dataMutex.unlock();
+        currFuncLog = FunctionLog(TraceTool::processToGlobalSID[TraceTool::current_transaction_id]);
+        currFuncLog.start();
+        result = write(fd, buf, nbytes);
+        mutexToLock->unlock();
+        currFuncLog.end();
+        dataMutex.lock();
+        instance->funcLogs->push_back(currFuncLog);
+        dataMutex.unlock();
+    } else {
+        result = write(fd, buf, nbytes);
+    }
+    return result;
+}
+
+void SynchronizationTraceTool::OnClose(int fd) {
+    boost::unique_lock<boost::shared_mutex> writeFIFOFdLock(fifoFdsMutex);
+    fifoFdsToIDs.erase(fd);
+    writeFIFOFdLock.unlock();
+
+    boost::unique_lock<boost::shared_mutex> writePipeFdLock(pipeMutex);
+    pipeFdsToIDs.erase(fd);
+    writePipeFdLock.unlock();
+}
+
+void SynchronizationTraceTool::OnPipe(int pipefd[2]) {
+    boost::unique_lock<boost::shared_mutex> writePipeFdLock(pipeMutex);
+    string ID = "P" + std::to_string(pipeFdsToIDs.size());
+    pipeFdsToIDs[pipefd[0]] = ID;
+    pipeFdsToIDs[pipefd[1]] = ID;
+}
+
+void SynchronizationTraceTool::OnMsgGet(int msqid) {
+    string ID;
+    {
+        boost::unique_lock<boost::shared_mutex> writeMsqidLock(msgMutex);
+        ID = "M" + std::to_string(msqid);
+        msqids[msqid] = ID;
+    }
+    boost::unique_lock<boost::shared_mutex> writeMutexTableLock(msqidMutex);
+    msqAccessLockTable[msqid];
+}
+
+int SynchronizationTraceTool::OnMsgSnd(int msqid, void *msgp, size_t msgsz, int msgflg) {
+    mutex *mutexToLock = nullptr;
+    string ID;
+    {
+        boost::shared_lock<boost::shared_mutex> readIDLock(msqidMutex);
+        ID = msqids[msqid];
+    }
+    {
+        boost::shared_lock<boost::shared_mutex> readMsqLock(msqidMutex);
+        mutexToLock = &msqAccessLockTable[msqid];
+    }
+    mutexToLock->lock();
+
+    dataMutex.lock();
+    opLogs->push_back(OperationLog(ID, MESSAGE_SEND));
+    dataMutex.unlock();
+
+    currFuncLog = FunctionLog(TraceTool::processToGlobalSID[TraceTool::current_transaction_id]);
+    currFuncLog.start();
+    int result = msgsnd(msqid, msgp, msgsz, msgflg);
+    mutexToLock->unlock();
+    currFuncLog.end();
+    
+    dataMutex.lock();
+    instance->funcLogs->push_back(currFuncLog);
+    dataMutex.unlock();
+    return result;
+}
+
+ssize_t SynchronizationTraceTool::OnMsgRcv(int msqid, void *msgp, size_t msgsz, long msgtyp, int msgflg) {
+    mutex *mutexToLock = nullptr;
+    string ID;
+    {
+        boost::shared_lock<boost::shared_mutex> readIDLock(msqidMutex);
+        ID = msqids[msqid];
+    }
+    {
+        boost::shared_lock<boost::shared_mutex> readMsqLock(msqidMutex);
+        mutexToLock = &msqAccessLockTable[msqid];
+    }
+    mutexToLock->lock();
+
+    dataMutex.lock();
+    opLogs->push_back(OperationLog(ID, MESSAGE_RECEIVE));
+    dataMutex.unlock();
+
+    currFuncLog = FunctionLog(TraceTool::processToGlobalSID[TraceTool::current_transaction_id]);
+    currFuncLog.start();
+    int result = msgrcv(msqid, msgp, msgsz, msgtyp, msgflg);
+    mutexToLock->unlock();
+    currFuncLog.end();
+
+    dataMutex.lock();
+    instance->funcLogs->push_back(currFuncLog);
+    dataMutex.unlock();
+    return result;
+}
+
 
 std::ostream& operator<<(std::ostream &os, const Operation &op) {
     switch (op) {
