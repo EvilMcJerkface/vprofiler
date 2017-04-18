@@ -19,6 +19,7 @@
 #include <sstream>
 #include <vector>
 #include <set>
+#include <iostream>
 #include <thread>
 #include <mutex>
 #include <memory>
@@ -50,6 +51,8 @@ using std::unordered_map;
 #define NUMBER_OF_FUNCTIONS 0
 #define LATENCY
 #define MONITOR
+
+typedef unsigned long ulint;
 
 /*!< Process local transaction ID. */
 std::atomic_uint_fast64_t processTransactionID{0};
@@ -296,16 +299,19 @@ class SynchronizationTraceTool {
         static thread_local OperationLog currOpLog;
 
         boost::shared_mutex fifoNamesMutex;
+        ulint fifoIDCounter;
         unordered_map<string, string> fifoNamesToIDs;
         boost::shared_mutex fifoFdsMutex;
         unordered_map<int, string> fifoFdsToIDs;
         unordered_map<int, mutex> fifoAccessLockTable;
 
         boost::shared_mutex pipeMutex;
+        ulint pipeIDCounter;
         unordered_map<int, string> pipeFdsToIDs;
         unordered_map<string, mutex> pipeAccessLockTable;
 
         boost::shared_mutex msgMutex;
+        ulint msgIDCounter;
         unordered_map<int, string> msqids;
         boost::shared_mutex msqidMutex;
         unordered_map<int, mutex> msqAccessLockTable;
@@ -741,6 +747,10 @@ SynchronizationTraceTool::SynchronizationTraceTool() {
     opLogs->reserve(1000000);
     funcLogs->reserve(1000000);
 
+    fifoIDCounter = 0;
+    pipeIDCounter = 0;
+    msgIDCounter = 0;
+
     lastPID = ::getpid();
 
     logFile.open("latency/SynchronizationLog_" + std::to_string(lastPID), std::ios_base::trunc);
@@ -799,6 +809,7 @@ void SynchronizationTraceTool::checkFileClean() {
     pid_t currPID = ::getpid();
 
     if (currPID != lastPID) {
+        std::cout << "Switch to process " << currPID << std::endl;
         instance->logFile.close();
         instance->logFile.open("latency/SynchronizationLog_" + std::to_string(currPID), std::ios_base::trunc);
     }
@@ -901,7 +912,7 @@ ssize_t ON_MSGRCV(int fd, void *msgp, size_t msgsz, long msgtyp, int msgflg) {
 void SynchronizationTraceTool::AddFIFOName(const char *path_cstr) {
     string path(path_cstr);
     boost::unique_lock<boost::shared_mutex> lock(fifoNamesMutex);
-    string ID = "F" + std::to_string(fifoNamesToIDs.size());
+    string ID = "F" + std::to_string(fifoIDCounter++);
     fifoNamesToIDs[path] = ID;
 }
 
@@ -925,7 +936,7 @@ size_t SynchronizationTraceTool::OnRead(int fd, void *buf, size_t nbytes) {
     mutex *mutexToLock = nullptr;
     {
         boost::shared_lock<boost::shared_mutex> readIDLock(fifoFdsMutex);
-        unordered_map<int, string>::iterator it = fifoFdsToIDs.end();
+        unordered_map<int, string>::iterator it = fifoFdsToIDs.find(fd);
         if (it != fifoFdsToIDs.end()) {
             ID = it->second;
             mutexToLock = &fifoAccessLockTable[fd];
@@ -933,7 +944,7 @@ size_t SynchronizationTraceTool::OnRead(int fd, void *buf, size_t nbytes) {
     }
     if (mutexToLock == nullptr) {
         boost::shared_lock<boost::shared_mutex> readIDLock(pipeMutex);
-        unordered_map<int, string>::iterator it = pipeFdsToIDs.end();
+        unordered_map<int, string>::iterator it = pipeFdsToIDs.find(fd);
         if (it != pipeFdsToIDs.end()) {
             ID = it->second;
             mutexToLock = &pipeAccessLockTable[ID];
@@ -964,7 +975,7 @@ size_t SynchronizationTraceTool::OnWrite(int fd, void *buf, size_t nbytes) {
     mutex *mutexToLock = nullptr;
     {
         boost::shared_lock<boost::shared_mutex> readIDLock(fifoFdsMutex);
-        unordered_map<int, string>::iterator it = fifoFdsToIDs.end();
+        unordered_map<int, string>::iterator it = fifoFdsToIDs.find(fd);
         if (it != fifoFdsToIDs.end()) {
             ID = it->second;
             mutexToLock = &fifoAccessLockTable[fd];
@@ -972,7 +983,7 @@ size_t SynchronizationTraceTool::OnWrite(int fd, void *buf, size_t nbytes) {
     }
     if (mutexToLock == nullptr) {
         boost::shared_lock<boost::shared_mutex> readIDLock(pipeMutex);
-        unordered_map<int, string>::iterator it = pipeFdsToIDs.end();
+        unordered_map<int, string>::iterator it = pipeFdsToIDs.find(fd);
         if (it != pipeFdsToIDs.end()) {
             ID = it->second;
             mutexToLock = &pipeAccessLockTable[ID];
@@ -1009,7 +1020,7 @@ void SynchronizationTraceTool::OnClose(int fd) {
 
 void SynchronizationTraceTool::OnPipe(int pipefd[2]) {
     boost::unique_lock<boost::shared_mutex> writePipeFdLock(pipeMutex);
-    string ID = "P" + std::to_string(pipeFdsToIDs.size());
+    string ID = "P" + std::to_string(pipeIDCounter);
     pipeFdsToIDs[pipefd[0]] = ID;
     pipeFdsToIDs[pipefd[1]] = ID;
 }
