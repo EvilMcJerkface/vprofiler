@@ -48,7 +48,7 @@ void TracingInnerWrapperGenerator::GenerateWrapperPrologue(const string &fname,
 
 void TracingInnerWrapperGenerator::GenerateWrapperEpilogue(const string &fname,
                                                            const FunctionPrototype &prototype) {
-    implementationFile << "SYNCHRONIZATION_CALL_END();\n";
+    implementationFile << "SYNCHRONIZATION_CALL_END();\n\t";
 }
 
 string IPCInnerWrapperGenerator::BuildFunctionCallFromParams(const WrapperGenState &funcToInstrument,
@@ -86,10 +86,10 @@ CachingIPCInnerWrapperGenerator::CachingIPCInnerWrapperGenerator(std::ofstream &
 
 NonCachingIPCInnerWrapperGenerator::NonCachingIPCInnerWrapperGenerator(std::ofstream &_implementationFile):
     IPCInnerWrapperGenerator(_implementationFile,
-                             {{"msgrcv", WrapperGenState("ON_MSGRCV(", {0}, false)},
-                              {"msgsnd", WrapperGenState("ON_MSGSND(", {0}, false)},
-                              {"read", WrapperGenState("ON_READ(", {0}, false)},
-                              {"write", WrapperGenState("ON_WRITE(", {0}, false)}}) {}
+                             {{"msgrcv", WrapperGenState("ON_MSGRCV", {0}, false)},
+                              {"msgsnd", WrapperGenState("ON_MSGSND", {0}, false)},
+                              {"read", WrapperGenState("ON_READ", {0}, false)},
+                              {"write", WrapperGenState("ON_WRITE", {0}, false)}}) {}
 
 // Do nothing
 void CachingIPCInnerWrapperGenerator::GenerateWrapperPrologue(const string &fname, 
@@ -103,7 +103,7 @@ void CachingIPCInnerWrapperGenerator::GenerateWrapperEpilogue(const string &fnam
 
     cachingCall += BuildFunctionCallFromParams(assignedFunctionState[fname], prototype);
 
-    implementationFile << cachingCall;
+    implementationFile << cachingCall + "\t";
 }
 
 void NonCachingIPCInnerWrapperGenerator::GenerateWrapperPrologue(const string &fname,
@@ -117,6 +117,8 @@ void NonCachingIPCInnerWrapperGenerator::GenerateWrapperInterlude(const string &
     dummyPrototype.innerCallPrefix = assignedFunctionState[fname].internalCallPrefix;
 
     InnerWrapperGenerator::GenerateWrapperInterlude(fname, dummyPrototype);
+
+    implementationFile << "\n\t";
 }
 
 void NonCachingIPCInnerWrapperGenerator::GenerateWrapperEpilogue(const string &fname,
