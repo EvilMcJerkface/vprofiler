@@ -61,7 +61,7 @@ class CriticalPathBuilder:
 
         if unblockedSegment == -1:
             self.blockedEdgeStack.appendleft((precedingRequest.timeStart, currThreadID))
-            leftTimeBound, nextThreadID = self.synchObjAgg.GetDependenceEdge(precedingRequest.opID, precedingRequest.objID, precedingRequest.timeEnd)
+            leftTimeBound, nextThreadID = self.synchObjAgg.GetDependenceEdge(precedingRequest)
 
             if leftTimeBound is None or nextThreadID is None:
                 leftTimeBound = precedingRequest.timeStart

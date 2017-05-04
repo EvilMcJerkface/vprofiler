@@ -3,12 +3,12 @@ from bisect import bisect_left
 from OperationEnum import Operation
 
 class Request:
-    def __init__(self, objID, opID):
+    def __init__(self, objID, opID, timeStart = None, timeEnd = None):
         self.objID = objID
         self.opID = opID
 
-        self.timeStart = None
-        self.timeEnd = None
+        self.timeStart = timeStart
+        self.timeEnd = timeEnd
 
     def AddFunctionTimes(self, timeStart, timeEnd):
         self.timeStart = timeStart
@@ -51,12 +51,10 @@ class RequestTracker:
         self.allowedRequests = [Operation.MUTEX_LOCK, Operation.CV_WAIT,
                                 Operation.QUEUE_DEQUEUE, Operation.MESSAGE_RECEIVE]
 
-    # Don't do anything if this is not a request for some type of object
     def AddOperation(self, operation):
         opID = Operation(int(operation[3]))
         objID = operation[2]
         toInsert = Request(objID, opID)
-
 
         threadID = operation[0]
         if threadID not in self.threadRequests:
@@ -67,8 +65,8 @@ class RequestTracker:
     def AddFunctionTime(self, funcTime):
         threadID = funcTime[0]
 
-        # Index 1 is the semantic interval ID.  Don't actually think this is 
-        # necessary.
+        # Index 1 is the semantic interval ID.  Don't actually think this is
+        # necessary for RequestTracker.
 
         startTime = nanotime(int(funcTime[2]))
         endTime = nanotime(int(funcTime[3]))

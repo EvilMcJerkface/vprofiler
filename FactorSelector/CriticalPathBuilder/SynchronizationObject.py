@@ -61,22 +61,34 @@ class OwnableObject(SynchronizationObject):
             return self.ownershipTimeSeries[resultIdx].endTime, \
                    self.ownershipTimeSeries[resultIdx].threadID
 
-# User should provide function which returns a unique ID of the event so we can
-# track it
-class EventCreationObject(SynchronizationObject):
+# Maybe have something where it's a map from event -> event that created it.
+# While parsing, maintain queue modeling the actual queue in user's code.
+# When we have an operation which pops from the queue, create an entry in the
+# event -> event creator map.  Then, for GetDependenceEdge, just return the
+# event stored at dependenceEdges[recipientEvent] where recipientEvent is the
+# event whose creator we are trying to find.
+class QueueObject(SynchronizationObject):
     def __init__(self):
         # Map from eventID to the threadID of the thread which created event eventID
         self.eventCreationRelationships = {}
+        self.eventQueue = []
 
-    def AddEventCreationRelationship(self, eventID, threadID, creationTime):
-        self.eventCreationRelationships[eventID] = (threadID, creationTime)
+    def AddOperation(self, operation):
+        if operation.opID == Operation.MESSAGE_SEND or \
+           operation.opID == Operation.QUEUE_ENQUEUE:
+            self.eventQueue.append(operation)
+
+        # If the operation is MESSAGE_RECEIVE or QUEUE_DEQUEUE
+        else:
+            creatingEvent = self.eventQueue.pop(0)
+            self.eventCreationRelationships[operation] = creatingEvent
 
     # Returns the threadID of the thread which created event eventID.  Returns None
     # if no event with eventID was found.
-    def GetDependenceRelation(self, eventID):
-        result = self.eventCreationRelationships.get(eventID)
+    def GetDependenceRelation(self, operation):
+        result = self.eventCreationRelationships.get(operation)
 
         if result == None:
             result = (None, None)
 
-        return result[0], result[1]
+        return result.endTime, result.threadID
