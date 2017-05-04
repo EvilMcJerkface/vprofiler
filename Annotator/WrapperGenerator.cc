@@ -22,6 +22,7 @@ void WrapperGenerator::initOpToGenMap() {
                                           {"MESSAGE_RECEIVE", traceGen},
                                           {"MKNOD", cachingIPCGen},
                                           {"OPEN", cachingIPCGen},
+					  {"CLOSE", cachingIPCGen},
                                           {"PIPE", cachingIPCGen},
                                           {"MSGGET", cachingIPCGen},
                                           {"READ", nonCachingIPCGen},
@@ -92,13 +93,13 @@ void WrapperGenerator::GenerateImplementations() {
         implementationFile << kv.second.functionPrototype + " {\n\t";
 
         if (kv.second.returnType != "void") {
-            implementationFile << kv.second.returnType + " result;\n\t";
+            implementationFile << kv.second.returnType + " result;\n\n\t";
         }
 
         operationToGenerator[operation]->GenerateFunctionImplementation(kv.first, kv.second);
 
         if (kv.second.returnType != "void") {
-            implementationFile << "\treturn result;\n";
+            implementationFile << "return result;\n";
         }
 
         implementationFile << "}\n\n";

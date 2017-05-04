@@ -80,11 +80,11 @@ void SYNCHRONIZATION_CALL_END();
 void ON_MKNOD(const char *path, mode_t mode);
 void ON_OPEN(const char *path, int fd);
 size_t ON_READ(int fd, void *buf, size_t nbytes);
-size_t ON_WRITE(int fd, void *buf, size_t nbytes);
+size_t ON_WRITE(int fd, const void *buf, size_t nbytes);
 void ON_CLOSE(int fd);
 void ON_PIPE(int pipefd[2]);
 void ON_MSGGET(int msqid);
-int ON_MSGSND(int fd, void *msgp, size_t msgsz, int msgflg);
+int ON_MSGSND(int fd, const void *msgp, size_t msgsz, int msgflg);
 ssize_t ON_MSGRCV(int fd, void *msgp, size_t msgsz, long msgtyp, int msgflg);
 
 #ifdef __cplusplus
