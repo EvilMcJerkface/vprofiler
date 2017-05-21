@@ -43,6 +43,7 @@ def collect_exec_time(function_file, path):
     function_exec_time = latencyAggregator.GetLatencies(path, len(function_names))
 
     function_names.insert(0, function_file)
+    function_names.append('synchronization wait time')
     function_names.append('latency')
 #    function_exec_time = []
 #    function_exec_time_file = open('tpcc', 'r')
@@ -71,7 +72,7 @@ def break_down(function_file, path, var_tree_file):
     function_names[0] = 'img_' + function_names[0]
 
     latency_data = function_exec_time[0]
-    imaginary_records = function_exec_time[-1]
+    imaginary_records = function_exec_time[-2]
     variance_of_latency = np.var(latency_data)
     std_of_latency = np.std(latency_data)
     mean_of_latency = np.mean(latency_data)

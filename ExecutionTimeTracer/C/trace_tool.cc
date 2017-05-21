@@ -28,11 +28,11 @@
 #include <unordered_map>
 
 #include <boost/thread/shared_mutex.hpp>
+#include <boost/filesystem.hpp>
 
 using std::ifstream;
 using std::ofstream;
 using std::getline;
-using std::ofstream;
 using std::vector;
 using std::endl;
 using std::string;
@@ -80,6 +80,14 @@ class VProfSharedMemory {
         std::atomic_uint_fast64_t* GetTransactionID();
 };
 
+class Filesystem {
+    public:
+        static void CreateDirIfNotExists(const string &dirName);
+
+    private:
+        static unordered_map<string, bool> dirInitialized;
+};
+
 class FunctionLog {
     public:
         FunctionLog():
@@ -114,9 +122,6 @@ class FunctionLog {
         }
 
         void appendToString(string &other) const {
-            //std::stringstream ss;
-            //ss << threadID;
-            // ss.str() insert this in beginning of string call
             other.append(string("1," + entityID + ',' + std::to_string(semIntervalID) 
                                 + ',' + std::to_string((functionStart.tv_sec * 1000000000) 
                                 + functionStart.tv_nsec) + ',' 
@@ -280,11 +285,11 @@ class SynchronizationTraceTool {
         void AddFIFOName(const char *path);
         void OnOpen(const char *path, int fd);
         size_t OnRead(int fd, void *buf, size_t nbytes);
-        size_t OnWrite(int fd, void *buf, size_t nbytes);
+        size_t OnWrite(int fd, const void *buf, size_t nbytes);
         void OnClose(int fd);
         void OnPipe(int pipefd[2]);
         void OnMsgGet(int msqid);
-        int OnMsgSnd(int fd, void *msgp, size_t msgsz, int msgflg);
+        int OnMsgSnd(int fd, const void *msgp, size_t msgsz, int msgflg);
         ssize_t OnMsgRcv(int fd, void *msgp, size_t msgsz, long msgtyp, int msgflg);
         void LockFIFO(int fd);
         void UNLOCK_FIFO(int fd);
@@ -333,14 +338,21 @@ class SynchronizationTraceTool {
 
         SynchronizationTraceTool();
 
+        template <typename T>
+        static void pushToVec(std::vector<T> &vec, const T &val);
+
+        static bool haveForkedSinceLastOp();
+        static void refreshStateAfterFork();
+
         static void writeLogWorker();
-        static void checkFileClean();
         static void writeLogs(std::vector<OperationLog> *opLogs,
                               std::vector<FunctionLog> *funcLogs);
 };
 
 std::shared_ptr<VProfSharedMemory> VProfSharedMemory::instance = nullptr;
 bool VProfSharedMemory::singletonInitialized = false;
+
+unordered_map<string, bool> Filesystem::dirInitialized;
 
 TraceTool *TraceTool::instance = NULL;
 __thread ulint TraceTool::current_transaction_id = 0;
@@ -378,6 +390,7 @@ static __thread timespec call_end;
 void set_id(int id) {
     TraceTool::get_instance()->id = id;
     if (!TraceTool::log_file.is_open()) {
+        Filesystem::CreateDirIfNotExists("latency");
         TraceTool::log_file.open("latency/log_file_" + to_string(id));
     }
 }
@@ -568,6 +581,15 @@ std::shared_ptr<VProfSharedMemory> VProfSharedMemory::GetInstance() {
     return instance;
 }
 
+void Filesystem::CreateDirIfNotExists(const string &dirName) {
+    boost::filesystem::path dir(dirName);
+
+    if (!boost::filesystem::exists(dir)) {
+        // TODO add if here where we log error if dir is not created
+        boost::filesystem::create_directory(dir);
+    }
+}
+
 /********************************************************************//**
 Get the current TraceTool instance. */
 TraceTool *TraceTool::get_instance() {
@@ -707,6 +729,7 @@ void TraceTool::add_record(int function_index, timespec &start, timespec &end) {
 void TraceTool::write_latency(string dir) {
     log_file << pthread_self() << endl;
     ofstream tpcc_log;
+    Filesystem::CreateDirIfNotExists(dir);
     tpcc_log.open(dir + "tpcc_" + to_string(id));
 
     for (ulint index = 0; index < transaction_start_times.size(); ++index) {
@@ -753,6 +776,7 @@ SynchronizationTraceTool::SynchronizationTraceTool() {
 
     lastPID = ::getpid();
 
+    Filesystem::CreateDirIfNotExists("latency");
     logFile.open("latency/SynchronizationLog_" + std::to_string(lastPID), std::ios_base::trunc);
 
     writerThread = thread(writeLogWorker);
@@ -774,7 +798,7 @@ void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj)
     dataMutex.lock();
     currFuncLog = FunctionLog(TraceTool::processToGlobalSID[TraceTool::current_transaction_id]);
 
-    instance->opLogs->push_back(OperationLog(obj, op));
+    pushToVec(*instance->opLogs, OperationLog(obj, op));
     dataMutex.unlock();
 
     currFuncLog.start();
@@ -784,7 +808,7 @@ void SynchronizationTraceTool::SynchronizationCallEnd() {
     currFuncLog.end();
 
     dataMutex.lock();
-    instance->funcLogs->push_back(currFuncLog);
+    pushToVec(*instance->funcLogs, currFuncLog);
     dataMutex.unlock();
 }
 
@@ -805,16 +829,30 @@ void SynchronizationTraceTool::maybeCreateInstance() {
     singletonMutex.unlock();
 }
 
-void SynchronizationTraceTool::checkFileClean() {
-    pid_t currPID = ::getpid();
-
-    if (currPID != lastPID) {
-        std::cout << "Switch to process " << currPID << std::endl;
-        instance->logFile.close();
-        instance->logFile.open("latency/SynchronizationLog_" + std::to_string(currPID), std::ios_base::trunc);
+template <typename T>
+void SynchronizationTraceTool::pushToVec(vector<T> &vec, const T &val) {
+    if (haveForkedSinceLastOp()) {
+        refreshStateAfterFork();
     }
 
+    vec.push_back(val);
+}
+
+bool SynchronizationTraceTool::haveForkedSinceLastOp() {
+    pid_t currPID = ::getpid();
+    bool retVal = currPID != lastPID;
     lastPID = currPID;
+
+    return retVal;
+}
+
+void SynchronizationTraceTool::refreshStateAfterFork() {
+    instance->logFile.close();
+    Filesystem::CreateDirIfNotExists("latency");
+    instance->logFile.open("latency/SynchronizationLog_" + std::to_string(instance->lastPID), std::ios_base::trunc);
+
+    instance->writerThread.detach();
+    instance->writerThread = thread(writeLogWorker); 
 }
 
 void SynchronizationTraceTool::writeLogWorker() {
@@ -824,7 +862,9 @@ void SynchronizationTraceTool::writeLogWorker() {
     while (!stopLogging) {
         std::this_thread::sleep_for(std::chrono::seconds(2));
         if (instance != nullptr) {
-            checkFileClean();
+            if (haveForkedSinceLastOp()) {
+                refreshStateAfterFork();
+            }
 
             vector<OperationLog> *newOpLogs = new vector<OperationLog>;
             vector<FunctionLog> *newFuncLogs = new vector<FunctionLog>;
@@ -885,7 +925,7 @@ size_t ON_READ(int fd, void *buf, size_t nbytes) {
     return SynchronizationTraceTool::GetInstance()->OnRead(fd, buf, nbytes);
 }
 
-size_t ON_WRITE(int fd, void *buf, size_t nbytes) {
+size_t ON_WRITE(int fd, const void *buf, size_t nbytes) {
     return SynchronizationTraceTool::GetInstance()->OnWrite(fd, buf, nbytes);
 }
 
@@ -901,7 +941,7 @@ void ON_MSGGET(int msqid) {
     SynchronizationTraceTool::GetInstance()->OnMsgGet(msqid);
 }
 
-int ON_MSGSND(int fd, void *msgp, size_t msgsz, int msgflg) {
+int ON_MSGSND(int fd, const void *msgp, size_t msgsz, int msgflg) {
     return SynchronizationTraceTool::GetInstance()->OnMsgSnd(fd, msgp, msgsz, msgflg);
 }
 
@@ -953,7 +993,7 @@ size_t SynchronizationTraceTool::OnRead(int fd, void *buf, size_t nbytes) {
     if (mutexToLock != nullptr) {
         mutexToLock->lock();
         dataMutex.lock();
-        opLogs->push_back(OperationLog(ID, MESSAGE_RECEIVE));
+        pushToVec(*instance->opLogs, OperationLog(ID, MESSAGE_RECEIVE));
         currFuncLog = FunctionLog(TraceTool::processToGlobalSID[TraceTool::current_transaction_id]);
         dataMutex.unlock();
         currFuncLog.start();
@@ -961,7 +1001,7 @@ size_t SynchronizationTraceTool::OnRead(int fd, void *buf, size_t nbytes) {
         mutexToLock->unlock();
         currFuncLog.end();
         dataMutex.lock();
-        instance->funcLogs->push_back(currFuncLog);
+        pushToVec(*instance->funcLogs, currFuncLog);
         dataMutex.unlock();
     } else {
         result = read(fd, buf, nbytes);
@@ -969,7 +1009,7 @@ size_t SynchronizationTraceTool::OnRead(int fd, void *buf, size_t nbytes) {
     return result;
 }
 
-size_t SynchronizationTraceTool::OnWrite(int fd, void *buf, size_t nbytes) {
+size_t SynchronizationTraceTool::OnWrite(int fd, const void *buf, size_t nbytes) {
     size_t result = 0;
     string ID;
     mutex *mutexToLock = nullptr;
@@ -992,7 +1032,7 @@ size_t SynchronizationTraceTool::OnWrite(int fd, void *buf, size_t nbytes) {
     if (mutexToLock != nullptr) {
         mutexToLock->lock();
         dataMutex.lock();
-        opLogs->push_back(OperationLog(ID, MESSAGE_RECEIVE));
+        pushToVec(*instance->opLogs, OperationLog(ID, MESSAGE_SEND));
         dataMutex.unlock();
         currFuncLog = FunctionLog(TraceTool::processToGlobalSID[TraceTool::current_transaction_id]);
         currFuncLog.start();
@@ -1000,7 +1040,7 @@ size_t SynchronizationTraceTool::OnWrite(int fd, void *buf, size_t nbytes) {
         mutexToLock->unlock();
         currFuncLog.end();
         dataMutex.lock();
-        instance->funcLogs->push_back(currFuncLog);
+        pushToVec(*instance->funcLogs, currFuncLog);
         dataMutex.unlock();
     } else {
         result = write(fd, buf, nbytes);
@@ -1036,7 +1076,7 @@ void SynchronizationTraceTool::OnMsgGet(int msqid) {
     msqAccessLockTable[msqid];
 }
 
-int SynchronizationTraceTool::OnMsgSnd(int msqid, void *msgp, size_t msgsz, int msgflg) {
+int SynchronizationTraceTool::OnMsgSnd(int msqid, const void *msgp, size_t msgsz, int msgflg) {
     mutex *mutexToLock = nullptr;
     string ID;
     {
@@ -1050,7 +1090,7 @@ int SynchronizationTraceTool::OnMsgSnd(int msqid, void *msgp, size_t msgsz, int 
     mutexToLock->lock();
 
     dataMutex.lock();
-    opLogs->push_back(OperationLog(ID, MESSAGE_SEND));
+    pushToVec(*instance->opLogs, OperationLog(ID, MESSAGE_SEND));
     dataMutex.unlock();
 
     currFuncLog = FunctionLog(TraceTool::processToGlobalSID[TraceTool::current_transaction_id]);
@@ -1060,7 +1100,7 @@ int SynchronizationTraceTool::OnMsgSnd(int msqid, void *msgp, size_t msgsz, int 
     currFuncLog.end();
     
     dataMutex.lock();
-    instance->funcLogs->push_back(currFuncLog);
+    pushToVec(*instance->funcLogs, currFuncLog);
     dataMutex.unlock();
     return result;
 }
@@ -1079,7 +1119,7 @@ ssize_t SynchronizationTraceTool::OnMsgRcv(int msqid, void *msgp, size_t msgsz, 
     mutexToLock->lock();
 
     dataMutex.lock();
-    opLogs->push_back(OperationLog(ID, MESSAGE_RECEIVE));
+    pushToVec(*instance->opLogs, OperationLog(ID, MESSAGE_RECEIVE));
     dataMutex.unlock();
 
     currFuncLog = FunctionLog(TraceTool::processToGlobalSID[TraceTool::current_transaction_id]);
@@ -1089,7 +1129,7 @@ ssize_t SynchronizationTraceTool::OnMsgRcv(int msqid, void *msgp, size_t msgsz, 
     currFuncLog.end();
 
     dataMutex.lock();
-    instance->funcLogs->push_back(currFuncLog);
+    pushToVec(*instance->funcLogs, currFuncLog);
     dataMutex.unlock();
     return result;
 }

@@ -14,12 +14,12 @@
 #include <stdexcept>
 #include <algorithm>
 
-enum Operation  { MUTEX_LOCK, MUTEX_UNLOCK,         // Mutexes
-                  CV_WAIT, CV_BROADCAST, CV_SIGNAL, // CVs
-                  QUEUE_ENQUEUE, QUEUE_DEQUEUE,     // Queues
-                  MESSAGE_SEND, MESSAGE_RECEIVE,    // Messaging 
-                  MKNOD, OPEN, READ, WRITE, PIPE,   // IPC FIFO/pipe
-                  MSGGET, MSGSND, MSGRCV };         // IPC message queue
+enum Operation  { MUTEX_LOCK, MUTEX_UNLOCK,                // Mutexes
+                  CV_WAIT, CV_BROADCAST, CV_SIGNAL,        // CVs
+                  QUEUE_ENQUEUE, QUEUE_DEQUEUE,            // Queues
+                  MESSAGE_SEND, MESSAGE_RECEIVE,           // Messaging 
+                  MKNOD, OPEN, CLOSE, READ, WRITE, PIPE,   // IPC FIFO/pipe
+                  MSGGET, MSGSND, MSGRCV };           	   // IPC message queue
 
 struct LogInformation {
     unsigned int functionID;
@@ -37,7 +37,8 @@ class FunctionFileReader {
         operationStrings({ "MUTEX_LOCK", "MUTEX_UNLOCK", "CV_WAIT",
                            "CV_BROADCAST", "CV_SIGNAL", "QUEUE_ENQUEUE",
                            "QUEUE_DEQUEUE", "MESSAGE_SEND", "MESSAGE_RECEIVE", 
-                           "VPROF_INTERNAL" }),
+                           "MKNOD", "CLOSE", "OPEN", "READ", "WRITE", "PIPE",
+			   "MSGGET", "MSGSND", "MSGRCV" }),
         beenParsed(false) {}
         
         // Parse the file

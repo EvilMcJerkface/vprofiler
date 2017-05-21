@@ -40,7 +40,7 @@ void FunctionFileReader::Parse(const std::string &filename) {
                                      "for function " + separateWords[0]);
         }
 
-        (*opMap)[(*qualifiedNames)[i]] = separateWords[1];
+        (*opMap)[(*qualifiedNames)[qualifiedNames->size() - 1]] = separateWords[1];
 
         // Fill unqualified names
         nameComponents = SplitString(separateWords[0], ':');

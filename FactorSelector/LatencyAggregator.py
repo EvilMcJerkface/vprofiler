@@ -52,12 +52,27 @@ class LatencyAggregator:
 
                         self.semanticIntervals[semIntervalID][functionIndex].append(FunctionRecord(startTime, endTime, threadID))
 
+    def __AggregateSemanticIntervalWaitTime(self, timeSeries):
+        self.functionLatencies[-1].append(0)
+        prevInterval = None
+
+        for interval in timeSeries:
+            if prevInterval != None:
+                self.functionLatencies[-1][-1] = interval.begin - prevInterval.end
+
+            prevInterval = interval
+
     def __AggregateForSemanticInterval(self, semanticIntervalID, functionInstances):
-        #semIntervalInfo = functionInstances[len(functionInstances) - 1]
         semIntervalInfo = functionInstances[0][0]
         criticalPath = self.criticalPathBuilder.Build(semIntervalInfo.startTime, \
                                                       semIntervalInfo.endTime,   \
                                                       semIntervalInfo.threadID)
+
+        timeSeriesTuples = []
+
+        # I think in this for loop we should make a time series for the semantic interval.  Then
+        # after this loop is done w/ execution, go through each interval and add the value of
+        # postInteval.startTime - preInterval.endTime to the wait time record.
 
         # Holy nesting, batman.  Don't see another way to do this though.
         for functionID in range(len(functionInstances)):
@@ -65,13 +80,24 @@ class LatencyAggregator:
                 haveAppended = False
                 for interval in criticalPath.search(functionInstance.startTime, functionInstance.endTime):
                     if interval.data == functionInstance.threadID:
-                        latency = min(interval.end, functionInstance.endTime) - max(interval.begin, functionInstance.startTime)
+                        execIntervalStartTime = max(interval.begin, functionInstance.startTime)
+                        execIntervalEndTime = min(interval.end, functionInstance.endTime)
+
+                        timeSeriesTuples.append((execIntervalStartTime, execIntervalEndTime))
+
+                        latency = execIntervalEndTime - execIntervalStartTime
+
                         if not haveAppended:
                             self.functionLatencies[functionID].append(latency)
                         # What was this supposed to do?
                         else:
-                            self.functionLatencies[len(self.functionLatencies) - 1] += latency
+                            # I think this is wrong! Shouldn't it be:
+                            # self.functionLatencies[len(self.functionLatencies) - 1][-1] += latency
+                            self.functionLatencies[functionID][-1] += latency
 
+        semIntTimeSeries = IntervalTree.from_tuples(timeSeriesTuples)
+
+        self.__AggregateSemanticIntervalWaitTime(timeSeriesTuples)
 
     def GetLatencies(self, pathPrefix, numFunctions):
         self.__Parse(pathPrefix, numFunctions)
