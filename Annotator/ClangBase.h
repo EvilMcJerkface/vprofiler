@@ -118,7 +118,6 @@ class VProfASTConsumer : public clang::ASTConsumer {
             fileID = ci.getSourceManager().getMainFileID();
         }
 
-        // Destructor flushes rewriter changes to files
         ~VProfASTConsumer();
 
         virtual void HandleTranslationUnit(clang::ASTContext &context) {

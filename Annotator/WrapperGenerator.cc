@@ -22,7 +22,7 @@ void WrapperGenerator::initOpToGenMap() {
                                           {"MESSAGE_RECEIVE", traceGen},
                                           {"MKNOD", cachingIPCGen},
                                           {"OPEN", cachingIPCGen},
-					  {"CLOSE", cachingIPCGen},
+                                          {"CLOSE", cachingIPCGen},
                                           {"PIPE", cachingIPCGen},
                                           {"MSGGET", cachingIPCGen},
                                           {"READ", nonCachingIPCGen},
@@ -39,7 +39,7 @@ WrapperGenerator::WrapperGenerator(shared_ptr<unordered_map<string,
                                    prototypeMap(_prototypeMap),
                                    operationMap(_operationMap) {
     headerFile.open(pathPrefix + "VProfEventWrappers.h");
-    implementationFile.open(pathPrefix + "VProfEventWrappers.cpp");
+    implementationFile.open(pathPrefix + "VProfEventWrappers.cc");
 
     initOpToGenMap();
 
