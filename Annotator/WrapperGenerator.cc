@@ -22,7 +22,7 @@ void WrapperGenerator::initOpToGenMap() {
                                           {"MESSAGE_RECEIVE", traceGen},
                                           {"MKNOD", cachingIPCGen},
                                           {"OPEN", cachingIPCGen},
-					  {"CLOSE", cachingIPCGen},
+		                    			  {"CLOSE", cachingIPCGen},
                                           {"PIPE", cachingIPCGen},
                                           {"MSGGET", cachingIPCGen},
                                           {"READ", nonCachingIPCGen},
