@@ -1,7 +1,0 @@
-[
-    {
-        "command": "c++ -c -o IPCCallTest IPCCallTest.cpp", 
-        "directory": "/home/jiamin/vprofiler/Test/AnnotatorTest", 
-        "file": "/home/jiamin/vprofiler/Test/AnnotatorTest/IPCCallTest.cpp"
-    }
-]
