@@ -1,0 +1,17 @@
+[
+    {
+        "command": "cc -c -o fifo_test fifo_test.c", 
+        "directory": "/home/jiamin/vprofiler/Test/AnnotatorTest", 
+        "file": "/home/jiamin/vprofiler/Test/AnnotatorTest/fifo_test.c"
+    }, 
+    {
+        "command": "cc -c -o msg_test msg_test.c", 
+        "directory": "/home/jiamin/vprofiler/Test/AnnotatorTest", 
+        "file": "/home/jiamin/vprofiler/Test/AnnotatorTest/msg_test.c"
+    }, 
+    {
+        "command": "cc -c -o pipe_test pipe_test.c", 
+        "directory": "/home/jiamin/vprofiler/Test/AnnotatorTest", 
+        "file": "/home/jiamin/vprofiler/Test/AnnotatorTest/pipe_test.c"
+    }
+]

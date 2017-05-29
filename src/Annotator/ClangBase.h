@@ -68,7 +68,7 @@ class VProfVisitor : public clang::RecursiveASTVisitor<VProfVisitor> {
         explicit VProfVisitor(clang::CompilerInstance &ci, 
                               std::shared_ptr<clang::Rewriter> _rewriter,
                               std::shared_ptr<std::unordered_map<std::string, std::string>> _functions,
-                              std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> 
+                              std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>>
                               _prototypeMap,
                               std::shared_ptr<bool> _shouldFlush);
 
@@ -94,8 +94,6 @@ class VProfASTConsumer : public clang::ASTConsumer {
 
         std::shared_ptr<bool> shouldFlush;
 
-        clang::FileID fileID;
-
     public:
         // Override ctor to pass hash map of fully qualified function names to the function
         // name to which the key functions should be converted to in the source.
@@ -103,22 +101,20 @@ class VProfASTConsumer : public clang::ASTConsumer {
                                   std::shared_ptr<clang::Rewriter> _rewriter,
                                   std::shared_ptr<std::unordered_map<std::string, std::string>> _functions,
                                   std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> prototypeMap,
-                                  std::string _filename): 
+                                  std::string _filename,
+                                  std::shared_ptr<bool> _shouldFlush): 
                                   rewriter(_rewriter),
                                   functions(_functions),
                                   filename(_filename),  
-                                  shouldFlush(std::make_shared<bool>(false)) {
+                                  shouldFlush(_shouldFlush) {
             
             visitor = std::unique_ptr<VProfVisitor>(new VProfVisitor(ci, 
                                                                      rewriter, 
                                                                      functions, 
                                                                      prototypeMap,
                                                                      shouldFlush));
-
-            fileID = ci.getSourceManager().getMainFileID();
         }
 
-        // Destructor flushes rewriter changes to files
         ~VProfASTConsumer();
 
         virtual void HandleTranslationUnit(clang::ASTContext &context) {

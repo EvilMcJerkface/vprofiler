@@ -1,12 +1,9 @@
 #! /usr/bin/env python
 # coding=utf-8
 
+import argparse
 import os
-import sys
-import cmath
-import getopt
 import numpy as np
-import csv
 
 from LatencyAggregator import LatencyAggregator
 
@@ -19,18 +16,10 @@ from LatencyAggregator import LatencyAggregator
 from CriticalPathBuilder import CriticalPathBuilder
 
 
-def cov(variable1, variable2):
+def cov(var1, var2):
     """ Return the covariance of two lists """
-    cov_matrix = np.cov(np.vstack((variable1, variable2)))
+    cov_matrix = np.cov(np.vstack((var1, var2)))
     return cov_matrix[0, 1]
-
-
-def l2norm(nums):
-    """ Compute the L2 Norm of nums """
-    square_sum = 0
-    for num in nums:
-        square_sum += num * num
-    return cmath.sqrt(square_sum)
 
 
 def collect_exec_time(function_file, path):
@@ -39,30 +28,12 @@ def collect_exec_time(function_file, path):
     functions.readline()
     function_names = [function.strip() for function in functions]
 
-    latencyAggregator = LatencyAggregator(path)
-    function_exec_time = latencyAggregator.GetLatencies(path, len(function_names))
+    latency_aggregator = LatencyAggregator(path)
+    function_exec_time = latency_aggregator.GetLatencies(path, len(function_names))
 
     function_names.insert(0, function_file)
     function_names.append('synchronization wait time')
     function_names.append('latency')
-#    function_exec_time = []
-#    function_exec_time_file = open('tpcc', 'r')
-#    current_function_index = -1
-#    for line in function_exec_time_file:
-#        # Skip transaction starting time
-#        if ',' not in line:
-#            continue
-#        # Skip empty lines
-#        if len(line) > 1:
-#            function_index, time = line.split(',')
-#            function_index = int(function_index)
-#            time = int(time)
-#            if function_index != current_function_index:
-#                # new function, ignore the first transaction
-#                function_exec_time.append([])
-#            else:
-#                function_exec_time[function_index].append(time)
-#            current_function_index = function_index
     return function_names, function_exec_time
 
 def break_down(function_file, path, var_tree_file):
@@ -74,13 +45,6 @@ def break_down(function_file, path, var_tree_file):
     latency_data = function_exec_time[0]
     imaginary_records = function_exec_time[-2]
     variance_of_latency = np.var(latency_data)
-    std_of_latency = np.std(latency_data)
-    mean_of_latency = np.mean(latency_data)
-    perc_of_latency = np.percentile(latency_data, 99)
-    print 'Num requests: ' + str(len(latency_data))
-    print mean_of_latency, std_of_latency, variance_of_latency, perc_of_latency
-    print std_of_latency / mean_of_latency, perc_of_latency / mean_of_latency
-    print np.var(imaginary_records) / np.var(latency_data)
     size = len(imaginary_records)
     for index in range(size):
         imaginary = imaginary_records[index]
@@ -121,49 +85,19 @@ def break_down(function_file, path, var_tree_file):
                 variance_break_down.append(
                     (function_name1 + ',' + function_name2, 2 * covariance))
                 if 2 * covariance / variance_of_latency > 1e-3:
-                    # Missing quotation mark after first ->?
-                    tree_file.write('"' + caller + '" -> ' + function_name1 + '",' +
+                    tree_file.write('"' + caller + '" -> "' + function_name1 + '",' +
                                     function_name2 + '" -> "' +
                                     str(2 * covariance / variance_of_latency) + '"\n')
 
 
-def usage():
-    """ Print usage """
-    print 'Usage: var_breaker.py -f <function names file generated from SourceAnnotator>\n' +\
-          '                      -d <dir of data files generated from ExectuionTimeTracer>\n' +\
-          '                      -v <variance tree file>\n' +\
-          '                      -h print help message'
-
-
 def main():
     """ Main function """
-    try:
-        opts, _ = getopt.getopt(sys.argv[1:], "hf:d:v:", ["help", "output="])
-    except getopt.GetoptError as err:
-        # print help information and exit:
-        print str(err)  # will print something like "option -a not recognized"
-        usage()
-        sys.exit(2)
-    function_file = ''
-    path = ''
-    var_tree_file = ''
-    for opt, arg in opts:
-        if opt == '-h':
-            usage()
-            sys.exit()
-        elif opt == '-f':
-            function_file = arg
-        elif opt == '-d':
-            path = arg
-        elif opt == '-v':
-            var_tree_file = arg
-        else:
-            print opt
-            assert False, 'Invalid option'
-    if function_file == '' or path == '' or var_tree_file == '':
-        usage()
-        sys.exit()
-    break_down(function_file, path, var_tree_file)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-f', '--funclist', help='File containing list of function names')
+    parser.add_argument('-d', '--dir', help='Direcoty of trace files generated by trace_tool')
+    parser.add_argument('-v', '--vartree', help='Variance tree file')
+    args = parser.parse_args()
+    break_down(args.funclist, args.dir, args.vartree)
 
 
 if __name__ == '__main__':

@@ -20,25 +20,60 @@ class VProfFrontendAction : public clang::ASTFrontendAction {
         // Maps qualified function name to FunctionPrototype object.
         std::shared_ptr<std::unordered_map<std::string, FunctionPrototype>> prototypeMap;
 
+        // Name of the transformed file.
+        std::string filename;
+        
+        // Rewriter used by the consumer.
+        std::shared_ptr<clang::Rewriter> rewriter;
+
+        clang::FileID fileID;
+
+        std::shared_ptr<bool> shouldFlush;
+
     public:
         VProfFrontendAction(std::shared_ptr<std::unordered_map<std::string, 
                                    std::string>> _functionNameMap,
                                    std::shared_ptr<std::unordered_map<std::string,
                                    FunctionPrototype>> _prototypeMap):
                                    functionNameMap(_functionNameMap),
-                                   prototypeMap(_prototypeMap) {}
+                                   prototypeMap(_prototypeMap),
+                                   shouldFlush(std::make_shared<bool>(false)) {}
 
-        ~VProfFrontendAction() {} 
+        ~VProfFrontendAction() {}
+
+        void EndSourceFileAction() override {
+            if (*shouldFlush) {
+                filename.insert(filename.find("."), "_vprof");
+
+                std::error_code OutErrInfo;
+                std::error_code ok;
+
+                llvm::raw_fd_ostream outputFile(llvm::StringRef(filename),
+                                                OutErrInfo, llvm::sys::fs::F_None);
+
+                if (OutErrInfo == ok) {
+                    const clang::RewriteBuffer *RewriteBuf = rewriter->getRewriteBufferFor(fileID);
+                    outputFile << "// VProfiler included header\n#include \"VProfEventWrappers.h\"\n\n";
+                    outputFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
+                    outputFile.close();
+                }
+            }
+        }
+
         virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &ci,
                                                                       llvm::StringRef file) {
-            std::shared_ptr<clang::Rewriter> rewriter = std::make_shared<clang::Rewriter>();
+            rewriter = std::make_shared<clang::Rewriter>();
             rewriter->setSourceMgr(ci.getSourceManager(), ci.getLangOpts());
+
+            filename = file.str();
+            fileID = ci.getSourceManager().getMainFileID();
 
             return std::unique_ptr<VProfASTConsumer>(new VProfASTConsumer(ci,
                                                                           rewriter,
                                                                           functionNameMap,
                                                                           prototypeMap,
-                                                                          file.str()));
+                                                                          filename,
+                                                                          shouldFlush));
         }
 };
 

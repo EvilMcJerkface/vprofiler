@@ -133,6 +133,9 @@ bool VProfVisitor::VisitCallExpr(const CallExpr *call) {
 }
 
 bool VProfVisitor::VisitCXXMemberCallExpr(const CXXMemberCallExpr *call) {
+    if (call->getMethodDecl() == nullptr) {
+        return true;
+    }
     const std::string functionName = call->getMethodDecl()->getQualifiedNameAsString();
 
     if (functions->find(functionName) != functions->end()) {
@@ -163,33 +166,6 @@ VProfVisitor::VProfVisitor(clang::CompilerInstance &ci,
 
 }
 
-// TODO put some exception in here if write fails
-VProfASTConsumer::~VProfASTConsumer() {
-    if (*shouldFlush) {
-        //std::string other = "/home/jiamin/apache_copies/" + filename;
-        
-        // Leave these out for now. TODO take out or leave in.
-        //other.insert(other.find("."), "_orig");
-        filename.insert(filename.find("."), "_vprof");
-
-        std::error_code OutErrInfo;
-        std::error_code ok;
-
-        llvm::raw_fd_ostream outputFile(llvm::StringRef(filename), 
-                                        OutErrInfo, llvm::sys::fs::F_None); 
-
-        if (OutErrInfo == ok) {
-            //auto srcMgr = &rewriter->getSourceMgr();
-            //llvm::raw_fd_ostream origFile(llvm::StringRef(other), 
-            //                                OutErrInfo, llvm::sys::fs::F_None); 
-            //auto origBuf = srcMgr->getBuffer(srcMgr->getMainFileID())->getBuffer();
-            const RewriteBuffer *RewriteBuf = rewriter->getRewriteBufferFor(fileID);
-
-            //origFile << std::string(origBuf.begin(), origBuf.end());
-            outputFile << "// VProfiler included header\n#include \"VProfEventWrappers.h\"\n\n";
-            outputFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
-        }
-    }
-}
+VProfASTConsumer::~VProfASTConsumer() {}
 
 VProfVisitor::~VProfVisitor() {}

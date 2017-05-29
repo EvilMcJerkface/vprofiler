@@ -1,9 +1,0 @@
-Test whether the clang ast includes function prototypes when it parses a file.  
-I.e. if we want to profile std::vector::push_back will the clang ast include
-the function prototype for std::vector::push_back.  Also determine how 
-templates affect GetQualifiedTypename in clang's api.  Does anything need
-to be adjusted to compensate for an unexpected typename on account of clang's
-api?
-
-For finding function prototypes problem, the following has a potential solution:
-https://www.topbug.net/blog/2012/03/17/generate-ctags-files-for-c-slash-c-plus-plus-source-files-and-all-of-their-included-header-files/
