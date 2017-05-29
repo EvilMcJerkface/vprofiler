@@ -1091,9 +1091,6 @@ int SynchronizationTraceTool::OnMsgSnd(int msqid, const void *msgp, size_t msgsz
 
     dataMutex.lock();
     pushToVec(*instance->opLogs, OperationLog(ID, MESSAGE_SEND));
-    string outStr = "";
-    outStr += opLogs->back();
-    std::cout << "MsgSnd opLog" << outStr << std::endl;
     dataMutex.unlock();
 
     currFuncLog = FunctionLog(TraceTool::processToGlobalSID[TraceTool::current_transaction_id]);
@@ -1101,7 +1098,6 @@ int SynchronizationTraceTool::OnMsgSnd(int msqid, const void *msgp, size_t msgsz
     int result = msgsnd(msqid, msgp, msgsz, msgflg);
     mutexToLock->unlock();
     currFuncLog.end();
-    std::cout << "MsgSnd funcLog" << currFuncLog << std::endl;
     
     dataMutex.lock();
     pushToVec(*instance->funcLogs, currFuncLog);
@@ -1124,9 +1120,6 @@ ssize_t SynchronizationTraceTool::OnMsgRcv(int msqid, void *msgp, size_t msgsz, 
 
     dataMutex.lock();
     pushToVec(*instance->opLogs, OperationLog(ID, MESSAGE_RECEIVE));
-    string outStr = "";
-    outStr += opLogs->back();
-    std::cout << "MsgRcv opLog" << outStr << std::endl;
     dataMutex.unlock();
 
     currFuncLog = FunctionLog(TraceTool::processToGlobalSID[TraceTool::current_transaction_id]);
@@ -1134,7 +1127,6 @@ ssize_t SynchronizationTraceTool::OnMsgRcv(int msqid, void *msgp, size_t msgsz, 
     int result = msgrcv(msqid, msgp, msgsz, msgtyp, msgflg);
     mutexToLock->unlock();
     currFuncLog.end();
-    std::cout << "MsgRcv funcLog" << currFuncLog << std::endl;
 
     dataMutex.lock();
     pushToVec(*instance->funcLogs, currFuncLog);
