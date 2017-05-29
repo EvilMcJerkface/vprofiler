@@ -13,6 +13,7 @@
 *.a
 *.mo
 *.pot
+*.pyc
 objfiles.txt
 .deps/
 *.gcno
