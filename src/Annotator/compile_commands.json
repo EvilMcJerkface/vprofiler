@@ -1,0 +1,7 @@
+[
+    {
+        "command": "c++ -c -o test test.cc", 
+        "directory": "/home/jrectorb/Experiments/clang", 
+        "file": "/home/jrectorb/Experiments/clang/test.cc"
+    }
+]
