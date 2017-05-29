@@ -1,8 +1,0 @@
-my_atomic_rwlock_wrlock MUTEX_LOCK
-my_atomic_rwlock_rdlock MUTEX_LOCK
-my_atomic_rwlock_unlock MUTEX_UNLOCK
-pthread_mutex_lock MUTEX_LOCK
-pthread_mutex_unlock MUTEX_UNLOCK
-pthread_cond_wait CV_WAIT
-pthread_cond_broadcast CV_BROADCAST
-pthread_cond_signal CV_SIGNAL

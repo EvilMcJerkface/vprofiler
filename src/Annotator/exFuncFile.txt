@@ -1,3 +1,0 @@
-A::getb
-D<int>::setD
-E::setE
