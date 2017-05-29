@@ -1,0 +1,20 @@
+Queues:
+    - queue created, destroyed
+    - pushes, pops to queue
+
+Pipe:
+    - pipe created, destroyed.  Need to note association between I/O ends of pipe
+    - pushes, pops to pipe
+
+Named FIFO:
+    - call to mknod with S_IFIFO in second argument creates FIFO.  Need to track 
+      file where fifo_name are the same in following example:
+      mknod(<fifo_name>, ...)
+      open(<fifo_name>)
+
+Shared Memory:
+    - Track shared memory keys to determine whether memory mappings in different 
+      processes are to the same shared memory segment
+    - Track writes/reads with offset from shm base addr.  Log object address as
+      <shm_key>_<mem_offset_from_base>
+
