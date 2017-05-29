@@ -1,0 +1,9 @@
+apr_thread_mutex_lock MUTEX_LOCK
+apr_thread_mutex_unlock MUTEX_UNLOCK
+apr_proc_mutex_lock MUTEX_LOCK
+apr_proc_mutex_unlock MUTEX_UNLOCK
+apr_global_mutex_lock MUTEX_LOCK
+apr_global_mutex_unlock MUTEX_UNLOCK
+apr_thread_cond_broadcast CV_BROADCAST
+apr_thread_cond_signal CV_SIGNAL
+apr_thread_cond_wait CV_WAIT

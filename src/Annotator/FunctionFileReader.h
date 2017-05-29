@@ -38,7 +38,7 @@ class FunctionFileReader {
                            "CV_BROADCAST", "CV_SIGNAL", "QUEUE_ENQUEUE",
                            "QUEUE_DEQUEUE", "MESSAGE_SEND", "MESSAGE_RECEIVE", 
                            "MKNOD", "CLOSE", "OPEN", "READ", "WRITE", "PIPE",
-			   "MSGGET", "MSGSND", "MSGRCV" }),
+			               "MSGGET", "MSGSND", "MSGRCV" }),
         beenParsed(false) {}
         
         // Parse the file

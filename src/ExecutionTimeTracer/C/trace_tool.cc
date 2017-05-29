@@ -153,84 +153,84 @@ class FunctionLog {
 };
 
 class TraceTool {
-private:
-    static TraceTool *instance;
-    /*!< Start time of the current transaction. */
-    vector<vector<FunctionLog> > function_times;
-    /*!< Stores the running time of the child functions
-                                                 and also transaction latency (the last one). */
-    vector<ulint> transaction_start_times;
-    /*!< Stores the start time of transactions. */
+    private:
+        static TraceTool *instance;
+        /*!< Start time of the current transaction. */
+        vector<vector<FunctionLog> > function_times;
+        /*!< Stores the running time of the child functions
+                                                     and also transaction latency (the last one). */
+        vector<ulint> transaction_start_times;
+        /*!< Stores the start time of transactions. */
 
-    TraceTool();
+        TraceTool();
 
-    TraceTool(TraceTool const &) { };
-public:
-    static timespec global_last_query;
-    static __thread timespec trans_start;
-    static __thread ulint current_transaction_id;
-    /*!< Each thread can execute only one transaction at
-                                                          a time. This is the ID of the current transactions. */
+        TraceTool(TraceTool const &) { };
+    public:
+        static timespec global_last_query;
+        static __thread timespec trans_start;
+        static __thread ulint current_transaction_id;
+        /*!< Each thread can execute only one transaction at
+                                                              a time. This is the ID of the current transactions. */
 
-    static __thread int path_count;
-    /*!< Number of node in the function call path. Used for
-                                            tracing running time of functions. */
+        static __thread int path_count;
+        /*!< Number of node in the function call path. Used for
+                                                tracing running time of functions. */
 
-    static __thread bool is_commit;
-    /*!< True if the current transactions commits. */
-    static __thread bool commit_successful; /*!< True if the current transaction successfully commits. */
-    static bool should_shutdown;
-    static pthread_t back_thread;
-    static ofstream log_file;
+        static __thread bool is_commit;
+        /*!< True if the current transactions commits. */
+        static __thread bool commit_successful; /*!< True if the current transaction successfully commits. */
+        static bool should_shutdown;
+        static pthread_t back_thread;
+        static ofstream log_file;
 
-    /*!< Maps the process local transaction ID to the global transaction ID. */
-    static std::unordered_map<uint, uint> processToGlobalSID;
+        /*!< Maps the process local transaction ID to the global transaction ID. */
+        static std::unordered_map<uint, uint> processToGlobalSID;
 
-    int id;
+        int id;
 
-    /********************************************************************//**
-    The Singleton pattern. Used for getting the instance of this class. */
-    static TraceTool *get_instance();
+        /********************************************************************//**
+        The Singleton pattern. Used for getting the instance of this class. */
+        static TraceTool *get_instance();
 
-    /********************************************************************//**
-    Check if we should trace the running time of function calls. */
-    static bool should_monitor();
+        /********************************************************************//**
+        Check if we should trace the running time of function calls. */
+        static bool should_monitor();
 
-    /********************************************************************//**
-    Calculate time interval in nanoseconds. */
-    static long difftime(timespec start, timespec end);
+        /********************************************************************//**
+        Calculate time interval in nanoseconds. */
+        static long difftime(timespec start, timespec end);
 
-    /********************************************************************//**
-    Periodically checks if any query comes in in the last 5 second.
-    If no then dump all logs to disk. */
-    static void *check_write_log(void *);
+        /********************************************************************//**
+        Periodically checks if any query comes in in the last 5 second.
+        If no then dump all logs to disk. */
+        static void *check_write_log(void *);
 
-    /********************************************************************//**
-    Get the current time in nanosecond. */
-    static timespec get_time();
-    /********************************************************************//**
-    Get the current time in microsecond. */
-    static ulint now_micro();
+        /********************************************************************//**
+        Get the current time in nanosecond. */
+        static timespec get_time();
+        /********************************************************************//**
+        Get the current time in microsecond. */
+        static ulint now_micro();
 
-    /********************************************************************//**
-    Start a new query. This may also start a new transaction. */
-    void start_trx();
-    /********************************************************************//**
-    End a new query. This may also end the current transaction. */
-    void end_trx();
-    /********************************************************************//**
-    End the current transaction. */
-    void end_transaction();
-    /********************************************************************//**
-    Dump data about function running time and latency to log file. */
-    void write_latency(string dir);
-    /********************************************************************//**
-    Write necessary data to log files. */
-    void write_log();
+        /********************************************************************//**
+        Start a new query. This may also start a new transaction. */
+        void start_trx();
+        /********************************************************************//**
+        End a new query. This may also end the current transaction. */
+        void end_trx();
+        /********************************************************************//**
+        End the current transaction. */
+        void end_transaction();
+        /********************************************************************//**
+        Dump data about function running time and latency to log file. */
+        void write_latency(string dir);
+        /********************************************************************//**
+        Write necessary data to log files. */
+        void write_log();
 
-    /********************************************************************//**
-    Record running time of a function. */
-    void add_record(int function_index, timespec &start, timespec &end);
+        /********************************************************************//**
+        Record running time of a function. */
+        void add_record(int function_index, timespec &start, timespec &end);
 };
 
 class OperationLog {
