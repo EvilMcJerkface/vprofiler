@@ -26,28 +26,37 @@ class VProfFrontendAction : public clang::ASTFrontendAction {
         // Rewriter used by the consumer.
         std::shared_ptr<clang::Rewriter> rewriter;
 
+        clang::FileID fileID;
+
+        std::shared_ptr<bool> shouldFlush;
+
     public:
         VProfFrontendAction(std::shared_ptr<std::unordered_map<std::string, 
                                    std::string>> _functionNameMap,
                                    std::shared_ptr<std::unordered_map<std::string,
                                    FunctionPrototype>> _prototypeMap):
                                    functionNameMap(_functionNameMap),
-                                   prototypeMap(_prototypeMap) {}
+                                   prototypeMap(_prototypeMap),
+                                   shouldFlush(std::make_shared<bool>(false)) {}
 
         ~VProfFrontendAction() {}
 
         void EndSourceFileAction() override {
-            clang::SourceManager &SM = rewriter->getSourceMgr();
-            filename.insert(filename.find("."), "_vprof");
+            if (*shouldFlush) {
+                filename.insert(filename.find("."), "_vprof");
 
-            std::error_code OutErrInfo;
-            std::error_code ok;
+                std::error_code OutErrInfo;
+                std::error_code ok;
 
-            llvm::raw_fd_ostream outputFile(llvm::StringRef(filename), 
-                                            OutErrInfo, llvm::sys::fs::F_None); 
+                llvm::raw_fd_ostream outputFile(llvm::StringRef(filename),
+                                                OutErrInfo, llvm::sys::fs::F_None);
 
-            if (OutErrInfo == ok) {
-                rewriter->getEditBuffer(SM.getMainFileID()).write(outputFile);
+                if (OutErrInfo == ok) {
+                    const clang::RewriteBuffer *RewriteBuf = rewriter->getRewriteBufferFor(fileID);
+                    outputFile << "// VProfiler included header\n#include \"VProfEventWrappers.h\"\n\n";
+                    outputFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
+                    outputFile.close();
+                }
             }
         }
 
@@ -57,12 +66,14 @@ class VProfFrontendAction : public clang::ASTFrontendAction {
             rewriter->setSourceMgr(ci.getSourceManager(), ci.getLangOpts());
 
             filename = file.str();
+            fileID = ci.getSourceManager().getMainFileID();
 
             return std::unique_ptr<VProfASTConsumer>(new VProfASTConsumer(ci,
                                                                           rewriter,
                                                                           functionNameMap,
                                                                           prototypeMap,
-                                                                          filename));
+                                                                          filename,
+                                                                          shouldFlush));
         }
 };
 

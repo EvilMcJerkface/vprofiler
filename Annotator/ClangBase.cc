@@ -133,6 +133,9 @@ bool VProfVisitor::VisitCallExpr(const CallExpr *call) {
 }
 
 bool VProfVisitor::VisitCXXMemberCallExpr(const CXXMemberCallExpr *call) {
+    if (call->getMethodDecl() == nullptr) {
+        return true;
+    }
     const std::string functionName = call->getMethodDecl()->getQualifiedNameAsString();
 
     if (functions->find(functionName) != functions->end()) {

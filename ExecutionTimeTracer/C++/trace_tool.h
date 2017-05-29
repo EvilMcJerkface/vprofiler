@@ -79,6 +79,17 @@ enum transaction_type
 };
 typedef enum transaction_type transaction_type;
 
+enum Operation  { MUTEX_LOCK,
+                  MUTEX_UNLOCK,
+                  CV_WAIT,
+                  CV_BROADCAST,
+                  CV_SIGNAL,
+                  QUEUE_ENQUEUE,
+                  QUEUE_DEQUEUE,
+                  MESSAGE_SEND,
+                  MESSAGE_RECEIVE };
+typedef enum Operation Operation;
+
 // NOTE we're keeping one of these for each synchronization and traced
 // function instance.  In particular, for non-synchronization calls
 // storing semIntervalID is redundant.  If we have problems with
@@ -86,18 +97,18 @@ typedef enum transaction_type transaction_type;
 class FunctionLog {
     public:
         FunctionLog():
-        semIntervalID(-1), threadID(std::thread::id()) {}
+        semIntervalID(-1), entityID(std::to_string(pthread_self()) + "_" + std::to_string(::getpid())) {}
 
         FunctionLog(unsigned int _semIntervalID):
         semIntervalID(_semIntervalID) {
-            threadID = std::this_thread::get_id();
+            entityID = std::to_string(pthread_self()) + "_" + std::to_string(::getpid());
         }
 
         FunctionLog(unsigned int _semIntervalID, 
                     timespec _functionStart,
                     timespec _functionEnd): semIntervalID(_semIntervalID),
                     functionStart(_functionStart), functionEnd(_functionEnd) {
-            threadID = std::this_thread::get_id();
+            entityID = std::to_string(pthread_self()) + "_" + std::to_string(::getpid());
         }
 
         void setFunctionStart(timespec val) {
@@ -108,16 +119,34 @@ class FunctionLog {
             functionEnd = val;
         }
 
+        void appendToString(string &other) const {
+            //std::stringstream ss;
+            //ss << threadID;
+            // ss.str() insert this in beginning of string call
+            other.append(string("1," + entityID + ',' + std::to_string(semIntervalID) 
+                                + ',' + std::to_string((functionStart.tv_sec * 1000000000) 
+                                + functionStart.tv_nsec) + ',' 
+                                + std::to_string((functionEnd.tv_sec * 1000000000) + functionEnd.tv_nsec) + '\n'));
+        }
+
         friend std::ostream& operator<<(std::ostream &os, const FunctionLog &funcLog) {
-            os << funcLog.threadID << ',' << std::to_string(funcLog.semIntervalID) 
-               << ',' << (funcLog.functionStart.tv_sec * 1000000000) + funcLog.functionStart.tv_nsec << ',' 
-               << (funcLog.functionEnd.tv_sec * 1000000000) + funcLog.functionEnd.tv_nsec << '\n';
+            os << string(funcLog.entityID + ',' + std::to_string(funcLog.semIntervalID) 
+                         + ',' + std::to_string((funcLog.functionStart.tv_sec * 1000000000) 
+                         + funcLog.functionStart.tv_nsec) + ',' 
+                         + std::to_string((funcLog.functionEnd.tv_sec * 1000000000) 
+                         + funcLog.functionEnd.tv_nsec));
 
             return os;
         }
 
+        friend std::string& operator+=(std::string &str, const FunctionLog &funcLog) {
+            funcLog.appendToString(str);
+
+            return str;
+        }
+
     private:
-        std::thread::id threadID;
+        string entityID;
         unsigned int semIntervalID;
 
         timespec functionStart;
@@ -142,129 +171,98 @@ class VProfSharedMemory {
         std::atomic_uint_fast64_t *transaction_id;
 };
 
-class TraceTool
-{
+class TraceTool {
 private:
-    static std::shared_ptr<TraceTool> instance;  /*!< Instance for the Singleton pattern. */
-    static pthread_mutex_t instance_mutex;  /*!< Mutex for protecting instance. */
-    
-    static timespec global_last_query;      /*!< Time when MySQL receives the most recent query. */
-    static pthread_mutex_t last_query_mutex;/*!< Mutex for protecting global_last_query */
-    
-    static __thread timespec function_start;/*!< Time for the start of a function call. */
-    static __thread timespec function_end;  /*!< Time for the end of a function call. */
-    static __thread timespec call_start;    /*!< Time for the start of a child function call. */
-    static __thread timespec call_end;      /*!< Time for the end of a child function call. */
-    static __thread timespec trans_start;   /*!< Start time of the current transaction. */
-    
-    ofstream log_file;                      /*!< An log file for outputing debug messages. */
-    
-    vector<vector<vector<FunctionLog>>> function_times;  /*!< Stores the running time of the child functions
-                                                              and also transaction latency (the last one). */
-    vector<ulint> transaction_start_times;  /*!< Stores the start time of transactions. */
-    vector<transaction_type> transaction_types;/*!< Stores the transaction types of transactions. */
-    
+    static TraceTool *instance;
+    /*!< Start time of the current transaction. */
+    vector<vector<FunctionLog> > function_times;
+    /*!< Stores the running time of the child functions
+                                                 and also transaction latency (the last one). */
+    vector<ulint> transaction_start_times;
+    /*!< Stores the start time of transactions. */
+
     TraceTool();
-    TraceTool(TraceTool const&){};
+
+    TraceTool(TraceTool const &) { };
 public:
-    static pthread_rwlock_t data_lock;      /*!< A read-write lock for protecting function_times. */
-    static __thread ulint current_transaction_id;   /*!< Each thread can execute only one transaction at
-                                                         a time. This is the ID of the current transactions. */
-    
-    // This used to be private, but there was a compiler error where a 
-    // non-member function was using this.  This is a temporary fix,
-    // but I'm not sure if it's one that should necessarily stay.
-    static __thread bool new_transaction;   /*!< True if we need to start a new transaction. */
+    static timespec global_last_query;
+    static __thread timespec trans_start;
+    static __thread ulint current_transaction_id;
+    /*!< Each thread can execute only one transaction at
+                                                          a time. This is the ID of the current transactions. */
 
-    static __thread int path_count;         /*!< Number of node in the function call path. Used for
-                                                 tracing running time of functions. */
-    
-    static __thread bool is_commit;         /*!< True if the current transactions commits. */
-    static __thread bool query_is_commit;   /*!< True if the current query is a commit query (Note that
-                                                 these two doesn't have to be true at the same time). */
+    static __thread int path_count;
+    /*!< Number of node in the function call path. Used for
+                                            tracing running time of functions. */
+
+    static __thread bool is_commit;
+    /*!< True if the current transactions commits. */
     static __thread bool commit_successful; /*!< True if the current transaction successfully commits. */
-    static __thread transaction_type type;  /*!< Type of the current transaction. */
+    static bool should_shutdown;
+    static pthread_t back_thread;
+    static ofstream log_file;
 
-    
+    /*!< Maps the process local transaction ID to the global transaction ID. */
+    static std::unordered_map<uint, uint> processToGlobalSID;
+
+    int id;
+
     /********************************************************************//**
     The Singleton pattern. Used for getting the instance of this class. */
-    static std::shared_ptr<TraceTool> get_instance();
-    
+    static TraceTool *get_instance();
+
     /********************************************************************//**
     Check if we should trace the running time of function calls. */
     static bool should_monitor();
-    
+
     /********************************************************************//**
     Calculate time interval in nanoseconds. */
     static long difftime(timespec start, timespec end);
-    
+
     /********************************************************************//**
     Periodically checks if any query comes in in the last 5 second.
     If no then dump all logs to disk. */
     static void *check_write_log(void *);
-    
+
     /********************************************************************//**
     Get the current time in nanosecond. */
     static timespec get_time();
     /********************************************************************//**
-    Get the current tiem in microsecond. */
+    Get the current time in microsecond. */
     static ulint now_micro();
-    
-    /********************************************************************//**
-    Returns the log file for outputing debug information. */
-    ofstream &get_log()
-    {
-        return log_file;
-    }
-    
+
     /********************************************************************//**
     Start a new query. This may also start a new transaction. */
-    void start_new_query();
+    void start_trx();
     /********************************************************************//**
     End a new query. This may also end the current transaction. */
-    void end_query();
+    void end_trx();
     /********************************************************************//**
     End the current transaction. */
     void end_transaction();
-    
-    /********************************************************************//**
-    Analysis the current query to find out the transaction type. */
-    void set_query(const char *query);
     /********************************************************************//**
     Dump data about function running time and latency to log file. */
     void write_latency(string dir);
     /********************************************************************//**
     Write necessary data to log files. */
     void write_log();
-    
+
     /********************************************************************//**
     Record running time of a function. */
-    void add_record(int function_index, timespec &start_time, timespec &end_time);
+    void add_record(int function_index, timespec &start, timespec &end);
 };
-
-enum Operation  { MUTEX_LOCK,
-                  MUTEX_UNLOCK,
-                  CV_WAIT,
-                  CV_BROADCAST,
-                  CV_SIGNAL,
-                  QUEUE_ENQUEUE,
-                  QUEUE_DEQUEUE,
-                  MESSAGE_SEND,
-                  MESSAGE_RECEIVE };
 
 class OperationLog {
     public:
         OperationLog(): 
-        semIntervalID(-1), obj(nullptr), op(MUTEX_LOCK), threadID(std::thread::id()) {}
+        semIntervalID(-1), obj(nullptr), op(MUTEX_LOCK), 
+        entityID(std::to_string(pthread_self()) + "_" + std::to_string(::getpid())) {}
+
 
         OperationLog(const void* _obj, Operation _op):
-        semIntervalID(TraceTool::current_transaction_id), obj(_obj), op(_op) {
-            threadID = std::this_thread::get_id();
-        }
-
-        std::thread::id getThreadID() const {
-            return threadID;
-        }
+        semIntervalID(TraceTool::processToGlobalSID[TraceTool::current_transaction_id]), obj(_obj), 
+        op(_op), entityID(std::to_string(pthread_self()) + "_" + 
+                          std::to_string(::getpid())) {}
 
         unsigned int getSemIntervalID() {
             return semIntervalID;
@@ -274,15 +272,21 @@ class OperationLog {
             return obj;
         }
 
-        friend std::ostream& operator<<(std::ostream &os, const OperationLog &log) {
-            os << log.threadID << ',' << log.semIntervalID << ',' << log.obj 
-               << ',' << log.op << '\n';
+        void appendToString(string &other) const {
+            std::stringstream ss2;
+            ss2 << obj;
+            other.append(string("0," + entityID + ',' + std::to_string(semIntervalID) + ',' + ss2.str() + ',' + 
+                                std::to_string(op) + '\n'));
+        }
 
-            return os;
+        friend std::string& operator+=(std::string &str, const OperationLog &funcLog) {
+            funcLog.appendToString(str);
+
+            return str;
         }
 
     private:
-        std::thread::id threadID;
+        string entityID;
         unsigned int semIntervalID;
         const void* obj;
         Operation op;
