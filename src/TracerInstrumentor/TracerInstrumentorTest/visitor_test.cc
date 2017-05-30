@@ -25,10 +25,12 @@ int E(int a, bool b) {
 
 void F::G() {}
 
-void F::H() {
+void F::H(int a) {
     G();
     if (B(A())) {
         G();
+    } else if (B(a)) {
+        D();
     }
 }
 

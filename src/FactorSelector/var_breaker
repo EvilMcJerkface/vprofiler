@@ -31,7 +31,6 @@ def collect_exec_time(function_file, path):
     latency_aggregator = LatencyAggregator(path)
     function_exec_time = latency_aggregator.GetLatencies(path, len(function_names))
 
-    function_names.insert(0, function_file)
     function_names.append('synchronization wait time')
     function_names.append('latency')
     return function_names, function_exec_time

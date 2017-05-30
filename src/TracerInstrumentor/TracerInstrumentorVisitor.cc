@@ -77,6 +77,8 @@ void TracerInstrumentorVisitor::createNewPrototype(const FunctionDecl *decl,
                                       bool isMemberFunc) {
     FunctionPrototype newPrototype;
 
+    std::string functionNameInFile = decl->getQualifiedNameAsString() + '-' + std::to_string(functionIndex);
+
     newPrototype.filename = getContainingFilename(decl);
 
     newPrototype.returnType = decl->getReturnType().getAsString();
@@ -86,7 +88,7 @@ void TracerInstrumentorVisitor::createNewPrototype(const FunctionDecl *decl,
     if (isMemberFunc) {
         const CXXMethodDecl *methodDecl = static_cast<const CXXMethodDecl*>(decl);
         if (methodDecl->isStatic()) {
-            newPrototype.innerCallPrefix = methodDecl->getQualifiedNameAsString();
+            newPrototype.innerCallPrefix = decl->getQualifiedNameAsString();
         }
         else {
             isCXXMethodAndNotStatic = true;
@@ -97,7 +99,7 @@ void TracerInstrumentorVisitor::createNewPrototype(const FunctionDecl *decl,
     }
     // Is there a more succinct way to write this?
     else {
-        newPrototype.innerCallPrefix = decl->getNameAsString();
+        newPrototype.innerCallPrefix = decl->getQualifiedNameAsString();
     }
 
     for (unsigned int i = 0, j = decl->getNumParams(); i < j; i++) {
@@ -108,6 +110,7 @@ void TracerInstrumentorVisitor::createNewPrototype(const FunctionDecl *decl,
         const ParmVarDecl* paramDecl = decl->getParamDecl(i);
         newPrototype.functionPrototype += getEntireParamDeclAsString(paramDecl);
 
+        functionNameInFile += "|" + paramDecl->getNameAsString();
         newPrototype.paramVars.push_back(paramDecl->getNameAsString() + (paramDecl->isParameterPack() ? "..." : ""));
 
         if (i != (j - 1)) {
@@ -119,6 +122,8 @@ void TracerInstrumentorVisitor::createNewPrototype(const FunctionDecl *decl,
     newPrototype.isMemberCall = isMemberFunc;
 
     wrapperImplLoc->second += generateWrapperImpl(newPrototype);
+    functionNamesStream << functionNameInFile << std::endl;
+    functionNamesStream.flush();
 }
 
 bool TracerInstrumentorVisitor::inRange(clang::SourceRange largeRange, clang::SourceRange smallRange) {
@@ -183,15 +188,10 @@ std::string TracerInstrumentorVisitor::generateWrapperImpl(FunctionPrototype pro
 }
 
 std::vector<std::string> TracerInstrumentorVisitor::getFunctionNameAndArgs(
-    const clang::FunctionDecl *decl, bool isMemberFunc) {
+    const clang::FunctionDecl *decl) {
     std::vector<std::string> nameAndArgs;
 
-    if (isMemberFunc) {
-        nameAndArgs.push_back(decl->getQualifiedNameAsString());
-    }
-    else {
-        nameAndArgs.push_back(decl->getNameAsString());
-    }
+    nameAndArgs.push_back(decl->getQualifiedNameAsString());
 
     for (unsigned int i = 0, j = decl->getNumParams(); i < j; i++) {
         const ParmVarDecl* paramDecl = decl->getParamDecl(i);
@@ -200,9 +200,8 @@ std::vector<std::string> TracerInstrumentorVisitor::getFunctionNameAndArgs(
     return nameAndArgs;
 }
 
-bool TracerInstrumentorVisitor::isTargetFunction(const clang::FunctionDecl *decl,
-                                                 bool isMemberFunc) {
-    std::vector<std::string> nameAndArgs = getFunctionNameAndArgs(decl, isMemberFunc);
+bool TracerInstrumentorVisitor::isTargetFunction(const clang::FunctionDecl *decl) {
+    std::vector<std::string> nameAndArgs = getFunctionNameAndArgs(decl);
     if (nameAndArgs.size() != targetFunctionNameAndArgs.size()) {
         return false;
     }
@@ -250,53 +249,51 @@ bool TracerInstrumentorVisitor::VisitCXXMemberCallExpr(const clang::CXXMemberCal
     return true;
 }
 
+void TracerInstrumentorVisitor::initForInstru(const clang::FunctionDecl *decl) {
+    if (!decl->isThisDeclarationADefinition()) {
+        return;
+    }
+
+    if (!isTargetFunction(decl)) {
+        return;
+    }
+
+    *shouldFlush = true;
+    functionIndex = 1;
+    functionNamesStream.open(functionNamesFile);
+    functionNamesStream << targetFunctionNameString << std::endl;
+    functionNamesStream.flush();
+    targetFunctionRange = decl->getSourceRange();
+    wrapperImplLoc->first = targetFunctionRange.getBegin();
+}
+
 bool TracerInstrumentorVisitor::VisitFunctionDecl(const clang::FunctionDecl *decl) {
-    if (!decl->hasBody()) {
-        return true;
-    }
-
-    if (!isTargetFunction(decl, false)) {
-        return true;
-    }
-
-    *shouldFlush = true;
-    functionIndex = 1;
-    targetFunctionRange = decl->getSourceRange();
-    wrapperImplLoc->first = targetFunctionRange.getBegin();
-
+    initForInstru(decl);
     return true;
 }
 
-bool TracerInstrumentorVisitor::VisitCXXMethodDecl(const clang::CXXMethodDecl *decl) {
-    if (!decl->hasBody()) {
-        return true;
-    }
-
-    if (!isTargetFunction(decl, true)) {
-        return true;
-    }
-
-    *shouldFlush = true;
-    functionIndex = 1;
-    targetFunctionRange = decl->getSourceRange();
-    wrapperImplLoc->first = targetFunctionRange.getBegin();
-
-    return true;
-}
+// bool TracerInstrumentorVisitor::VisitCXXMethodDecl(const clang::CXXMethodDecl *decl) {
+//     initForInstru(decl);
+//     return true;
+// }
 
 TracerInstrumentorVisitor::TracerInstrumentorVisitor(CompilerInstance &ci,
                             std::shared_ptr<Rewriter> _rewriter,
                             std::string _targetFunctionName,
                             std::shared_ptr<bool> _shouldFlush,
-                            std::shared_ptr<std::pair<clang::SourceLocation, std::string>> _wrapperImplLoc):
+                            std::shared_ptr<std::pair<clang::SourceLocation, std::string>> _wrapperImplLoc,
+                            std::string _functionNamesFile):
                             astContext(&ci.getASTContext()), 
                             rewriter(_rewriter),
+                            targetFunctionNameString(_targetFunctionName),
                             targetFunctionNameAndArgs(SplitString(_targetFunctionName, '|')),
                             shouldFlush(_shouldFlush),
                             wrapperImplLoc(_wrapperImplLoc),
+                            functionNamesFile(_functionNamesFile),
                             instruDoneForCond(false) {
     rewriter->setSourceMgr(astContext->getSourceManager(),
                           astContext->getLangOpts());
+    targetFunctionNameAndArgs[0] = SplitString(targetFunctionNameAndArgs[0], '-')[0];
 }
 
 TracerInstrumentorVisitor::~TracerInstrumentorVisitor() {}

@@ -16,13 +16,15 @@ class TracerInstrumentorASTConsumer : public clang::ASTConsumer {
                                 std::shared_ptr<clang::Rewriter> _rewriter,
                                 std::string _targetFunctionName,
                                 std::shared_ptr<bool> _shouldFlush,
-                                std::shared_ptr<std::pair<clang::SourceLocation, std::string>> _wrapperImplLoc) {
+                                std::shared_ptr<std::pair<clang::SourceLocation, std::string>> _wrapperImplLoc,
+                                std::string _functionNamesFile) {
             
             visitor = std::unique_ptr<TracerInstrumentorVisitor>(new TracerInstrumentorVisitor(ci, 
                                                                     _rewriter,
                                                                     _targetFunctionName,
                                                                     _shouldFlush,
-                                                                    _wrapperImplLoc));
+                                                                    _wrapperImplLoc,
+                                                                    _functionNamesFile));
         }
 
         ~TracerInstrumentorASTConsumer() {}
@@ -47,15 +49,19 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
 
         std::string backupPath;
 
+        std::string functionNamesFile;
+
         std::shared_ptr<bool> shouldFlush;
 
         std::shared_ptr<std::pair<clang::SourceLocation, std::string>> wrapperImplLoc;
 
     public:
         TracerInstrumentorFrontendAction(std::string _targetFunctionName,
-                                         std::string _backupPath) :
+                                         std::string _backupPath,
+                                         std::string _functionNamesFile) :
                                             targetFunctionName(_targetFunctionName),
                                             backupPath(_backupPath),
+                                            functionNamesFile(_functionNamesFile),
                                             shouldFlush(std::make_shared<bool>(false)),
                                             wrapperImplLoc(std::make_shared<std::pair<clang::SourceLocation, std::string>>(std::make_pair(clang::SourceLocation(), ""))) {}
 
@@ -139,7 +145,8 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
                                                                                                     rewriter,
                                                                                                     targetFunctionName,
                                                                                                     shouldFlush,
-                                                                                                    wrapperImplLoc));
+                                                                                                    wrapperImplLoc,
+                                                                                                    functionNamesFile));
         }
 };
 
@@ -147,25 +154,28 @@ class TracerInstrumentorFrontendActionFactory : public clang::tooling::FrontendA
     private:
         std::string targetFunctionName;
         std::string backupPath;
+        std::string functionNamesFile;
 
     public:
         TracerInstrumentorFrontendActionFactory(std::string _targetFunctionName,
-                                                std::string _backupPath) :
+                                                std::string _backupPath,
+                                                std::string _functionNamesFile) :
                                                 targetFunctionName(_targetFunctionName),
-                                                backupPath(_backupPath) {}
+                                                backupPath(_backupPath),
+                                                functionNamesFile(_functionNamesFile) {}
 
         // Creates a TracerInstrumentorFrontendAction to be used by clang tool.
         virtual TracerInstrumentorFrontendAction *create() {
-            return new TracerInstrumentorFrontendAction(targetFunctionName, backupPath);
+            return new TracerInstrumentorFrontendAction(targetFunctionName, backupPath, functionNamesFile);
         }
 };
 
 // This is absurdly long, but not sure how to break lines up to make more
 // readable
 std::unique_ptr<TracerInstrumentorFrontendActionFactory> CreateTracerInstrumentorFrontendActionFactory(
-        std::string targetFunctionName, std::string backupPath) {
+        std::string targetFunctionName, std::string backupPath, std::string functionNamesFile) {
     return std::unique_ptr<TracerInstrumentorFrontendActionFactory>(
-        new TracerInstrumentorFrontendActionFactory(targetFunctionName, backupPath));
+        new TracerInstrumentorFrontendActionFactory(targetFunctionName, backupPath, functionNamesFile));
 }
 
 #endif
