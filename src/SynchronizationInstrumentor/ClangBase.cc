@@ -87,7 +87,7 @@ void VProfVisitor::createNewPrototype(const FunctionDecl *decl,
     }
     // Is there a more succinct way to write this?
     else {
-        newPrototype.innerCallPrefix = decl->getNameAsString();
+        newPrototype.innerCallPrefix = decl->getQualifiedNameAsString();
     }
 
     for (unsigned int i = 0, j = decl->getNumParams(); i < j; i++) {
@@ -114,7 +114,7 @@ void VProfVisitor::createNewPrototype(const FunctionDecl *decl,
 bool VProfVisitor::VisitCallExpr(const CallExpr *call) {
     const FunctionDecl *decl = call->getDirectCallee();
     // Exit if call is to a function pointer
-    if (!decl || isa<clang::CXXMemberCallExpr>(call)) {
+    if (!decl) {
         return true;
     }
     const std::string functionName = decl->getQualifiedNameAsString();

@@ -67,6 +67,25 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
 
         ~TracerInstrumentorFrontendAction() {}
 
+        void writePathFile(const std::string &backupFilename) {
+            std::string backupPathsFilename;
+
+            if (backupPath[backupPath.length() - 1] != '/') {
+                backupFileName = backupPath + "/TracerFilenames";
+            } else {
+                backupFileName = backupPath + "TracerFilenames";
+            }
+
+            std::error_code OutErrInfo;
+            std::error_code ok;
+            llvm::raw_fd_ostream outputFile(llvm::StringRef(backupFileName), 
+                                            OutErrInfo, llvm::sys::fs::F_Append); 
+            if (OutErrInfo == ok) {
+                outputFile << backupFilename + '\t' + filename + '\n';
+                outputFile.close();
+            }
+        }
+
         void backupFile() {
             size_t lastSlash = filename.rfind("/");
             std::string backupFileName;
@@ -80,6 +99,8 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
             } else {
                 backupFileName = backupPath + backupFileName;
             }
+
+            writePathFile(backupFileName);
 
             std::error_code OutErrInfo;
             std::error_code ok;
