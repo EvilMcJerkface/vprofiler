@@ -6,6 +6,6 @@ all:
 
 .PHONY: install
 install: all
-	mkdir -p $(DESTDIR)$(INSTALL_PREFIX)/share/vprofiler
-	cp *.py $(DESTDIR)$(INSTALL_PREFIX)/share/vprofiler/
+	mkdir -p $(DESTDIR)$(INSTALL_PREFIX)/share/vprofiler/Main
+	cp *.py $(DESTDIR)$(INSTALL_PREFIX)/share/vprofiler/Main
 	cp vprofiler $(DESTDIR)$(INSTALL_PREFIX)/bin/
