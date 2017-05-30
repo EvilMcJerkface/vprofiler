@@ -1,7 +1,6 @@
-BUILD_PREFIX := ../build/bin
+INSTALL_PREFIX := /usr/local
 
-#CXX := $(BUILD_PREFIX)/clang++
-CXX := g++
+CXX := $(shell which g++)
 CXXFLAGS := -fno-rtti -O0 -g -std=c++1y
 PLUGIN_CXXFLAGS := -fpic
 
@@ -39,11 +38,11 @@ CLANG_LIBS := \
 	-Wl,--end-group
 
 .PHONY: all
-all: ClangBase.o FileFinder.o FunctionFileReader.o WrapperGenModules.o WrapperGenerator.o Utils.o EventAnnotator.cc
-	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) $^ $(CLANG_LIBS) $(LLVM_LDFLAGS) -o EventAnnotator
+all: EventAnnotator
 
-#CodeTransformer.o: CodeTransformer.cc
-	#$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ -o $@
+
+EventAnnotator: ClangBase.o FileFinder.o FunctionFileReader.o WrapperGenModules.o WrapperGenerator.o Utils.o EventAnnotator.cc
+	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) $^ $(CLANG_LIBS) $(LLVM_LDFLAGS) -o EventAnnotator
 
 ClangBase.o: ClangBase.cc
 	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ -o $@
@@ -62,6 +61,11 @@ Utils.o: Utils.cc
 
 WrapperGenModules.o: WrapperGenModules.cc
 	$(CXX) $(CXXFLAGS) -c $^ -o $@
+
+.PHONY: install
+install: all
+	mkdir -p $(DESTDIR)$(INSTALL_PREFIX)/share/vprofiler
+	cp EventAnnotator $(DESTDIR)$(INSTALL_PREFIX)/share/vprofiler/
 
 .PHONY: clean
 clean: 

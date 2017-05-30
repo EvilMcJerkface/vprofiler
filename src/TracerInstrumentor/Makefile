@@ -1,7 +1,6 @@
-BUILD_PREFIX := ../build/bin
+INSTALL_PREFIX := /usr/local
 
-#CXX := $(BUILD_PREFIX)/clang++
-CXX := g++
+CXX := $(shell which g++)
 CXXFLAGS := -fno-rtti -O0 -g -std=c++1y
 PLUGIN_CXXFLAGS := -fpic
 
@@ -59,6 +58,11 @@ TestMain: TestVisitor.o TestMain.cc
 
 TestVisitor.o: TestVisitor.cc
 	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ -o $@
+
+.PHONY: install
+install: all
+	mkdir -p $(DESTDIR)$(INSTALL_PREFIX)/share/vprofiler
+	cp TracerInstrumentor $(DESTDIR)$(INSTALL_PREFIX)/share/vprofiler/
 
 .PHONY: clean
 clean: 
