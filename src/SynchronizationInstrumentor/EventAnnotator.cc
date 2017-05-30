@@ -28,13 +28,19 @@ using namespace std;
 using namespace llvm;
 using namespace clang::tooling;
 
-cl::OptionCategory VProfOptions("VProfiler options");
+cl::OptionCategory EventAnnotatorOptions("EventAnnotator options");
 cl::opt<string> FunctionFileOpt("f", 
                                 cl::desc("Specify filename containing fully "
                                          "qualified function names to profile"),
                                 cl::value_desc("Filename"),
                                 cl::Required,
                                 cl::ValueRequired);
+
+cl::opt<std::string> BackupDir("b",
+                              cl::desc("Specifies the dir for back up files."),
+                              cl::value_desc("Backup_Dir"),
+                              cl::Required,
+                              cl::ValueRequired);
 
 cl::opt<string> SourceBaseDir("s",
                               cl::desc("Specifies the root directory of the "
@@ -45,7 +51,7 @@ cl::opt<string> SourceBaseDir("s",
 
 
 int main(int argc, const char **argv) {
-    CommonOptionsParser OptionsParser(argc, argv, VProfOptions);
+    CommonOptionsParser OptionsParser(argc, argv, EventAnnotatorOptions);
 
     FunctionFileReader funcFileReader(FunctionFileOpt);
     funcFileReader.Parse();
@@ -59,7 +65,7 @@ int main(int argc, const char **argv) {
     shared_ptr<unordered_map<string, FunctionPrototype>> prototypeMap = make_shared<unordered_map<string, FunctionPrototype>>();
 
     EventAnnotatorTool.run(newVProfFrontendActionFactory(funcFileReader.GetFunctionMap(),
-                                                         prototypeMap).get());
+                                                         prototypeMap, BackupDir).get());
     
     WrapperGenerator wrapperGenerator(prototypeMap, funcFileReader.GetOperationMap());
     wrapperGenerator.GenerateWrappers();
