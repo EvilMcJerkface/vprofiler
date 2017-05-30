@@ -1,7 +1,11 @@
+.PHONY: all
 all:
-	make -C Annotator
-	make -C FactorSelector
+	make -C src all
 
+.PHONY: install
+install: all
+	make -C src install
+
+.PHONY: clean
 clean:
-	make -C Annotator clean
-	make -C FactorSelector clean
+	make -C src clean

@@ -1,18 +1,24 @@
-all: annotator selector breaker vprofiler
+INSTALL_PREFIX = /usr/local
 
-annotator: SourceAnnotator.java
-	javac SourceAnnotator.java
-	chmod +x annotate.sh
+.PHONY: all
+all: selector breaker 
 
 selector:
 	javac FactorSelector.java
-	chmod +x select_factor.sh
+	chmod +x select_factor
 
 breaker:
-	chmod +x var_breaker.py
+	chmod +x var_breaker
 
-vprofiler: 
-	javac -cp commons-cli-1.3.1.jar Utils.java Dispatcher.java VProfiler.java
+.PHONY: install
+install: all
+	mkdir -p $(DESTDIR)$(INSTALL_PREFIX)/share/vprofiler
+	cp var_breaker $(DESTDIR)$(INSTALL_PREFIX)/share/vprofiler/
+	cp *.py $(DESTDIR)$(INSTALL_PREFIX)/share/vprofiler/
+	mkdir -p $(DESTDIR)$(INSTALL_PREFIX)/share/vprofiler/CriticalPathBuilder
+	cp CriticalPathBuilder/*.py $(DESTDIR)$(INSTALL_PREFIX)/share/vprofiler/CriticalPathBuilder
+	cp select_factor $(DESTDIR)$(INSTALL_PREFIX)/share/vprofiler/
 
+.PHONY: clean
 clean:
 	rm *.class
