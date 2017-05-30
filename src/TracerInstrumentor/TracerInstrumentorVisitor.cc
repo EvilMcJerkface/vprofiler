@@ -7,10 +7,20 @@
 
 using namespace clang;
 
+std::string TracerInstrumentorVisitor::functionNameToWrapperName(std::string functionName) {
+    std::vector<std::string> nameParts = SplitString(functionName, ':');
+    std::string wrapperName;
+    for (size_t i = 0; i < nameParts.size() - 1; i++) {
+        wrapperName += nameParts[i] + '_';
+    }
+    wrapperName += nameParts.back() + std::to_string(functionIndex) + "_vprofiler";
+    return wrapperName;
+}
+
 void TracerInstrumentorVisitor::fixFunction(const CallExpr *call, const std::string &functionName,
                                bool isMemberCall) {
     // Get args
-    std::string newCall = functionName + "_vprofiler(";
+    std::string newCall = functionNameToWrapperName(functionName) + "(";
     std::vector<const Expr*> args;
 
     if (isMemberCall) {
@@ -74,7 +84,7 @@ void TracerInstrumentorVisitor::createNewPrototype(const FunctionDecl *decl,
     newPrototype.filename = getContainingFilename(decl);
 
     newPrototype.returnType = decl->getReturnType().getAsString();
-    newPrototype.functionPrototype += newPrototype.returnType + " " + functionName + "_vprofiler(";
+    newPrototype.functionPrototype += newPrototype.returnType + " " + functionNameToWrapperName(functionName) + "(";
 
     bool isCXXMethodAndNotStatic = false;
     if (isMemberFunc) {
@@ -141,6 +151,38 @@ bool TracerInstrumentorVisitor::inCondRange(const clang::Expr *call) {
     return inRange(condRange, call->getSourceRange());
 }
 
+std::vector<std::string> TracerInstrumentorVisitor::getFunctionNameAndArgs(
+    const clang::FunctionDecl *decl, bool isMemberFunc) {
+    std::vector<std::string> nameAndArgs;
+
+    if (isMemberFunc) {
+        nameAndArgs.push_back(decl->getQualifiedNameAsString());
+    }
+    else {
+        nameAndArgs.push_back(decl->getNameAsString());
+    }
+
+    for (unsigned int i = 0, j = decl->getNumParams(); i < j; i++) {
+        const ParmVarDecl* paramDecl = decl->getParamDecl(i);
+        nameAndArgs.push_back(paramDecl->getNameAsString());
+    }
+    return nameAndArgs;
+}
+
+bool TracerInstrumentorVisitor::isTargetFunction(const clang::FunctionDecl *decl,
+                                                 bool isMemberFunc) {
+    std::vector<std::string> nameAndArgs = getFunctionNameAndArgs(decl, isMemberFunc);
+    if (nameAndArgs.size() != targetFunctionNameAndArgs.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < nameAndArgs.size(); i++) {
+        if (nameAndArgs[i] != targetFunctionNameAndArgs[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool TracerInstrumentorVisitor::VisitCallExpr(const CallExpr *call) {
     if (!inTargetFunction(call)) {
         return true;
@@ -153,14 +195,14 @@ bool TracerInstrumentorVisitor::VisitCallExpr(const CallExpr *call) {
     const std::string functionName = decl->getQualifiedNameAsString();
     fixFunction(call, functionName, false);
 
-    if (shouldCreateNewPrototype(functionName)) {
-        createNewPrototype(decl, functionName, false);
-    }
+    createNewPrototype(decl, functionName, false);
+
+    functionIndex++;
 
     return true;
 }
 
-bool TracerInstrumentorVisitor::VisitCXXMemberCallExpr(const CXXMemberCallExpr *call) {
+bool TracerInstrumentorVisitor::VisitCXXMemberCallExpr(const clang::CXXMemberCallExpr *call) {
     if (!inTargetFunction(call)) {
         return true;
     }
@@ -170,95 +212,40 @@ bool TracerInstrumentorVisitor::VisitCXXMemberCallExpr(const CXXMemberCallExpr *
     const std::string functionName = call->getMethodDecl()->getQualifiedNameAsString();
     fixFunction(call, functionName, true);
 
-    if (shouldCreateNewPrototype(functionName)) {
-        createNewPrototype(call->getMethodDecl(), functionName, true);
-    }
+    createNewPrototype(call->getMethodDecl(), functionName, true);
+
+    functionIndex++;
 
     return true;
 }
 
-bool TracerInstrumentorVisitor::VisitStmt(const Stmt *s) {
-    if (!inTargetFunction(s)) {
-        return true;
-    }
-    if (isa<IfStmt>(s)) {
-        // Cast s to IfStmt to access the then and else clauses
-        const IfStmt *If = cast<IfStmt>(s);
-        saveCondExpr(If->getCond());
-        const Stmt *TH = If->getThen();
-
-        // Add braces if needed to then clause
-        AddBraces(TH);
-
-        const Stmt *EL = If->getElse();
-        if (EL) {
-            // Add braces if needed to else clause
-            AddBraces(EL);
-        }
-    }
-    else if (isa<WhileStmt>(s)) {
-        const WhileStmt *While = cast<WhileStmt>(s);
-        saveCondExpr(While->getCond());
-        const Stmt *BODY = While->getBody();
-        AddBraces(BODY);
-    } else if (isa<ForStmt>(s)) {
-        const ForStmt *For = cast<ForStmt>(s);
-        saveCondExpr(For->getCond());
-        const Stmt *BODY = For->getBody();
-        AddBraces(BODY);
-    }
-
-    return true;
-}
-
-void TracerInstrumentorVisitor::AddBraces(const Stmt *s) {
-    // Only perform if statement is not compound
-    if (!isa<CompoundStmt>(s))
-    {
-        SourceLocation ST = s->getLocStart();
-
-        // Insert opening brace.  Note the second true parameter to InsertText()
-        // says to indent.  Sadly, it will indent to the line after the if, giving:
-        // if (expr)
-        //   {
-        //   stmt;
-        //   }
-        rewriter->InsertText(ST, "{\n", true, true);
-
-        // Note Stmt::getLocEnd() returns the source location prior to the
-        // token at the end of the line.  For instance, for:
-        // var = 123;
-        //      ^---- getLocEnd() points here.
-
-        SourceLocation end = s->getLocEnd();
-
-        // MeasureTokenLength gets us past the last token, and adding 1 gets
-        // us past the ';'.
-        int offset = Lexer::MeasureTokenLength(end,
-                                                rewriter->getSourceMgr(),
-                                                rewriter->getLangOpts()) + 1;
-
-        SourceLocation end1 = end.getLocWithOffset(offset);
-        rewriter->InsertText(end1, "\n}", true, true);
-    }
-
-    // Also note getLocEnd() on a CompoundStmt points ahead of the '}'.
-    // Use getLocEnd().getLocWithOffset(1) to point past it.
-}
-
-bool TracerInstrumentorVisitor::VisitReturnStmt(const clang::ReturnStmt *stmt) {
-    return true;
-}
-
-bool TracerInstrumentorVisitor::VisitFunctionDecl(const FunctionDecl *decl) {
-    if (decl->getNameInfo().getName().getAsString() != targetFunctionName) {
-        return true;
-    }
-
+bool TracerInstrumentorVisitor::VisitFunctionDecl(const clang::FunctionDecl *decl) {
     if (!decl->hasBody()) {
         return true;
     }
 
+    if (!isTargetFunction(decl, false)) {
+        return true;
+    }
+
+    *shouldFlush = true;
+    functionIndex = 1;
+    targetFunctionRange = decl->getSourceRange();
+
+    return true;
+}
+
+bool TracerInstrumentorVisitor::VisitCXXMethodDecl(const clang::CXXMethodDecl *decl) {
+    if (!decl->hasBody()) {
+        return true;
+    }
+
+    if (!isTargetFunction(decl, true)) {
+        return true;
+    }
+
+    *shouldFlush = true;
+    functionIndex = 1;
     targetFunctionRange = decl->getSourceRange();
 
     return true;
@@ -266,10 +253,12 @@ bool TracerInstrumentorVisitor::VisitFunctionDecl(const FunctionDecl *decl) {
 
 TracerInstrumentorVisitor::TracerInstrumentorVisitor(CompilerInstance &ci,
                             std::shared_ptr<Rewriter> _rewriter,
-                            std::string _targetFunctionName):
+                            std::string _targetFunctionName,
+                            std::shared_ptr<bool> _shouldFlush):
                             astContext(&ci.getASTContext()), 
                             rewriter(_rewriter),
-                            targetFunctionName(SplitString(_targetFunctionName, '|')),
+                            targetFunctionNameAndArgs(SplitString(_targetFunctionName, '|')),
+                            shouldFlush(_shouldFlush),
                             instruDoneForCond(false) {
     rewriter->setSourceMgr(astContext->getSourceManager(),
                           astContext->getLangOpts());

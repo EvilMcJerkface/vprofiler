@@ -37,16 +37,20 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
         // #includes are processed).
         std::unordered_map<std::string, FunctionPrototype> prototypeMap;
 
-        bool shouldFlush;
-
         // Name of the target function to instrument and names of its parameters.
-        std::vector<std::string> targetFunctionName;
+        std::vector<std::string> targetFunctionNameAndArgs;
+
+        std::shared_ptr<bool> shouldFlush;
 
         clang::SourceRange targetFunctionRange;
 
         const clang::Expr *condExpr;
         clang::SourceRange condRange;
         bool instruDoneForCond;
+
+        int functionIndex;
+
+        std::string functionNameToWrapperName(std::string functionName);
 
         void fixFunction(const clang::CallExpr *call, const std::string &functionName,
                          bool  isMemberCall);
@@ -64,9 +68,11 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
 
         bool shouldCreateNewPrototype(const std::string &functionName);
 
-        bool inRange(clang::SourceRange largeRange, clang::SourceRange smallRange);
+        std::vector<std::string> getFunctionNameAndArgs(const clang::FunctionDecl *decl, bool isMemberFunc);
 
-        bool isTargetFunction(const clang::FunctionDel *decl);
+        bool isTargetFunction(const clang::FunctionDecl *decl, bool isMemberFunc);
+
+        bool inRange(clang::SourceRange largeRange, clang::SourceRange smallRange);
 
         bool inTargetFunction(const clang::Expr *call);
         bool inTargetFunction(const clang::Stmt *stmt);
@@ -78,20 +84,16 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
     public:
         explicit TracerInstrumentorVisitor(clang::CompilerInstance &ci, 
                               std::shared_ptr<clang::Rewriter> _rewriter,
-                              std::string _targetFunctionName);
+                              std::string _targetFunctionNameAndArgs,
+                              std::shared_ptr<bool> _shouldFlush);
 
-        ~TracerInstrumentorVisitor(); 
-
-        // Add braces to line of code
-        virtual bool VisitStmt(const clang::Stmt *stmt);
-
-        virtual bool VisitReturnStmt(const clang::ReturnStmt *stmt);
-
-        // Add braces to line of code
-        void AddBraces(const clang::Stmt *stmt);
+        ~TracerInstrumentorVisitor();
 
         // Override trigger for when a FunctionDecl is found in the AST
         virtual bool VisitFunctionDecl(const clang::FunctionDecl *decl);
+
+        // Override trigger for when a CXXMethod is found in the AST
+        virtual bool VisitCXXMethodDecl(const clang::CXXMethodDecl *decl);
 
         // Override trigger for when a CallExpr is found in the AST
         virtual bool VisitCallExpr(const clang::CallExpr *call);

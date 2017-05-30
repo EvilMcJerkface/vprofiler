@@ -14,11 +14,13 @@ class TracerInstrumentorASTConsumer : public clang::ASTConsumer {
         // name to which the key functions should be converted to in the source.
         explicit TracerInstrumentorASTConsumer(clang::CompilerInstance &ci, 
                                   std::shared_ptr<clang::Rewriter> _rewriter,
-                                  std::string _targetFunctionName) {
+                                  std::string _targetFunctionName,
+                                  std::shared_ptr<bool> _shouldFlush) {
             
             visitor = std::unique_ptr<TracerInstrumentorVisitor>(new TracerInstrumentorVisitor(ci, 
                                                                     _rewriter,
-                                                                    _targetFunctionName));
+                                                                    _targetFunctionName,
+                                                                    _shouldFlush));
         }
 
         ~TracerInstrumentorASTConsumer() {}
@@ -39,22 +41,31 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
         // Name of the target function.
         std::string targetFunctionName;
 
+        clang::FileID fileID;
+
+        std::shared_ptr<bool> shouldFlush;
+
     public:
-        TracerInstrumentorFrontendAction(std::string _targetFunctionName) : targetFunctionName(_targetFunctionName) {}
+        TracerInstrumentorFrontendAction(std::string _targetFunctionName) :
+                                            targetFunctionName(_targetFunctionName),
+                                            shouldFlush(std::make_shared<bool>(false)) {}
 
         ~TracerInstrumentorFrontendAction() {}
 
         void EndSourceFileAction() override {
-            clang::SourceManager &SM = rewriter->getSourceMgr();
+            if (*shouldFlush) {
+                std::error_code OutErrInfo;
+                std::error_code ok;
 
-            std::error_code OutErrInfo;
-            std::error_code ok;
+                llvm::raw_fd_ostream outputFile(llvm::StringRef(filename), 
+                                                OutErrInfo, llvm::sys::fs::F_None); 
 
-            llvm::raw_fd_ostream outputFile(llvm::StringRef(filename), 
-                                            OutErrInfo, llvm::sys::fs::F_None); 
-
-            if (OutErrInfo == ok) {
-                rewriter->getEditBuffer(SM.getMainFileID()).write(outputFile);
+                if (OutErrInfo == ok) {
+                    const clang::RewriteBuffer *RewriteBuf = rewriter->getRewriteBufferFor(fileID);
+                    outputFile << "// TraceTool included header\n#include \"trace_tool.h\"\n\n";
+                    outputFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
+                    outputFile.close();
+                }
             }
         }
 
@@ -64,8 +75,12 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
             rewriter->setSourceMgr(ci.getSourceManager(), ci.getLangOpts());
 
             filename = file.str();
+            fileID = ci.getSourceManager().getMainFileID();
 
-            return std::unique_ptr<TracerInstrumentorASTConsumer>(new TracerInstrumentorASTConsumer(ci, rewriter, targetFunctionName));
+            return std::unique_ptr<TracerInstrumentorASTConsumer>(new TracerInstrumentorASTConsumer(ci,
+                                                                                                    rewriter,
+                                                                                                    targetFunctionName,
+                                                                                                    shouldFlush));
         }
 };
 

@@ -1,7 +1,7 @@
 [
     {
         "command": "c++ -c -o visitor_test visitor_test.cc", 
-        "directory": "/home/jiamin/vprofiler/TracerInstrumentor/TracerInstrumentorTest", 
-        "file": "/home/jiamin/vprofiler/TracerInstrumentor/TracerInstrumentorTest/visitor_test.cc"
+        "directory": "/home/jiamin/vprofiler/src/TracerInstrumentor/TracerInstrumentorTest", 
+        "file": "/home/jiamin/vprofiler/src/TracerInstrumentor/TracerInstrumentorTest/visitor_test.cc"
     }
 ]

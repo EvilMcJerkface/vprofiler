@@ -23,6 +23,15 @@ int E(int a, bool b) {
     return 4242;
 }
 
+void F::G() {}
+
+void F::H() {
+    G();
+    if (B(A())) {
+        G();
+    }
+}
+
 int main() {
     int a = E(A(), C() && D());
     if (B(a))
