@@ -17,4 +17,5 @@ class Breakdown(Dispatcher):
         subprocess.call(['select_factor.sh', self.requiredOptions['target_fxn'],
                          self.requiredOptions['data_dir'], self.requiredOptions['heights_file'],
                          self.requiredOptions['k'], self.requiredOptions['root_fxn'],
-                         self.requiredOptions['selected_fxns']], stderr = subprocess.STDOUT)
+                         self.requiredOptions['selected_fxns'], '2>&1', '|', 'tee', '.breakdownOut'],
+                         stderr = subprocess.STDOUT)

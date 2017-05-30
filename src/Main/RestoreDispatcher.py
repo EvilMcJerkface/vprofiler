@@ -3,9 +3,13 @@ from DispatcherBase import Dispatcher
 class Restore(Dispatcher):
     def __init__(self):
         self.disallowedOptions = {}
-        self.requiredOptions = {}
+        self.requiredOptions = {'backup_dir': None}
 
-        super(Restore, self).__init__(self.disallowedOptions, self.requiredOptions)
+    def Dispatch(self, restoreTracer, restoreSynchro):
+        subprocess.call(['vprof-restore', '--backup_dir', self.requiredOptions['backup_dir'],
+                         '-t' if restoreTracer else '', '-s' if restoreSynchro else ''],
+                         stderr = subprocess.STDOUT)
 
-    def Dispatch(self):
-        print('Error: Restore mode not yet implemented')
+        if restoreTracer and restoreSynchro:
+            subprocess.call(['rm', '-rf', self.requiredOptions['backup_dir'])
+
