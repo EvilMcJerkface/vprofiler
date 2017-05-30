@@ -1,20 +1,24 @@
 from DispatcherBase import Dispatcher
+from AnnotatorDispatcher import Annotator
+from BreakdownDispatcher import Breakdown
 
 class Full(Dispatcher):
     def __init__(self):
-        self.barredOptions = {}
+        self.disallowedOptions = {}
         self.requiredOptions = { 'build_script': None,
                                  'run_script':   None  }
+
+
+        super(Full, self).__init__(self.disallowedOptions, self.requiredOptions)
 
         self.annotator = Annotator()
         self.breakdown = Breakdown()
 
-    @classmethod
-    def Parse(self, options):
-        success = Dispatcher.Parse.im_func(options)
+    def ParseOptions(self, options):
+        success = super(Full, self).ParseOptions(options)
 
-        return success and self.annotator.Parse(options) \
-               and self.breakdown.Parse(option)
+        return success and self.annotator.ParseOptions(options) \
+               and self.breakdown.ParseOptions(option)
 
     def Dispatch(self):
         self.annotator.Dispatch()

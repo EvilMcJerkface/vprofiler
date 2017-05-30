@@ -12,7 +12,6 @@ class Breakdown(Dispatcher):
                                  'root_fxn':      None,
                                  'selected_fxns': None  }
 
-
     # TODO will need to change where this calls
     def Dispatch(self):
         subprocess.call(['select_factor.sh', self.requiredOptions['target_fxn'],

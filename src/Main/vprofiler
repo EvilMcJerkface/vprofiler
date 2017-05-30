@@ -2,8 +2,10 @@
 
 # Add vprof/share to sys.path
 import os
+import sys
+
 cwd = os.path.dirname(os.path.realpath(__file__))
-installPrefix = cwd[:cwd.find('bin/')]
+installPrefix = cwd[:cwd.find('bin')]
 
 sys.path.append(installPrefix + 'share/vprofiler/Main')
 
@@ -18,7 +20,7 @@ import argparse
 # Set command line options begin #
 ##################################
 
-parser = argparse.Parser(prog="vprof",
+parser = argparse.ArgumentParser(prog="vprof",
                          description="VProfiler - a system for identifying sources of variance within a codebase",
                          epilog="For more help, visit https://github.com/mozafari/vprofiler")
 
@@ -65,7 +67,7 @@ parser.add_argument('-t', '--target_fxn',
 parser.add_argument('-d', '--data_dir',
                     help='Directory containing the data files created by vprofiler')
 
-parser.add_argument('-h', '--heights_file',
+parser.add_argument('--heights_file',
                     help='File containing each function in the call graph and its ' \
                          'corresponding height in the graph')
 
@@ -102,7 +104,7 @@ else:
     mode = 'Full'
 
 
-if not dispatchers[mode].Parse(args):
+if not dispatchers[mode].ParseOptions(args):
     print('Error parsing command line options')
     exit(1)
 
