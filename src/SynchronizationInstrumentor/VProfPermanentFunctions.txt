@@ -1,8 +1,8 @@
-mknod VPROF_INTERNAL
-open VPROF_INTERNAL
-read VPROF_INTERNAL
-write VPROF_INTERNAL
-pipe VPROF_INTERNAL
-msgget VPROF_INTERNAL
-msgsnd VPROF_INTERNAL
-msgrcv VPROF_INTERNAL
+mknod MKNOD
+open OPEN
+read READ
+write WRITE
+pipe PIPE
+msgget MSGGET
+msgsnd MSGSND
+msgrcv MSGRCV

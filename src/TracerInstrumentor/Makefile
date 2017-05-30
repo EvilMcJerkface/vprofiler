@@ -39,7 +39,7 @@ CLANG_LIBS := \
 
 .PHONY: all
 
-all: TracerInstrumentor TestMain
+all: TracerInstrumentor
 
 TracerInstrumentor: TracerInstrumentorVisitor.o FileFinder.o Utils.o TracerInstrumentor.cc
 	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) $^ $(CLANG_LIBS) $(LLVM_LDFLAGS) -o TracerInstrumentor
@@ -53,12 +53,6 @@ FileFinder.o: FileFinder.cc
 Utils.o: Utils.cc
 	$(CXX) $(CXXFLAGS) -c $^ -o $@
 
-TestMain: TestVisitor.o TestMain.cc
-	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) $^ $(CLANG_LIBS) $(LLVM_LDFLAGS) -o TestMain
-
-TestVisitor.o: TestVisitor.cc
-	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ -o $@
-
 .PHONY: install
 install: all
 	mkdir -p $(DESTDIR)$(INSTALL_PREFIX)/share/vprofiler
@@ -66,4 +60,4 @@ install: all
 
 .PHONY: clean
 clean: 
-	rm *.gch *.o TestMain TracerInstrumentor -rf
+	rm *.gch *.o TracerInstrumentor -rf
