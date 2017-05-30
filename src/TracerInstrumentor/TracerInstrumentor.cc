@@ -46,6 +46,10 @@ std::string getUnqualifiedFunctionName(std::string functionNameAndArgs) {
     return SplitString(nameAndIndex, '-')[0];
 }
 
+void fixReturns(std::string file) {
+    execute("sed -r -i 's/return (.*_vprofiler.*)/resVprof = \\1\\n\\tTRACE_FUNCTION_END();\\n\\treturn resVprof;/g' " + file);
+}
+
 int main(int argc, const char **argv) {
     CommonOptionsParser OptionsParser(argc, argv, TracerInstrumentorOptions);
 
@@ -62,9 +66,13 @@ int main(int argc, const char **argv) {
     std::vector<std::string> files;
     files.push_back(targetFile);
 
-    ClangTool EventAnnotatorTool(OptionsParser.getCompilations(), files);
+    ClangTool TracerInstrumentator(OptionsParser.getCompilations(), files);
 
-    EventAnnotatorTool.run(CreateTracerInstrumentorFrontendActionFactory(FunctionNameAndArgs, BackupDir, FunctionNamesFile).get());
+    TracerInstrumentator.run(CreateTracerInstrumentorFrontendActionFactory(FunctionNameAndArgs, BackupDir, FunctionNamesFile).get());
+
+    for (size_t i = 0; i < files.size(); ++i) {
+        fixReturns(files[i]);
+    }
 
     return 0;
 }

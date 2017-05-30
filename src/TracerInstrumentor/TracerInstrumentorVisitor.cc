@@ -152,16 +152,6 @@ bool TracerInstrumentorVisitor::inTargetFunction(const Stmt *stmt) {
     return inRange(targetFunctionRange, stmt->getSourceRange());
 }
 
-void TracerInstrumentorVisitor::saveCondExpr(const clang::Expr *cond) {
-    condExpr = cond;
-    condRange = condExpr->getSourceRange();
-    instruDoneForCond = false;
-}
-
-bool TracerInstrumentorVisitor::inCondRange(const clang::Expr *call) {
-    return inRange(condRange, call->getSourceRange());
-}
-
 std::string TracerInstrumentorVisitor::generateWrapperImpl(FunctionPrototype prototype) {
     std::string implementation;
     implementation += prototype.functionPrototype + " {\n\t";
@@ -259,6 +249,99 @@ bool TracerInstrumentorVisitor::VisitCXXMemberCallExpr(const clang::CXXMemberCal
     return true;
 }
 
+void TracerInstrumentorVisitor::addBraces(const clang::Stmt *s)
+{
+    // Only perform if statement is not compound
+    if (!isa<CompoundStmt>(s)) {
+        SourceLocation ST = s->getLocStart();
+
+        // Insert opening brace.  Note the second true parameter to InsertText()
+        // says to indent.  Sadly, it will indent to the line after the if, giving:
+        // if (expr)
+        //   {
+        //   stmt;
+        //   }
+        rewriter->InsertText(ST, "{\n", true, true);
+
+        // Note Stmt::getLocEnd() returns the source location prior to the
+        // token at the end of the line.  For instance, for:
+        // var = 123;
+        //      ^---- getLocEnd() points here.
+
+        SourceLocation END = s->getLocEnd();
+
+        // MeasureTokenLength gets us past the last token, and adding 1 gets
+        // us past the ';'.
+        int offset = Lexer::MeasureTokenLength(END,
+                                                rewriter->getSourceMgr(),
+                                                rewriter->getLangOpts()) + 1;
+
+        SourceLocation END1 = END.getLocWithOffset(offset);
+        rewriter->InsertText(END1, "\n}", true, true);
+    }
+
+    // Also note getLocEnd() on a CompoundStmt points ahead of the '}'.
+    // Use getLocEnd().getLocWithOffset(1) to point past it.
+}
+
+bool TracerInstrumentorVisitor::VisitStmt(const clang::Stmt *s) {
+    if (!inTargetFunction(s)) {
+        return true;
+    }
+    if (isa<IfStmt>(s)) {
+        // Cast s to IfStmt to access the then and else clauses
+        const IfStmt *If = cast<IfStmt>(s);
+        const Stmt *TH = If->getThen();
+
+        // Add braces if needed to then clause
+        addBraces(TH);
+
+        const Stmt *EL = If->getElse();
+        if (EL) {
+            // Add braces if needed to else clause
+            addBraces(EL);
+        }
+    } else if (isa<WhileStmt>(s)) {
+        const WhileStmt *While = cast<WhileStmt>(s);
+        const Stmt *BODY = While->getBody();
+        addBraces(BODY);
+    } else if (isa<ForStmt>(s)) {
+        const ForStmt *For = cast<ForStmt>(s);
+        const Stmt *BODY = For->getBody();
+        addBraces(BODY);
+    }
+
+    return true;
+}
+
+std::string TracerInstrumentorVisitor::exprToString(const clang::Expr *expr) {
+    clang::SourceLocation start = expr->getLocStart();
+    clang::SourceLocation end = expr->getLocEnd();
+    clang::SourceManager &manager = rewriter->getSourceMgr();
+    clang::SourceLocation realEnd(
+        clang::Lexer::getLocForEndOfToken(end, 0, manager, rewriter->getLangOpts()));
+    return std::string(manager.getCharacterData(start),
+        manager.getCharacterData(realEnd) - manager.getCharacterData(start));
+}
+
+bool TracerInstrumentorVisitor::VisitReturnStmt(const clang::ReturnStmt *stmt) {
+    if (!inTargetFunction(stmt)) {
+        return true;
+    }
+    const clang::Expr *returnValue = stmt->getRetValue();
+    if (returnValue == nullptr) {
+        rewriter->InsertText(stmt->getLocStart(), "TRACE_FUNCTION_END();\n\t");
+        return true;
+    }
+
+    // std::string endInstru = "\tresVprof = " + exprToString(returnValue) + ";\n";
+    // endInstru += "\tTRACE_FUNCTION_END();\n";
+    // endInstru += "\treturn resVprof;";
+    // rewriter->ReplaceText(stmt->getSourceRange(), endInstru);
+
+    return true;
+}
+
 void TracerInstrumentorVisitor::initForInstru(const clang::FunctionDecl *decl) {
     if (!decl->isThisDeclarationADefinition()) {
         return;
@@ -275,6 +358,14 @@ void TracerInstrumentorVisitor::initForInstru(const clang::FunctionDecl *decl) {
     functionNamesStream.flush();
     targetFunctionRange = decl->getSourceRange();
     wrapperImplLoc->first = targetFunctionRange.getBegin();
+
+    std::string startInstru = "\n\tTRACE_FUNCTION_START();\n";
+    std::string returnType = decl->getReturnType().getAsString();
+    if (returnType != "void") {
+        startInstru += "\t" + returnType + " resVprof;\n";
+    }
+    clang::SourceLocation functionStart = decl->getBody()->getLocStart().getLocWithOffset(1);
+    rewriter->InsertText(functionStart, startInstru, true);
 }
 
 bool TracerInstrumentorVisitor::VisitFunctionDecl(const clang::FunctionDecl *decl) {
@@ -299,8 +390,7 @@ TracerInstrumentorVisitor::TracerInstrumentorVisitor(CompilerInstance &ci,
                             targetFunctionNameAndArgs(SplitString(_targetFunctionName, '|')),
                             shouldFlush(_shouldFlush),
                             wrapperImplLoc(_wrapperImplLoc),
-                            functionNamesFile(_functionNamesFile),
-                            instruDoneForCond(false) {
+                            functionNamesFile(_functionNamesFile) {
     rewriter->setSourceMgr(astContext->getSourceManager(),
                           astContext->getLangOpts());
     targetFunctionNameAndArgs[0] = SplitString(targetFunctionNameAndArgs[0], '-')[0];

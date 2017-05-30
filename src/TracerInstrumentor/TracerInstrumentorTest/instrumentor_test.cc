@@ -25,13 +25,14 @@ int E(int a, bool b) {
 
 void F::G() {}
 
-void F::H(int a) {
+int F::H(int a) {
     G();
     if (B(A())) {
         G();
-    } else if (B(a)) {
-        D();
-    }
+        return A();
+    } else if (B(a))
+        return D();
+    return E(10, C());
 }
 
 int main() {

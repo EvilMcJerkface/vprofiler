@@ -45,10 +45,6 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
 
         clang::SourceRange targetFunctionRange;
 
-        const clang::Expr *condExpr;
-        clang::SourceRange condRange;
-        bool instruDoneForCond;
-
         int functionIndex;
 
         std::string functionNameToWrapperName(std::string functionName);
@@ -80,11 +76,11 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
         bool inTargetFunction(const clang::Expr *call);
         bool inTargetFunction(const clang::Stmt *stmt);
 
-        void saveCondExpr(const clang::Expr *cond);
-
-        bool inCondRange(const clang::Expr *call);
+        std::string exprToString(const clang::Expr *expr);
 
         std::string generateWrapperImpl(FunctionPrototype prototype);
+
+        void addBraces(const clang::Stmt *s);
 
     public:
         explicit TracerInstrumentorVisitor(clang::CompilerInstance &ci, 
@@ -102,6 +98,12 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
         // Override trigger for when a CXXMethod is found in the AST
         // Doesn't seem to be necessary. Covered by the previous function.
         // virtual bool VisitCXXMethodDecl(const clang::CXXMethodDecl *decl);
+
+        // Override trigger for when a Stmt is found in the AST
+        virtual bool VisitStmt(const clang::Stmt *s);
+
+        // Override trigger for when a ReturnStmt is found in the AST
+        virtual bool VisitReturnStmt(const clang::ReturnStmt *stmt);
 
         // Override trigger for when a CallExpr is found in the AST
         virtual bool VisitCallExpr(const clang::CallExpr *call);
