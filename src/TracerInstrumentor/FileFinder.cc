@@ -1,5 +1,7 @@
 #include "FileFinder.h"
 
+#include <iostream>
+
 std::string FileFinder::cdCommand() {
     return std::string("cd " + sourceBaseDir);
 }
@@ -13,6 +15,10 @@ std::string FileFinder::FindFunctionDefinition(const std::string &functionName) 
     std::string query = buildFunctionDefinitionQuery(functionName);
 
     std::string output = execute(query);
+
+    if (output.size() == 0) {
+        return "";
+    }
     
     return SplitString(output, ' ')[0];
 }
