@@ -65,14 +65,14 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
             std::string backupPathsFilename;
 
             if (backupPath[backupPath.length() - 1] != '/') {
-                backupFileName = backupPath + "/TracerFilenames";
+                backupPathsFilename = backupPath + "/TracerFilenames";
             } else {
-                backupFileName = backupPath + "TracerFilenames";
+                backupPathsFilename = backupPath + "TracerFilenames";
             }
 
             std::error_code OutErrInfo;
             std::error_code ok;
-            llvm::raw_fd_ostream outputFile(llvm::StringRef(backupFileName), 
+            llvm::raw_fd_ostream outputFile(llvm::StringRef(backupPathsFilename), 
                                             OutErrInfo, llvm::sys::fs::F_Append); 
             if (OutErrInfo == ok) {
                 outputFile << backupFilename + '\t' + filename + '\n';
