@@ -1,0 +1,41 @@
+#! /usr/bin/env python
+
+# Add vprof/share to sys.path
+import os
+import sys
+
+cwd = os.path.dirname(os.path.realpath(__file__))
+installPrefix = cwd[:cwd.find('bin')]
+
+sys.path.append(installPrefix + 'share/vprofiler/Restore')
+
+from Restorer import Restorer
+import argparse
+
+parser.ArgumentParser(prog='vprof-restore',
+                      description='Restores a source tree to its state prior to vprof instrumentation')
+
+parser.add_argument('-b', '--backup_dir',
+                    help='Directory holding all the backed up files')
+
+parser.add_argument('-t', '--tracer_restore', action='store_true',
+                    help='Restores the files instrumented by the tracer instrumentor')
+
+parser.add_argument('-s', '--synchro_restore', action='store_true',
+                    help='Restores the files instrumented by the synchronization instrumentor')
+
+args = parser.parse_args()
+
+if not args.backup_dir:
+    print('ERROR: Path to backup dir not supplied')
+    exit(1)
+
+restorer = Restorer(args.backup_dir)
+
+if args.tracer_restore:
+    restorer.run('TracerFilenames')
+if args.synchro_restore:
+    restorer.run('SynchronizationFilenames')
+
+exit(0)
+
