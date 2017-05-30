@@ -45,17 +45,46 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
 
         clang::FileID fileID;
 
+        std::string backupPath;
+
         std::shared_ptr<bool> shouldFlush;
 
         std::shared_ptr<std::pair<clang::SourceLocation, std::string>> wrapperImplLoc;
 
     public:
-        TracerInstrumentorFrontendAction(std::string _targetFunctionName) :
+        TracerInstrumentorFrontendAction(std::string _targetFunctionName,
+                                         std::string _backupPath) :
                                             targetFunctionName(_targetFunctionName),
+                                            backupPath(_backupPath),
                                             shouldFlush(std::make_shared<bool>(false)),
                                             wrapperImplLoc(std::make_shared<std::pair<clang::SourceLocation, std::string>>(std::make_pair(clang::SourceLocation(), ""))) {}
 
         ~TracerInstrumentorFrontendAction() {}
+
+        void backupFile() {
+            size_t lastSlash = filename.rfind("/");
+            std::string backupFileName;
+            if (lastSlash == std::string::npos) {
+                backupFileName = filename;
+            } else {
+                backupFileName = filename.substr(lastSlash + 1);
+            }
+            if (backupPath[backupPath.length() - 1] != '/') {
+                backupFileName = backupPath + "/" + backupFileName;
+            } else {
+                backupFileName = backupPath + backupFileName;
+            }
+
+            std::error_code OutErrInfo;
+            std::error_code ok;
+            llvm::raw_fd_ostream outputFile(llvm::StringRef(backupFileName), 
+                                            OutErrInfo, llvm::sys::fs::F_None); 
+            if (OutErrInfo == ok) {
+                clang::SourceManager &manager = rewriter->getSourceMgr();
+                outputFile << manager.getBufferData(fileID);
+                outputFile.close();
+            }
+        }
 
         void EndSourceFileAction() override {
             if (*shouldFlush) {
@@ -68,6 +97,7 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
                                                 OutErrInfo, llvm::sys::fs::F_None); 
 
                 if (OutErrInfo == ok) {
+                    backupFile();
                     const clang::RewriteBuffer *RewriteBuf = rewriter->getRewriteBufferFor(fileID);
                     outputFile << "// TraceTool included header\n#include \"trace_tool.h\"\n\n";
                     outputFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
@@ -95,20 +125,26 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
 class TracerInstrumentorFrontendActionFactory : public clang::tooling::FrontendActionFactory {
     private:
         std::string targetFunctionName;
+        std::string backupPath;
 
     public:
-        TracerInstrumentorFrontendActionFactory(std::string _targetFunctionName) : targetFunctionName(_targetFunctionName) {}
+        TracerInstrumentorFrontendActionFactory(std::string _targetFunctionName,
+                                                std::string _backupPath) :
+                                                targetFunctionName(_targetFunctionName),
+                                                backupPath(_backupPath) {}
 
         // Creates a TracerInstrumentorFrontendAction to be used by clang tool.
         virtual TracerInstrumentorFrontendAction *create() {
-            return new TracerInstrumentorFrontendAction(targetFunctionName);
+            return new TracerInstrumentorFrontendAction(targetFunctionName, backupPath);
         }
 };
 
 // This is absurdly long, but not sure how to break lines up to make more
 // readable
-std::unique_ptr<TracerInstrumentorFrontendActionFactory> CreateTracerInstrumentorFrontendActionFactory(std::string targetFunctionName) {
-    return std::unique_ptr<TracerInstrumentorFrontendActionFactory>(new TracerInstrumentorFrontendActionFactory(targetFunctionName));
+std::unique_ptr<TracerInstrumentorFrontendActionFactory> CreateTracerInstrumentorFrontendActionFactory(
+        std::string targetFunctionName, std::string backupPath) {
+    return std::unique_ptr<TracerInstrumentorFrontendActionFactory>(
+        new TracerInstrumentorFrontendActionFactory(targetFunctionName, backupPath));
 }
 
 #endif
