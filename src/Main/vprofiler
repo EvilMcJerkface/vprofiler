@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 
-from AnnotateDispatcher import Annotator
+# Add vprof/share to sys.path
+import os
+cwd = os.path.dirname(os.path.realpath(__file__))
+installPrefix = cwd[:cwd.find('bin/')]
+
+sys.path.append(installPrefix + 'share/vprofiler/Main')
+
+from AnnotatorDispatcher import Annotator
 from BreakdownDispatcher import Breakdown
 from RestoreDispatcher import Restore
 from FullDispatcher import Full
