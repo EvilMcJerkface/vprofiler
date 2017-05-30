@@ -72,6 +72,16 @@ std::string TracerInstrumentorVisitor::getEntireParamDeclAsString(const ParmVarD
     return decl->getType().getAsString() + " " + decl->getNameAsString();
 }
 
+std::string TracerInstrumentorVisitor::getFileAndLine(const clang::FunctionDecl *decl) {
+    clang::SourceManager &sourceManager = rewriter->getSourceMgr();
+    clang::SourceLocation start = decl->getDefinition()->getSourceRange().getBegin();
+    clang::FullSourceLoc fullLoc(start, sourceManager);
+    const std::string &fileName = sourceManager.getFilename(fullLoc);
+    // TODO Fix line number.
+    // const unsigned int lineNum = fullLoc.getSpellingLineNumber();
+    return fileName;
+}
+
 void TracerInstrumentorVisitor::createNewPrototype(const FunctionDecl *decl, 
                                       const std::string &functionName,
                                       bool isMemberFunc) {
@@ -122,7 +132,7 @@ void TracerInstrumentorVisitor::createNewPrototype(const FunctionDecl *decl,
     newPrototype.isMemberCall = isMemberFunc;
 
     wrapperImplLoc->second += generateWrapperImpl(newPrototype);
-    functionNamesStream << functionNameInFile << std::endl;
+    functionNamesStream << functionNameInFile << " - " << getFileAndLine(decl) << std::endl;
     functionNamesStream.flush();
 }
 

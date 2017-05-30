@@ -63,6 +63,8 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
                                 const std::string &functionName,
                                 bool isMemberFunc);
 
+        std::string getFileAndLine(const clang::FunctionDecl *decl);
+
         std::string getEntireParamDeclAsString(const clang::ParmVarDecl *decl);
 
         std::string getContainingFilename(const clang::FunctionDecl *decl);
