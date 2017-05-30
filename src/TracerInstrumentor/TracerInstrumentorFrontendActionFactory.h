@@ -13,14 +13,16 @@ class TracerInstrumentorASTConsumer : public clang::ASTConsumer {
         // Override ctor to pass hash map of fully qualified function names to the function
         // name to which the key functions should be converted to in the source.
         explicit TracerInstrumentorASTConsumer(clang::CompilerInstance &ci, 
-                                  std::shared_ptr<clang::Rewriter> _rewriter,
-                                  std::string _targetFunctionName,
-                                  std::shared_ptr<bool> _shouldFlush) {
+                                std::shared_ptr<clang::Rewriter> _rewriter,
+                                std::string _targetFunctionName,
+                                std::shared_ptr<bool> _shouldFlush,
+                                std::shared_ptr<std::pair<clang::SourceLocation, std::string>> _wrapperImplLoc) {
             
             visitor = std::unique_ptr<TracerInstrumentorVisitor>(new TracerInstrumentorVisitor(ci, 
                                                                     _rewriter,
                                                                     _targetFunctionName,
-                                                                    _shouldFlush));
+                                                                    _shouldFlush,
+                                                                    _wrapperImplLoc));
         }
 
         ~TracerInstrumentorASTConsumer() {}
@@ -45,10 +47,13 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
 
         std::shared_ptr<bool> shouldFlush;
 
+        std::shared_ptr<std::pair<clang::SourceLocation, std::string>> wrapperImplLoc;
+
     public:
         TracerInstrumentorFrontendAction(std::string _targetFunctionName) :
                                             targetFunctionName(_targetFunctionName),
-                                            shouldFlush(std::make_shared<bool>(false)) {}
+                                            shouldFlush(std::make_shared<bool>(false)),
+                                            wrapperImplLoc(std::make_shared<std::pair<clang::SourceLocation, std::string>>(std::make_pair(clang::SourceLocation(), ""))) {}
 
         ~TracerInstrumentorFrontendAction() {}
 
@@ -56,6 +61,8 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
             if (*shouldFlush) {
                 std::error_code OutErrInfo;
                 std::error_code ok;
+
+                rewriter->InsertText(wrapperImplLoc->first, wrapperImplLoc->second, true);
 
                 llvm::raw_fd_ostream outputFile(llvm::StringRef(filename), 
                                                 OutErrInfo, llvm::sys::fs::F_None); 
@@ -80,7 +87,8 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
             return std::unique_ptr<TracerInstrumentorASTConsumer>(new TracerInstrumentorASTConsumer(ci,
                                                                                                     rewriter,
                                                                                                     targetFunctionName,
-                                                                                                    shouldFlush));
+                                                                                                    shouldFlush,
+                                                                                                    wrapperImplLoc));
         }
 };
 

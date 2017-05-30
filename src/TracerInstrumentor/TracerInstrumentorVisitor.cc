@@ -67,10 +67,6 @@ std::string TracerInstrumentorVisitor::getContainingFilename(const FunctionDecl 
     return sourceMgr->getFilename(decl->getLocation()).str();
 }
 
-bool TracerInstrumentorVisitor::shouldCreateNewPrototype(const std::string &functionName) {
-    return prototypeMap.find(functionName) == prototypeMap.end();
-}
-
 // TODO change name to getParamDeclAsString
 std::string TracerInstrumentorVisitor::getEntireParamDeclAsString(const ParmVarDecl *decl) {
     return decl->getType().getAsString() + " " + decl->getNameAsString();
@@ -122,7 +118,7 @@ void TracerInstrumentorVisitor::createNewPrototype(const FunctionDecl *decl,
     newPrototype.functionPrototype += ")";
     newPrototype.isMemberCall = isMemberFunc;
 
-    prototypeMap[functionName] = newPrototype;
+    wrapperImplLoc->second += generateWrapperImpl(newPrototype);
 }
 
 bool TracerInstrumentorVisitor::inRange(clang::SourceRange largeRange, clang::SourceRange smallRange) {
@@ -149,6 +145,41 @@ void TracerInstrumentorVisitor::saveCondExpr(const clang::Expr *cond) {
 
 bool TracerInstrumentorVisitor::inCondRange(const clang::Expr *call) {
     return inRange(condRange, call->getSourceRange());
+}
+
+std::string TracerInstrumentorVisitor::generateWrapperImpl(FunctionPrototype prototype) {
+    std::string implementation;
+    implementation += prototype.functionPrototype + " {\n\t";
+    if (prototype.returnType != "void") {
+        implementation += prototype.returnType + " result;\n\n\t";
+    }
+
+    implementation += "TRACE_START();\n\t";
+    if (prototype.returnType != "void") {
+        implementation += "result = ";
+    }
+
+    implementation += prototype.innerCallPrefix + "(";
+
+    for (int i = 0, j = prototype.paramVars.size(); i < j; i++) {
+        implementation += prototype.paramVars[i];
+
+        if (i != (j - 1)) {
+            implementation += ", ";
+        }
+    }
+
+    implementation += ");\n\t";
+
+    implementation += "TRACE_END(" + std::to_string(functionIndex) + ");\n";
+
+    if (prototype.returnType != "void") {
+        implementation += "\treturn result;\n";
+    }
+
+    implementation += "}\n\n";
+
+    return implementation;
 }
 
 std::vector<std::string> TracerInstrumentorVisitor::getFunctionNameAndArgs(
@@ -231,6 +262,7 @@ bool TracerInstrumentorVisitor::VisitFunctionDecl(const clang::FunctionDecl *dec
     *shouldFlush = true;
     functionIndex = 1;
     targetFunctionRange = decl->getSourceRange();
+    wrapperImplLoc->first = targetFunctionRange.getBegin();
 
     return true;
 }
@@ -247,6 +279,7 @@ bool TracerInstrumentorVisitor::VisitCXXMethodDecl(const clang::CXXMethodDecl *d
     *shouldFlush = true;
     functionIndex = 1;
     targetFunctionRange = decl->getSourceRange();
+    wrapperImplLoc->first = targetFunctionRange.getBegin();
 
     return true;
 }
@@ -254,11 +287,13 @@ bool TracerInstrumentorVisitor::VisitCXXMethodDecl(const clang::CXXMethodDecl *d
 TracerInstrumentorVisitor::TracerInstrumentorVisitor(CompilerInstance &ci,
                             std::shared_ptr<Rewriter> _rewriter,
                             std::string _targetFunctionName,
-                            std::shared_ptr<bool> _shouldFlush):
+                            std::shared_ptr<bool> _shouldFlush,
+                            std::shared_ptr<std::pair<clang::SourceLocation, std::string>> _wrapperImplLoc):
                             astContext(&ci.getASTContext()), 
                             rewriter(_rewriter),
                             targetFunctionNameAndArgs(SplitString(_targetFunctionName, '|')),
                             shouldFlush(_shouldFlush),
+                            wrapperImplLoc(_wrapperImplLoc),
                             instruDoneForCond(false) {
     rewriter->setSourceMgr(astContext->getSourceManager(),
                           astContext->getLangOpts());
