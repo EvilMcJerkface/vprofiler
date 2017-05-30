@@ -31,6 +31,7 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
         // Client to rewrite source
         std::shared_ptr<clang::Rewriter> rewriter;
 
+        std::string targetFunctionNameString;
         // Name of the target function to instrument and names of its parameters.
         std::vector<std::string> targetFunctionNameAndArgs;
 

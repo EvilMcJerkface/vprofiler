@@ -261,6 +261,8 @@ void TracerInstrumentorVisitor::initForInstru(const clang::FunctionDecl *decl) {
     *shouldFlush = true;
     functionIndex = 1;
     functionNamesStream.open(functionNamesFile);
+    functionNamesStream << targetFunctionNameString << std::endl;
+    functionNamesStream.flush();
     targetFunctionRange = decl->getSourceRange();
     wrapperImplLoc->first = targetFunctionRange.getBegin();
 }
@@ -283,6 +285,7 @@ TracerInstrumentorVisitor::TracerInstrumentorVisitor(CompilerInstance &ci,
                             std::string _functionNamesFile):
                             astContext(&ci.getASTContext()), 
                             rewriter(_rewriter),
+                            targetFunctionNameString(_targetFunctionName),
                             targetFunctionNameAndArgs(SplitString(_targetFunctionName, '|')),
                             shouldFlush(_shouldFlush),
                             wrapperImplLoc(_wrapperImplLoc),
