@@ -18,7 +18,7 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
-#include <sstream>
+#include <fstream>
 #include <utility>
 
 #include "FunctionPrototype.h"
@@ -37,6 +37,10 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
         std::shared_ptr<bool> shouldFlush;
 
         std::shared_ptr<std::pair<clang::SourceLocation, std::string>> wrapperImplLoc;
+
+        std::string functionNamesFile;
+
+        std::ofstream functionNamesStream;
 
         clang::SourceRange targetFunctionRange;
 
@@ -62,9 +66,11 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
 
         std::string getContainingFilename(const clang::FunctionDecl *decl);
 
-        std::vector<std::string> getFunctionNameAndArgs(const clang::FunctionDecl *decl, bool isMemberFunc);
+        std::vector<std::string> getFunctionNameAndArgs(const clang::FunctionDecl *decl);
 
-        bool isTargetFunction(const clang::FunctionDecl *decl, bool isMemberFunc);
+        void initForInstru(const clang::FunctionDecl *decl);
+
+        bool isTargetFunction(const clang::FunctionDecl *decl);
 
         bool inRange(clang::SourceRange largeRange, clang::SourceRange smallRange);
 
@@ -82,7 +88,8 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
                               std::shared_ptr<clang::Rewriter> _rewriter,
                               std::string _targetFunctionNameAndArgs,
                               std::shared_ptr<bool> _shouldFlush,
-                              std::shared_ptr<std::pair<clang::SourceLocation, std::string>> _wrapperImplLoc);
+                              std::shared_ptr<std::pair<clang::SourceLocation, std::string>> _wrapperImplLoc,
+                              std::string _functionNamesFile);
 
         ~TracerInstrumentorVisitor();
 
@@ -90,7 +97,8 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
         virtual bool VisitFunctionDecl(const clang::FunctionDecl *decl);
 
         // Override trigger for when a CXXMethod is found in the AST
-        virtual bool VisitCXXMethodDecl(const clang::CXXMethodDecl *decl);
+        // Doesn't seem to be necessary. Covered by the previous function.
+        // virtual bool VisitCXXMethodDecl(const clang::CXXMethodDecl *decl);
 
         // Override trigger for when a CallExpr is found in the AST
         virtual bool VisitCallExpr(const clang::CallExpr *call);

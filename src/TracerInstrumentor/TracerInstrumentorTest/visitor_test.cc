@@ -1,5 +1,3 @@
-#include "visitor_test.h"
-
 int A() {
     return 0;
 }
@@ -22,6 +20,12 @@ int E(int a, bool b) {
     }
     return 4242;
 }
+
+class F{
+public:
+    static void G();
+    void H();
+};
 
 void F::G() {}
 

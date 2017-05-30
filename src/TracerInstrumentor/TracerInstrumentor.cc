@@ -33,7 +33,7 @@ cl::opt<std::string> BackupDir("b",
                               cl::Required,
                               cl::ValueRequired);
 
-cl::opt<std::string> FunctionNameFile("n",
+cl::opt<std::string> FunctionNamesFile("n",
                               cl::desc("Specifies the path of the function names file."),
                               cl::value_desc("Function_Names_File"),
                               cl::Required,
@@ -64,7 +64,7 @@ int main(int argc, const char **argv) {
 
     ClangTool EventAnnotatorTool(OptionsParser.getCompilations(), files);
 
-    EventAnnotatorTool.run(CreateTracerInstrumentorFrontendActionFactory(FunctionNameAndArgs, BackupDir).get());
+    EventAnnotatorTool.run(CreateTracerInstrumentorFrontendActionFactory(FunctionNameAndArgs, BackupDir, FunctionNamesFile).get());
 
     return 0;
 }
