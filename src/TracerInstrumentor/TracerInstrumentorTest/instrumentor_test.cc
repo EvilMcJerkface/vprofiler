@@ -1,4 +1,4 @@
-#include "visitor_test.h"
+#include "instrumentor_test.h"
 
 int A() {
     return 0;

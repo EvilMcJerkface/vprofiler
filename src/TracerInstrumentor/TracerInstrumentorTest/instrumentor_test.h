@@ -1,5 +1,5 @@
-#ifndef VISITOR_TEST_H
-#define VISITOR_TEST_H
+#ifndef INSTRUMENTOR_TEST_H
+#define INSTRUMENTOR_TEST_H
 
 int A();
 
