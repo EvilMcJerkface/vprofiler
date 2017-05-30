@@ -27,6 +27,19 @@ cl::opt<std::string> SourceBaseDir("s",
                               cl::Required,
                               cl::ValueRequired);
 
+cl::opt<std::string> BackupDir("b",
+                              cl::desc("Specifies the dir for back up files."),
+                              cl::value_desc("Backup_Dir"),
+                              cl::Required,
+                              cl::ValueRequired);
+
+cl::opt<std::string> FunctionNameFile("n",
+                              cl::desc("Specifies the path of the function names file."),
+                              cl::value_desc("Function_Names_File"),
+                              cl::Required,
+                              cl::ValueRequired);
+                              
+
 std::string getUnqualifiedFunctionName(std::string functionNameAndArgs) {
     std::string qualifiedName = SplitString(FunctionNameAndArgs, '|')[0];
     std::string nameAndIndex = SplitString(qualifiedName, ':').back();
@@ -51,7 +64,7 @@ int main(int argc, const char **argv) {
 
     ClangTool EventAnnotatorTool(OptionsParser.getCompilations(), files);
 
-    EventAnnotatorTool.run(CreateTracerInstrumentorFrontendActionFactory(FunctionNameAndArgs).get());
+    EventAnnotatorTool.run(CreateTracerInstrumentorFrontendActionFactory(FunctionNameAndArgs, BackupDir).get());
 
     return 0;
 }
