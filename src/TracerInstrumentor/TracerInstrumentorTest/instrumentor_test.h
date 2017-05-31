@@ -14,7 +14,7 @@ int E(int, bool);
 class F{
 public:
     static void G();
-    int H(int);
+    void H(int);
 };
 
 #endif

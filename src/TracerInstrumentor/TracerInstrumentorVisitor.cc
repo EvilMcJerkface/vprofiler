@@ -13,7 +13,7 @@ std::string TracerInstrumentorVisitor::functionNameToWrapperName(std::string fun
     for (size_t i = 0; i < nameParts.size() - 1; i++) {
         wrapperName += nameParts[i] + '_';
     }
-    wrapperName += nameParts.back() + std::to_string(functionIndex) + "_vprofiler";
+    wrapperName += nameParts.back() + std::to_string(std::get<2>(*tracerHeaderInfo)) + "_vprofiler";
     return wrapperName;
 }
 
@@ -87,7 +87,7 @@ void TracerInstrumentorVisitor::createNewPrototype(const FunctionDecl *decl,
                                       bool isMemberFunc) {
     FunctionPrototype newPrototype;
 
-    std::string functionNameInFile = decl->getQualifiedNameAsString() + '-' + std::to_string(functionIndex);
+    std::string functionNameInFile = decl->getQualifiedNameAsString() + '-' + std::to_string(std::get<2>(*tracerHeaderInfo));
 
     newPrototype.filename = getContainingFilename(decl);
 
@@ -176,7 +176,7 @@ std::string TracerInstrumentorVisitor::generateWrapperImpl(FunctionPrototype pro
 
     implementation += ");\n\t";
 
-    implementation += "TRACE_END(" + std::to_string(functionIndex) + ");\n";
+    implementation += "TRACE_END(" + std::to_string(std::get<2>(*tracerHeaderInfo)) + ");\n";
 
     if (prototype.returnType != "void") {
         implementation += "\treturn result;\n";
@@ -227,7 +227,7 @@ bool TracerInstrumentorVisitor::VisitCallExpr(const CallExpr *call) {
 
     createNewPrototype(decl, functionName, false);
 
-    functionIndex++;
+    std::get<2>(*tracerHeaderInfo)++;
 
     return true;
 }
@@ -244,7 +244,7 @@ bool TracerInstrumentorVisitor::VisitCXXMemberCallExpr(const clang::CXXMemberCal
 
     createNewPrototype(call->getMethodDecl(), functionName, true);
 
-    functionIndex++;
+    std::get<2>(*tracerHeaderInfo)++;
 
     return true;
 }
@@ -314,34 +314,6 @@ bool TracerInstrumentorVisitor::VisitStmt(const clang::Stmt *s) {
     return true;
 }
 
-std::string TracerInstrumentorVisitor::exprToString(const clang::Expr *expr) {
-    clang::SourceLocation start = expr->getLocStart();
-    clang::SourceLocation end = expr->getLocEnd();
-    clang::SourceManager &manager = rewriter->getSourceMgr();
-    clang::SourceLocation realEnd(
-        clang::Lexer::getLocForEndOfToken(end, 0, manager, rewriter->getLangOpts()));
-    return std::string(manager.getCharacterData(start),
-        manager.getCharacterData(realEnd) - manager.getCharacterData(start));
-}
-
-bool TracerInstrumentorVisitor::VisitReturnStmt(const clang::ReturnStmt *stmt) {
-    if (!inTargetFunction(stmt)) {
-        return true;
-    }
-    const clang::Expr *returnValue = stmt->getRetValue();
-    if (returnValue == nullptr) {
-        rewriter->InsertText(stmt->getLocStart(), "TRACE_FUNCTION_END();\n\t");
-        return true;
-    }
-
-    // std::string endInstru = "\tresVprof = " + exprToString(returnValue) + ";\n";
-    // endInstru += "\tTRACE_FUNCTION_END();\n";
-    // endInstru += "\treturn resVprof;";
-    // rewriter->ReplaceText(stmt->getSourceRange(), endInstru);
-
-    return true;
-}
-
 void TracerInstrumentorVisitor::initForInstru(const clang::FunctionDecl *decl) {
     if (!decl->isThisDeclarationADefinition()) {
         return;
@@ -352,20 +324,21 @@ void TracerInstrumentorVisitor::initForInstru(const clang::FunctionDecl *decl) {
     }
 
     *shouldFlush = true;
-    functionIndex = 1;
+    std::get<2>(*tracerHeaderInfo) = 1;
     functionNamesStream.open(functionNamesFile);
     functionNamesStream << targetFunctionNameString << std::endl;
     functionNamesStream.flush();
     targetFunctionRange = decl->getSourceRange();
     wrapperImplLoc->first = targetFunctionRange.getBegin();
 
-    std::string startInstru = "\n\tTRACE_FUNCTION_START();\n";
     std::string returnType = decl->getReturnType().getAsString();
-    if (returnType != "void") {
-        startInstru += "\t" + returnType + " resVprof;\n";
+    std::get<0>(*tracerHeaderInfo) = decl->getBody()->getLocStart().getLocWithOffset(1);
+    std::get<1>(*tracerHeaderInfo) = returnType;
+
+    if (returnType == "void") {
+        clang::SourceLocation functionEnd = decl->getBody()->getLocEnd();
+        rewriter->InsertText(functionEnd, "\tTRACE_FUNCTION_END();\n", true);
     }
-    clang::SourceLocation functionStart = decl->getBody()->getLocStart().getLocWithOffset(1);
-    rewriter->InsertText(functionStart, startInstru, true);
 }
 
 bool TracerInstrumentorVisitor::VisitFunctionDecl(const clang::FunctionDecl *decl) {
@@ -383,6 +356,7 @@ TracerInstrumentorVisitor::TracerInstrumentorVisitor(CompilerInstance &ci,
                             std::string _targetFunctionName,
                             std::shared_ptr<bool> _shouldFlush,
                             std::shared_ptr<std::pair<clang::SourceLocation, std::string>> _wrapperImplLoc,
+                            std::shared_ptr<std::tuple<clang::SourceLocation, std::string, int>> _tracerHeaderInfo,
                             std::string _functionNamesFile):
                             astContext(&ci.getASTContext()), 
                             rewriter(_rewriter),
@@ -390,6 +364,7 @@ TracerInstrumentorVisitor::TracerInstrumentorVisitor(CompilerInstance &ci,
                             targetFunctionNameAndArgs(SplitString(_targetFunctionName, '|')),
                             shouldFlush(_shouldFlush),
                             wrapperImplLoc(_wrapperImplLoc),
+                            tracerHeaderInfo(_tracerHeaderInfo),
                             functionNamesFile(_functionNamesFile) {
     rewriter->setSourceMgr(astContext->getSourceManager(),
                           astContext->getLangOpts());

@@ -1,5 +1,5 @@
-#ifndef TRACER_INSTRUMENTOR
-#define TRACER_INSTRUMENTOR
+#ifndef TRACER_INSTRUMENTOR_VISITOR_H
+#define TRACER_INSTRUMENTOR_VISITOR_H
 
 // Clang libs
 #include "clang/Frontend/FrontendAction.h"
@@ -20,6 +20,7 @@
 #include <vector>
 #include <fstream>
 #include <utility>
+#include <tuple>
 
 #include "FunctionPrototype.h"
 
@@ -39,13 +40,13 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
 
         std::shared_ptr<std::pair<clang::SourceLocation, std::string>> wrapperImplLoc;
 
+        std::shared_ptr<std::tuple<clang::SourceLocation, std::string, int>> tracerHeaderInfo;
+
         std::string functionNamesFile;
 
         std::ofstream functionNamesStream;
 
         clang::SourceRange targetFunctionRange;
-
-        int functionIndex;
 
         std::string functionNameToWrapperName(std::string functionName);
 
@@ -76,7 +77,7 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
         bool inTargetFunction(const clang::Expr *call);
         bool inTargetFunction(const clang::Stmt *stmt);
 
-        std::string exprToString(const clang::Expr *expr);
+        void insertTracerHeader();
 
         std::string generateWrapperImpl(FunctionPrototype prototype);
 
@@ -88,6 +89,7 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
                               std::string _targetFunctionNameAndArgs,
                               std::shared_ptr<bool> _shouldFlush,
                               std::shared_ptr<std::pair<clang::SourceLocation, std::string>> _wrapperImplLoc,
+                              std::shared_ptr<std::tuple<clang::SourceLocation, std::string, int>> tracerHeaderInfo,
                               std::string _functionNamesFile);
 
         ~TracerInstrumentorVisitor();
@@ -101,9 +103,6 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
 
         // Override trigger for when a Stmt is found in the AST
         virtual bool VisitStmt(const clang::Stmt *s);
-
-        // Override trigger for when a ReturnStmt is found in the AST
-        virtual bool VisitReturnStmt(const clang::ReturnStmt *stmt);
 
         // Override trigger for when a CallExpr is found in the AST
         virtual bool VisitCallExpr(const clang::CallExpr *call);

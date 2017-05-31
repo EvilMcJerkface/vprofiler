@@ -17,6 +17,7 @@ class TracerInstrumentorASTConsumer : public clang::ASTConsumer {
                                 std::string _targetFunctionName,
                                 std::shared_ptr<bool> _shouldFlush,
                                 std::shared_ptr<std::pair<clang::SourceLocation, std::string>> _wrapperImplLoc,
+                                std::shared_ptr<std::tuple<clang::SourceLocation, std::string, int>> _tracerHeaderInfo,
                                 std::string _functionNamesFile) {
             
             visitor = std::unique_ptr<TracerInstrumentorVisitor>(new TracerInstrumentorVisitor(ci, 
@@ -24,6 +25,7 @@ class TracerInstrumentorASTConsumer : public clang::ASTConsumer {
                                                                     _targetFunctionName,
                                                                     _shouldFlush,
                                                                     _wrapperImplLoc,
+                                                                    _tracerHeaderInfo,
                                                                     _functionNamesFile));
         }
 
@@ -55,6 +57,8 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
 
         std::shared_ptr<std::pair<clang::SourceLocation, std::string>> wrapperImplLoc;
 
+        std::shared_ptr<std::tuple<clang::SourceLocation, std::string, int>> tracerHeaderInfo;
+
     public:
         TracerInstrumentorFrontendAction(std::string _targetFunctionName,
                                          std::string _backupPath,
@@ -63,7 +67,9 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
                                             backupPath(_backupPath),
                                             functionNamesFile(_functionNamesFile),
                                             shouldFlush(std::make_shared<bool>(false)),
-                                            wrapperImplLoc(std::make_shared<std::pair<clang::SourceLocation, std::string>>(std::make_pair(clang::SourceLocation(), ""))) {}
+                                            wrapperImplLoc(std::make_shared<std::pair<clang::SourceLocation, std::string>>(std::make_pair(clang::SourceLocation(), ""))),
+                                            tracerHeaderInfo(std::make_shared<std::tuple<clang::SourceLocation, std::string, int>>(
+                                                    std::make_tuple(clang::SourceLocation(), "", 0))) {}
 
         ~TracerInstrumentorFrontendAction() {}
 
@@ -113,12 +119,22 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
             }
         }
 
+        void insertHeader() {
+            std::string startInstru = "\n\tTRACE_FUNCTION_START(" + std::to_string(std::get<2>(*tracerHeaderInfo)) + ");\n";
+            std::string returnType = std::get<1>(*tracerHeaderInfo);
+            if (returnType != "void") {
+                startInstru += "\t" + returnType + " resVprof;\n";
+            }
+            rewriter->InsertText(std::get<0>(*tracerHeaderInfo), startInstru, true);
+        }
+
         void EndSourceFileAction() override {
             if (*shouldFlush) {
                 std::error_code OutErrInfo;
                 std::error_code ok;
 
                 rewriter->InsertText(wrapperImplLoc->first, wrapperImplLoc->second, true);
+                insertHeader();
 
                 llvm::raw_fd_ostream outputFile(llvm::StringRef(filename), 
                                                 OutErrInfo, llvm::sys::fs::F_None); 
@@ -146,6 +162,7 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
                                                                                                     targetFunctionName,
                                                                                                     shouldFlush,
                                                                                                     wrapperImplLoc,
+                                                                                                    tracerHeaderInfo,
                                                                                                     functionNamesFile));
         }
 };

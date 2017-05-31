@@ -19,9 +19,9 @@ class FileFinder {
         // Build CScope's database in the sourceBaseDir.
         void BuildCScopeDB();
 
-        // Returns the name of the file in which the given funciton
-        // is defined.
-        std::string FindFunctionDefinition(const std::string &functionName);
+        // Returns a vector of the potential files in which calls to 
+        // functionName may reside.
+        std::vector<std::string> FindFunctionPotentialFiles(const std::string &functionName);
 
     private:
         //////////////////////////////
@@ -29,11 +29,15 @@ class FileFinder {
         //////////////////////////////
 
         // Builds a cscope query for the given function name. Of form
-        // cscope -L1<functionName>
-        std::string buildFunctionDefinitionQuery(const std::string &functionName);
+        // cscope -L3<functionName>
+        std::string buildQuery(const std::string &functionName);
 
         // Returns the cd command for the instance.
         std::string cdCommand();
+
+        // Parses cscope output and returns a vector of the unique files 
+        // represented in the CScope output.
+        std::vector<std::string> parseCScopeOutput(const std::string &output);
 
         //////////////////////////////
         // Private member variables //
