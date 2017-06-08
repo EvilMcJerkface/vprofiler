@@ -63,9 +63,8 @@ bool CallerInstrumentorVisitor::isCaller(const clang::FunctionDecl *decl) {
 }
 
 void CallerInstrumentorVisitor::insertPathCountUpdates(const clang::CallExpr *call) {
-    std::string var_set = "TARGET_PATH_SET(" + std::to_string(targetPathCount) + ");\n\t";
-    std::string pathCountIncrement = "PATH_INC(" + std::to_string(targetPathCount - 1) + ");\n\t";
-    rewriter->InsertText(call->getLocStart(), var_set + pathCountIncrement, true);
+    std::string pathCountIncrement = "\n\tPATH_INC(" + std::to_string(targetPathCount - 1) + ");\n\t";
+    rewriter->InsertText(call->getLocStart(), pathCountIncrement, true);
 
     std::string pathCountDecrement = "\n\tPATH_DEC(" + std::to_string(targetPathCount - 1) + ");\n";
     int offset = Lexer::MeasureTokenLength(call->getLocEnd(),
@@ -74,6 +73,7 @@ void CallerInstrumentorVisitor::insertPathCountUpdates(const clang::CallExpr *ca
 
     SourceLocation realEnd = call->getLocEnd().getLocWithOffset(offset);
     rewriter->InsertText(realEnd, pathCountDecrement, true);
+    *shouldFlush = true;
 }
 
 bool CallerInstrumentorVisitor::VisitCallExpr(const CallExpr *call) {
@@ -186,7 +186,6 @@ void CallerInstrumentorVisitor::initForInstru(const clang::FunctionDecl *decl) {
         return;
     }
 
-    *shouldFlush = true;
     functionIndex = 1;
     callerRange = decl->getSourceRange();
 }
@@ -216,6 +215,8 @@ CallerInstrumentorVisitor::CallerInstrumentorVisitor(CompilerInstance &ci,
     if (nameParts.size() > 1) {
         targetInCallerIndex = std::stoi(nameParts[1]);
     }
+    nameParts = SplitString(callerNameAndArgs[0], '-');
+    callerNameAndArgs[0] = nameParts[0];
 }
 
 CallerInstrumentorVisitor::~CallerInstrumentorVisitor() {}

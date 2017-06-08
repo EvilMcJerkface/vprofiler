@@ -66,4 +66,4 @@ install: all
 
 .PHONY: clean
 clean: 
-	rm *.gch *.o TracerInstrumentor -rf
+	rm -rf *.o TracerInstrumentor

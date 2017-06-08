@@ -58,15 +58,16 @@ bool ReturnInstrumentorVisitor::VisitReturnStmt(const clang::ReturnStmt *stmt) {
     if (!inTargetFunction(stmt)) {
         return true;
     }
+    *shouldFlush = true;
     const clang::Expr *returnValue = stmt->getRetValue();
     if (returnValue == nullptr) {
         rewriter->InsertText(stmt->getLocStart(), "TRACE_FUNCTION_END();\n\t");
         return true;
     }
 
-    std::string endInstru = "\tresVprof = " + exprToString(returnValue) + ";\n";
+    std::string endInstru = "resVprof = " + exprToString(returnValue) + ";\n";
     endInstru += "\tTRACE_FUNCTION_END();\n";
-    endInstru += "\treturn resVprof;";
+    endInstru += "\treturn resVprof";
     rewriter->ReplaceText(stmt->getSourceRange(), endInstru);
 
     return true;
@@ -81,7 +82,6 @@ void ReturnInstrumentorVisitor::initForInstru(const clang::FunctionDecl *decl) {
         return;
     }
 
-    *shouldFlush = true;
     targetFunctionRange = decl->getSourceRange();
 }
 

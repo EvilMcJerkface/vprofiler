@@ -95,7 +95,8 @@ int main(int argc, const char **argv) {
     }
 
     ClangTool TracerInstrumentator(OptionsParser.getCompilations(), potentialTargetFiles);
-    TracerInstrumentator.run(CreateTracerInstrumentorFrontendActionFactory(FunctionNameAndArgs, TargetBackupDir, FunctionNamesFile).get());
+    TracerInstrumentator.run(CreateTracerInstrumentorFrontendActionFactory(
+        FunctionNameAndArgs, TargetPathCount, TargetBackupDir, FunctionNamesFile).get());
 
     ClangTool ReturnInstrumentator(OptionsParser.getCompilations(), potentialTargetFiles);
     ReturnInstrumentator.run(CreateReturnInstrumentorFrontendActionFactory(FunctionNameAndArgs).get());

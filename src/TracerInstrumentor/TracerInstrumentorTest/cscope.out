@@ -1,0 +1,392 @@
+cscope 15 /z/home/jiamin/vprofiler/src/TracerInstrumentor/TracerInstrumentorTest               0000001799
+	@instrumentor_test.cc
+
+1 
+	~"š¡rum’tÜ_‹¡.h
+"
+
+3 
+	$A
+() {
+
+5 
+	}
+}
+
+7 
+boÞ
+ 
+	$B
+(
+b
+) {
+
+8  
+b
+ > 500;
+
+9 
+	}
+}
+
+11 
+boÞ
+ 
+	$C
+() {
+
+12  
+Œue
+;
+
+13 
+	}
+}
+
+15 
+boÞ
+ 
+	$D
+() {
+
+16  
+çl£
+;
+
+17 
+	}
+}
+
+19 
+	$E
+(
+a
+, 
+boÞ
+ 
+b
+) {
+
+20 ià(
+b
+) {
+
+24 
+	}
+}
+
+26 
+	gF
+::
+	$G
+(è{
+	}
+}
+
+28 
+F
+::
+	$H
+(
+a
+) {
+
+29 
+	`G
+();
+
+30 ià(
+	`B
+(
+	`A
+())) {
+
+31 
+	`G
+();
+
+33 } ià(
+	`B
+(
+a
+))
+
+36 
+	}
+}
+
+38 
+	$maš
+() {
+
+39 
+a
+ = 
+	`E
+(
+	`A
+(), 
+	`C
+(è&& 
+	`D
+());
+
+40 ià(
+	`B
+(
+a
+))
+
+44 
+	}
+}
+
+	@instrumentor_test.h
+
+1 #iâdeà
+INSTRUMENTOR_TEST_H
+
+
+2 
+	#INSTRUMENTOR_TEST_H
+
+
+	)
+
+4 
+A
+();
+
+6 
+boÞ
+ 
+B
+();
+
+8 
+boÞ
+ 
+C
+();
+
+10 
+boÞ
+ 
+D
+();
+
+12 
+E
+(, 
+boÞ
+);
+
+14 þas 
+	cF
+{
+
+15 
+	mpublic
+:
+
+16 
+G
+();
+
+17 
+H
+();
+
+	@trace_tool.cc
+
+1 
+	~<io¡»am
+>
+
+3 
+	~"Œaû_toÞ.h
+"
+
+5 
+	$TARGET_PATH_SET
+(
+·thCouÁ
+è{
+	}
+}
+
+7 
+	$SESSION_START
+(cÚ¡ *
+SIID
+è{
+	}
+}
+
+9 
+	$SWITCH_SI
+(cÚ¡ *
+SIID
+è{
+	}
+}
+
+11 
+	$SESSION_END
+(
+sucûssful
+è{
+	}
+}
+
+13 
+	$TARGET_PATH_SET
+(
+·thCouÁ
+è{
+	}
+}
+
+15 
+	$PATH_GET
+(è{ 0;
+	}
+}
+
+17 
+	$PATH_INC
+(
+ex³ùedCouÁ
+è{
+	}
+}
+
+19 
+	$PATH_DEC
+(
+ex³ùedCouÁ
+è{
+	}
+}
+
+21 
+	$TRACE_FUNCTION_START
+(
+numFuncs
+è{
+	}
+}
+
+23 
+	$TRACE_FUNCTION_END
+(è{
+	}
+}
+
+25 
+	$TRACE_START
+(è{ 0;
+	}
+}
+
+27 
+	$TRACE_END
+(
+šdex
+è{ 0;
+	}
+}
+
+	@trace_tool.h
+
+1 #iâdeà
+TRACE_TOOL_H
+
+
+2 
+	#TRACE_TOOL_H
+
+
+	)
+
+4 
+	~<¡dboÞ.h
+>
+
+6 
+TARGET_PATH_SET
+(
+·thCouÁ
+);
+
+8 
+SESSION_START
+(cÚ¡ *
+SIID
+);
+
+10 
+SWITCH_SI
+(cÚ¡ *
+SIID
+);
+
+12 
+SESSION_END
+(
+sucûssful
+);
+
+14 
+TARGET_PATH_SET
+(
+·thCouÁ
+);
+
+16 
+PATH_GET
+();
+
+18 
+PATH_INC
+(
+ex³ùedCouÁ
+);
+
+20 
+PATH_DEC
+(
+ex³ùedCouÁ
+);
+
+22 
+TRACE_FUNCTION_START
+(
+numFuncs
+);
+
+24 
+TRACE_FUNCTION_END
+();
+
+26 
+TRACE_START
+();
+
+28 
+TRACE_END
+(
+šdex
+);
+
+	@
+1
+.
+1
+/usr/include
+4
+68
+instrumentor_test.cc
+instrumentor_test.h
+trace_tool.cc
+trace_tool.h

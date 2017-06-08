@@ -74,9 +74,14 @@ std::string TracerInstrumentorVisitor::getEntireParamDeclAsString(const ParmVarD
 
 std::string TracerInstrumentorVisitor::getFileAndLine(const clang::FunctionDecl *decl) {
     clang::SourceManager &sourceManager = rewriter->getSourceMgr();
-    clang::SourceLocation start = decl->getDefinition()->getSourceRange().getBegin();
-    clang::FullSourceLoc fullLoc(start, sourceManager);
-    const std::string &fileName = sourceManager.getFilename(fullLoc);
+    std::string fileName;
+    if (decl->getDefinition()) {
+        clang::SourceLocation start = decl->getDefinition()->getSourceRange().getBegin();
+        clang::FullSourceLoc fullLoc(start, sourceManager);
+        fileName = sourceManager.getFilename(fullLoc);
+    } else {
+        fileName = "not_found";
+    }
     // TODO Fix line number.
     // const unsigned int lineNum = fullLoc.getSpellingLineNumber();
     return fileName;
@@ -132,7 +137,7 @@ void TracerInstrumentorVisitor::createNewPrototype(const FunctionDecl *decl,
     newPrototype.isMemberCall = isMemberFunc;
 
     wrapperImplLoc->second += generateWrapperImpl(newPrototype);
-    functionNamesStream << functionNameInFile << " - " << getFileAndLine(decl) << std::endl;
+    functionNamesStream << functionNameInFile << std::endl;
     functionNamesStream.flush();
 }
 
@@ -223,6 +228,12 @@ bool TracerInstrumentorVisitor::VisitCallExpr(const CallExpr *call) {
         return true;
     }
     const std::string functionName = decl->getQualifiedNameAsString();
+    if (functionName == "SESSION_START" ||
+        functionName == "SESSION_END" ||
+        functionName == "PATH_INC" ||
+        functionName == "PATH_DEC") {
+            return true;
+    }
     fixFunction(call, functionName, false);
 
     createNewPrototype(decl, functionName, false);

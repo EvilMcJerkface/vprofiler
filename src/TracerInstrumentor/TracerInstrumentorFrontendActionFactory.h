@@ -1,8 +1,11 @@
 #ifndef TRACER_INSTRUMENTOR_FRONT_END_FACTORY_H
 #define TRACER_INSTRUMENTOR_FRONT_END_FACTORY_H
 
+#include <system_error>
+
 #include "TracerInstrumentorVisitor.h"
 
+#include "llvm/ADT/SmallString.h"
 #include "clang/Tooling/Tooling.h"
 
 class TracerInstrumentorASTConsumer : public clang::ASTConsumer {
@@ -40,12 +43,16 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
     private:
         // Name of the transformed file.
         std::string filename;
+
+        std::string fileDir;
         
         // Rewriter used by the consumer.
         std::shared_ptr<clang::Rewriter> rewriter;
 
         // Name of the target function.
         std::string targetFunctionName;
+
+        int targetPathCount;
 
         clang::FileID fileID;
 
@@ -61,9 +68,11 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
 
     public:
         TracerInstrumentorFrontendAction(std::string _targetFunctionName,
+                                         int _targetPathCount,
                                          std::string _backupPath,
                                          std::string _functionNamesFile) :
                                             targetFunctionName(_targetFunctionName),
+                                            targetPathCount(_targetPathCount),
                                             backupPath(_backupPath),
                                             functionNamesFile(_functionNamesFile),
                                             shouldFlush(std::make_shared<bool>(false)),
@@ -85,25 +94,19 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
             std::error_code OutErrInfo;
             std::error_code ok;
             llvm::raw_fd_ostream outputFile(llvm::StringRef(backupPathsFilename), 
-                                            OutErrInfo, llvm::sys::fs::F_Append); 
+                                            OutErrInfo, llvm::sys::fs::F_None); 
             if (OutErrInfo == ok) {
-                outputFile << backupFilename + '\t' + filename + '\n';
+                outputFile << backupFilename + '\t' + fileDir + filename + '\n';
                 outputFile.close();
             }
         }
 
         void backupFile() {
-            size_t lastSlash = filename.rfind("/");
             std::string backupFileName;
-            if (lastSlash == std::string::npos) {
-                backupFileName = filename;
-            } else {
-                backupFileName = filename.substr(lastSlash + 1);
-            }
             if (backupPath[backupPath.length() - 1] != '/') {
-                backupFileName = backupPath + "/" + backupFileName;
+                backupFileName = backupPath + "/" + filename;
             } else {
-                backupFileName = backupPath + backupFileName;
+                backupFileName = backupPath + filename;
             }
 
             writePathFile(backupFileName);
@@ -120,7 +123,8 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
         }
 
         void insertHeader() {
-            std::string startInstru = "\n\tTRACE_FUNCTION_START(" + std::to_string(std::get<2>(*tracerHeaderInfo)) + ");\n";
+            std::string startInstru = "\n\tTARGET_PATH_SET(" + std::to_string(targetPathCount) + ");\n";
+            startInstru += "\tTRACE_FUNCTION_START(" + std::to_string(std::get<2>(*tracerHeaderInfo)) + ");\n";
             std::string returnType = std::get<1>(*tracerHeaderInfo);
             if (returnType != "void") {
                 startInstru += "\t" + returnType + " resVprof;\n";
@@ -137,13 +141,14 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
                 insertHeader();
 
                 llvm::raw_fd_ostream outputFile(llvm::StringRef(filename), 
-                                                OutErrInfo, llvm::sys::fs::F_None); 
+                                                OutErrInfo, llvm::sys::fs::F_None);
 
                 if (OutErrInfo == ok) {
                     backupFile();
                     const clang::RewriteBuffer *RewriteBuf = rewriter->getRewriteBufferFor(fileID);
                     outputFile << "// TraceTool included header\n#include \"trace_tool.h\"\n\n";
-                    outputFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
+                    std::string content = std::string(RewriteBuf->begin(), RewriteBuf->end());
+                    outputFile << content;
                     outputFile.close();
                 }
             }
@@ -155,6 +160,13 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
             rewriter->setSourceMgr(ci.getSourceManager(), ci.getLangOpts());
 
             filename = file.str();
+            llvm::SmallString<64> cwd;
+            if (llvm::sys::fs::current_path(cwd) == std::error_code()) {
+                fileDir = cwd.str().str();
+                if (fileDir[fileDir.length() - 1] != '/') {
+                    fileDir += "/";
+                }
+            }
             fileID = ci.getSourceManager().getMainFileID();
 
             return std::unique_ptr<TracerInstrumentorASTConsumer>(new TracerInstrumentorASTConsumer(ci,
@@ -170,29 +182,34 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
 class TracerInstrumentorFrontendActionFactory : public clang::tooling::FrontendActionFactory {
     private:
         std::string targetFunctionName;
+        int targetPathCount;
         std::string backupPath;
         std::string functionNamesFile;
 
     public:
         TracerInstrumentorFrontendActionFactory(std::string _targetFunctionName,
+                                                int _targetPathCount,
                                                 std::string _backupPath,
                                                 std::string _functionNamesFile) :
                                                 targetFunctionName(_targetFunctionName),
+                                                targetPathCount(_targetPathCount),
                                                 backupPath(_backupPath),
                                                 functionNamesFile(_functionNamesFile) {}
 
         // Creates a TracerInstrumentorFrontendAction to be used by clang tool.
         virtual TracerInstrumentorFrontendAction *create() {
-            return new TracerInstrumentorFrontendAction(targetFunctionName, backupPath, functionNamesFile);
+            return new TracerInstrumentorFrontendAction(targetFunctionName, targetPathCount, backupPath, functionNamesFile);
         }
 };
 
 // This is absurdly long, but not sure how to break lines up to make more
 // readable
 std::unique_ptr<TracerInstrumentorFrontendActionFactory> CreateTracerInstrumentorFrontendActionFactory(
-        std::string targetFunctionName, std::string backupPath, std::string functionNamesFile) {
+        std::string targetFunctionName, int targetPathCount,
+        std::string backupPath, std::string functionNamesFile) {
     return std::unique_ptr<TracerInstrumentorFrontendActionFactory>(
-        new TracerInstrumentorFrontendActionFactory(targetFunctionName, backupPath, functionNamesFile));
+        new TracerInstrumentorFrontendActionFactory(targetFunctionName, targetPathCount,
+                                                    backupPath, functionNamesFile));
 }
 
 #endif

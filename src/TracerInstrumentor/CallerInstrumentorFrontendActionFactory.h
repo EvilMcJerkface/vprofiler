@@ -3,8 +3,11 @@
 
 #include "CallerInstrumentorVisitor.h"
 
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/Twine.h"
 #include "clang/Tooling/Tooling.h"
 
+#include <system_error>
 #include <unistd.h>
 #include <errno.h>
 
@@ -41,6 +44,7 @@ class CallerInstrumentorFrontendAction : public clang::ASTFrontendAction {
     private:
         // Name of the transformed file.
         std::string filename;
+        std::string fileDir;
         
         // Rewriter used by the consumer.
         std::shared_ptr<clang::Rewriter> rewriter;
@@ -71,44 +75,51 @@ class CallerInstrumentorFrontendAction : public clang::ASTFrontendAction {
 
         ~CallerInstrumentorFrontendAction() {}
 
-        void writePathFile(const std::string &backupFilename) {
+        std::string nextBackupFileName(std::string backupFileName) {
+            if (!llvm::sys::fs::exists(llvm::Twine(backupFileName))) {
+                return backupFileName;
+            }
+            int i = 1;
+            while (llvm::sys::fs::exists(llvm::Twine(backupFileName + std::to_string(i)))) {
+                i++;
+            }
+            return backupFileName + std::to_string(i);
+        }
+
+        std::string writePathFile(const std::string &backupFileName) {
             std::string backupPathsFilename;
 
             if (backupPath[backupPath.length() - 1] != '/') {
-                backupPathsFilename = backupPath + "/TracerFilenames";
+                backupPathsFilename = backupPath + "/CallerFilenames";
             } else {
-                backupPathsFilename = backupPath + "TracerFilenames";
+                backupPathsFilename = backupPath + "CallerFilenames";
             }
 
+            std::string unoverwrittenFileName = nextBackupFileName(backupFileName);
             std::error_code OutErrInfo;
             std::error_code ok;
             llvm::raw_fd_ostream outputFile(llvm::StringRef(backupPathsFilename), 
                                             OutErrInfo, llvm::sys::fs::F_Append); 
             if (OutErrInfo == ok) {
-                outputFile << backupFilename + '\t' + filename + '\n';
+                outputFile << unoverwrittenFileName + '\t' + fileDir + filename + '\n';
                 outputFile.close();
             }
+            return unoverwrittenFileName;
         }
 
         void backupFile() {
-            size_t lastSlash = filename.rfind("/");
             std::string backupFileName;
-            if (lastSlash == std::string::npos) {
-                backupFileName = filename;
-            } else {
-                backupFileName = filename.substr(lastSlash + 1);
-            }
             if (backupPath[backupPath.length() - 1] != '/') {
-                backupFileName = backupPath + "/" + backupFileName;
+                backupFileName = backupPath + "/" + filename;
             } else {
-                backupFileName = backupPath + backupFileName;
+                backupFileName = backupPath + filename;
             }
 
-            writePathFile(backupFileName);
+            std::string unoverwrittenFileName = writePathFile(backupFileName);
 
             std::error_code OutErrInfo;
             std::error_code ok;
-            llvm::raw_fd_ostream outputFile(llvm::StringRef(backupFileName), 
+            llvm::raw_fd_ostream outputFile(llvm::StringRef(unoverwrittenFileName), 
                                             OutErrInfo, llvm::sys::fs::F_None); 
             if (OutErrInfo == ok) {
                 clang::SourceManager &manager = rewriter->getSourceMgr();
@@ -129,7 +140,8 @@ class CallerInstrumentorFrontendAction : public clang::ASTFrontendAction {
                     backupFile();
                     const clang::RewriteBuffer *RewriteBuf = rewriter->getRewriteBufferFor(fileID);
                     outputFile << "// TraceTool included header\n#include \"trace_tool.h\"\n\n";
-                    outputFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
+                    std::string content = std::string(RewriteBuf->begin(), RewriteBuf->end());
+                    outputFile << content;
                     outputFile.close();
                 }
             }
@@ -141,6 +153,13 @@ class CallerInstrumentorFrontendAction : public clang::ASTFrontendAction {
             rewriter->setSourceMgr(ci.getSourceManager(), ci.getLangOpts());
 
             filename = file.str();
+            llvm::SmallString<64> cwd;
+            if (llvm::sys::fs::current_path(cwd) == std::error_code()) {
+                fileDir = cwd.str().str();
+                if (fileDir[fileDir.length() - 1] != '/') {
+                    fileDir += "/";
+                }
+            }
             fileID = ci.getSourceManager().getMainFileID();
 
             return std::unique_ptr<CallerInstrumentorASTConsumer>(

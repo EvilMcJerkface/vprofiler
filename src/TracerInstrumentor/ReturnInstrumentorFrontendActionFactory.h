@@ -62,7 +62,8 @@ class ReturnInstrumentorFrontendAction : public clang::ASTFrontendAction {
 
                 if (OutErrInfo == ok) {
                     const clang::RewriteBuffer *RewriteBuf = rewriter->getRewriteBufferFor(fileID);
-                    outputFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
+                    std::string content = std::string(RewriteBuf->begin(), RewriteBuf->end());
+                    outputFile << content;
                     outputFile.close();
                 }
             }
