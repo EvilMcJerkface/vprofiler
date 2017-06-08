@@ -69,4 +69,4 @@ install: all
 
 .PHONY: clean
 clean: 
-	rm *.gch *.o EventAnnotator CodeTransformer FileFinder FunctionFileReader Utils -rf
+	rm -rf *.o EventAnnotator FunctionFileReader
