@@ -1,0 +1,65 @@
+[
+    {
+        "arguments": [
+            "c++", 
+            "-c", 
+            "--std=c++11", 
+            "-I../vprof_files", 
+            "-o", 
+            "test_src.o", 
+            "test_src.cc"
+        ], 
+        "directory": "/z/home/jiamin/TestProject/src/deep_path", 
+        "file": "test_src.cc"
+    }, 
+    {
+        "arguments": [
+            "c++", 
+            "-c", 
+            "--std=c++11", 
+            "-I../vprof_files", 
+            "-o", 
+            "test_src_b.o", 
+            "test_src_b.cc"
+        ], 
+        "directory": "/z/home/jiamin/TestProject/src/deep_path", 
+        "file": "test_src_b.cc"
+    }, 
+    {
+        "arguments": [
+            "c++", 
+            "-c", 
+            "--std=c++11", 
+            "-I../vprof_files", 
+            "-o", 
+            "test_main.o", 
+            "test_main.cc"
+        ], 
+        "directory": "/z/home/jiamin/TestProject/src/deep_path", 
+        "file": "test_main.cc"
+    }, 
+    {
+        "arguments": [
+            "c++", 
+            "-c", 
+            "-std=c++11", 
+            "-o", 
+            "VProfEventWrappers.o", 
+            "VProfEventWrappers.cc"
+        ], 
+        "directory": "/z/home/jiamin/TestProject/src/vprof_files", 
+        "file": "VProfEventWrappers.cc"
+    }, 
+    {
+        "arguments": [
+            "c++", 
+            "-c", 
+            "-std=c++11", 
+            "-o", 
+            "trace_tool.o", 
+            "trace_tool.cc"
+        ], 
+        "directory": "/z/home/jiamin/TestProject/src/vprof_files", 
+        "file": "trace_tool.cc"
+    }
+]
