@@ -22,55 +22,29 @@ typedef enum Operation Operation;
 extern "C" {
 #endif
 
-/** This macro is used for tracing the running time of
-    a function call which appears inside an if statement*/
-#define TRACE_S_E(function_call, index) (TRACE_START()|(function_call)|TRACE_END(index))
+void TARGET_PATH_SET(int pathCount);
 
-typedef unsigned long int ulint;
+void SESSION_START(const char *SIID);
 
-/** The global transaction id counter */
-extern ulint transaction_id;
-
-pthread_t get_thread();
-
-void set_should_shutdown(int shutdown);
-
-void set_id(int id);
-
-int get_thread_id();
-
-void log_command(const char *command);
-
-void SESSION_START();
+void SWITCH_SI(const char *SIID);
 
 void SESSION_END(int successful);
 
-void PATH_SET(int path_count);
+void TARGET_PATH_SET(int pathCount);
 
 int PATH_GET();
 
-void PATH_INC();
+void PATH_INC(int expectedCount);
 
-void PATH_DEC();
+void PATH_DEC(int expectedCount);
 
-timespec get_trx_start();
+void TRACE_FUNCTION_START(int numFuncs);
 
-/********************************************************************//**
-This function marks the start of a function call */
-void TRACE_FUNCTION_START();
-
-/********************************************************************//**
-This function marks the end of a function call */
 void TRACE_FUNCTION_END();
 
-/********************************************************************//**
-This function marks the start of a child function call. */
 int TRACE_START();
 
-/********************************************************************//**
-This function marks the end of a child function call. */
-int TRACE_END(
-  int index);   /*!< Index of the child function call. */
+int TRACE_END(int index);
 
 /********************************************************************//**
 These functions are called by the generated wrappers. */
