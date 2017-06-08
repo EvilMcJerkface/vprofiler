@@ -1,15 +1,21 @@
+import subprocess
+from Restorer import Restorer
 from DispatcherBase import Dispatcher
 
 class Restore(Dispatcher):
     def __init__(self):
         self.disallowedOptions = {}
-        self.requiredOptions = {'backup_dir': None}
+        self.requiredOptions = {}
 
-    def Dispatch(self, restoreTracer, restoreSynchro):
-        subprocess.call(['vprof-restore', '--backup_dir', self.requiredOptions['backup_dir'],
-                         '-t' if restoreTracer else '', '-s' if restoreSynchro else ''],
-                         stderr = subprocess.STDOUT)
+    def RestoreFromBackup(self, backup):
+        restorer = Restorer.Restorer(backup)
+        restorer.Run('TracerFilenames')
 
-        if restoreTracer and restoreSynchro:
-            subprocess.call(['rm', '-rf', self.requiredOptions['backup_dir'])
+    def Dispatch(self, backup, callerbackup, syncbackup):
+        restorer = Restorer.Restorer(backup)
+        restorer.Run('TracerFilenames')
+        restorer = Restorer.Restorer(callerbackup)
+        restorer.Run('CallerFilenames')
+        restorer = Restorer.Restorer(syncbackup)
+        restorer.Run('SynchronizationFilenames')
 

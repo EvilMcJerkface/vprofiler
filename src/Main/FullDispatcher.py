@@ -1,5 +1,8 @@
-import csv
+import subprocess
+import os
+import shutil
 
+from FactorSelector import VarTree
 from DispatcherBase import Dispatcher
 from AnnotatorDispatcher import Annotator
 from BreakdownDispatcher import Breakdown
@@ -9,7 +12,8 @@ class Full(Dispatcher):
     def __init__(self):
         self.disallowedOptions = {}
         self.requiredOptions = { 'build_script': None,
-                                 'run_script':   None  }
+                                 'run_script':   None,
+                                 'target_fxn': None  }
 
 
         super(Full, self).__init__(self.disallowedOptions, self.requiredOptions)
@@ -22,7 +26,7 @@ class Full(Dispatcher):
         success = super(Full, self).ParseOptions(options)
 
         return success and self.annotator.ParseOptions(options) \
-               and self.breakdown.ParseOptions(option)
+               and self.breakdown.ParseOptions(options)
 
     def __AreDone(self):
         inputCorrect = False
@@ -38,65 +42,75 @@ class Full(Dispatcher):
 
         return True if inVal.lower() == 'y' else False
 
-    def __GetNextTargetFxn(self):
-        fxnOptions = []
+    def __GetNextTargetFxn(self, selectedFunctions):
+        funcNames = []
 
-        with open('.breakdownOut', 'rb') as breakdownOut:
-            breakdownReader = csv.reader(breakdownOut, delimiter = ' ')
-
-            for line in breakdownReader:
-                fxnOptions.append(line[1])
-
+        for selectedFunction in selectedFunctions:
+            funcNames.append(selectedFunction.func)
 
         done = False
         nextTarg = -1
+        if len(funcNames) == 1:
+            nextTarg = 0
+            done = True
         while not done:
             while True:
                 nextTargStr = raw_input('Number of next target function: ')
 
-                if nextTargStr.isdigit() and int(nextTargStr) <= len(fxnOptions) and int(nextTargStr) > 0:
+                if nextTargStr.isdigit() and int(nextTargStr) <= len(funcNames) and int(nextTargStr) >= 0:
                     break
                 else:
-                    print('Input invalid')
+                    print 'Input invalid'
 
             nextTarg = int(nextTargStr)
 
             targOkay = ''
             while True:
-                targOkay = raw_input('Instrument ' + fxnOptions[nextTarg] + ' ? [y/n]').lower()
+                targOkay = raw_input('Instrument ' + funcNames[nextTarg] + ' ? [y/n]').lower()
 
                 if targOkay in ['y', 'n']:
                     break
                 else:
-                    print('Input invalid')
+                    print 'Input invalid'
 
-            done = True if targOkay = 'y' else False
+            done = True if targOkay == 'y' else False
 
-        return fxnOptions[nextTarg]
-
+        return selectedFunctions[nextTarg]
 
     def Dispatch(self):
         instrumentSynchro = True
-        targetFxn = ''
+        syncbackup = '/tmp/vprof/syncbackup'
+        callerbackup = '/tmp/vprof/callerbackup'
+        backup = '/tmp/vprof/backup'
+        funcNamesFile = '/tmp/vprof/funcNames'
+        dataDir = "/tmp/vprof/"
+        varTree = VarTree.Tree(self.requiredOptions['target_fxn'])
+        selectedNode = varTree.root
 
         while True:
-            self.annotator.Dispatch(instrumentSynchro, targetFxn)
+            self.annotator.AnnotateTargetFunc(selectedNode, funcNamesFile, backup, callerbackup)
 
-            subprocess.call([self.requiredOptions['build_script']], stdout = subprocess.STDOUT,
-                            stderr = subprocess.STDOUT)
+            subprocess.call([self.requiredOptions['build_script']])
 
-            subprocess.call([self.requiredOptions['run_script'], self.breakdown.requiredOptions['data_dir']],
-                            stdout = subprocess.STDOUT, stderr = subprocess.STDOUT)
+            if os.path.exists(dataDir + 'latency'):
+                shutil.rmtree(dataDir + 'latency')
+            subprocess.call([self.requiredOptions['run_script'], dataDir])
 
-            self.breakdown.Dispatch()
+            selectedFunctions = self.breakdown.Dispatch(funcNamesFile, dataDir + 'latency/',
+                                                        varTree, selectedNode)
 
             if self.__AreDone():
                 break
             else:
-                instrumentSynchro = False
-                self.restore.Run(restoreTracer = True, restoreSynchro = False)
+                # instrumentSynchro = False
+                # self.restore.Run(restoreTracer = True, restoreSynchro = False)
+                selectedNode = self.__GetNextTargetFxn(selectedFunctions)
+                self.restore.RestoreFromBackup(backup)
 
-                targetFxn = self.__GetNextTargetFxn()
-
-        subprocess.call(['rm', '.breakdownOut'])
-        self.restore.Run(restoreTracer = True, restoreSynchro = True)
+        print 'Restoring annotated files...'
+        self.restore.Dispatch(backup, callerbackup, syncbackup)
+        shutil.rmtree(backup)
+        shutil.rmtree(callerbackup)
+        shutil.rmtree(syncbackup)
+        print 'Files restored.'
+        print 'Done'
