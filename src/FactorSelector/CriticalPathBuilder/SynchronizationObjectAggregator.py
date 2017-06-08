@@ -1,6 +1,6 @@
 from datetime import datetime
 from OperationEnum import Operation
-from SynchronizationObject import OwnableObject, EventCreationObject
+from SynchronizationObject import OwnableObject, QueueObject
 
 class SynchronizationObjectAggregator:
     def __init__(self):
@@ -11,7 +11,7 @@ class SynchronizationObjectAggregator:
     def AddOperation(self, threadID, operation):
         objID = operation.objID
         # These values represent mutexes and condition variables
-        if opID <= Operation.CV_SIGNAL:
+        if objID <= Operation.CV_SIGNAL:
             opID = operation.opID
             operationTimeStart = operation.timeStart
             operationTimeEnd = operation.timeEnd

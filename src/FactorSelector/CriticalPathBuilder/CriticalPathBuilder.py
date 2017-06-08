@@ -22,7 +22,7 @@ class CriticalPathBuilder:
             # Error if we can't open this or the next file.
             with open(synchroLogName, 'rb') as synchroLogFile:
                 numLines = sum(1 for line in synchroLogFile)
-                print(synchroLogName)
+                print synchroLogName
                 pbar = ProgressBar(max_value = numLines).start()
 
                 synchroLogFile.seek(0)
@@ -86,7 +86,7 @@ class CriticalPathBuilder:
             if nextThreadID == -1:
                 return timeSeries
 
-            for j in range(unblockedSegment + 1):
+            for _ in range(unblockedSegment + 1):
                 self.blockedEdgeStack.popleft()
 
         # We're blocked by some other thread

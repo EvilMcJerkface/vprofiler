@@ -88,6 +88,8 @@ class RequestTracker:
 
         # Should this be:
         # idx = bisect_left(self.threadRequests[threadID].GetKeys(), timestamp) - 1
+        if not threadID in self.threadRequests:
+            return request
         idx = bisect_left(self.threadRequests[threadID].GetKeys(), timestamp) - 1
 
         if idx != -1:

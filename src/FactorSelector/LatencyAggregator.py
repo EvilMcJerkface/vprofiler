@@ -1,6 +1,7 @@
 import csv
 import sys
 from nanotime import nanotime
+from intervaltree import IntervalTree
 from os import listdir
 
 sys.path.append('CriticalPathBuilder/')
@@ -29,13 +30,13 @@ class LatencyAggregator:
         self.semanticIntervalFunctionInstances = {}
 
         # Driver for building critical paths
-        self.criticalPathBuilder = CriticalPathBuilder(pathPrefix, "SynchronizationLog_")
+        self.criticalPathBuilder = CriticalPathBuilder.CriticalPathBuilder(pathPrefix, "SynchronizationLog_")
 
     def __Parse(self, pathPrefix, numFunctions):
         pathPrefix += '/' if pathPrefix[-1] != '/' else ''
-        tpccFiles = [pathPrefix + f for f in listdir(pathPrefix) if 'tpcc' in f]
+        functionLogFiles = [pathPrefix + f for f in listdir(pathPrefix) if 'FunctionLog' in f]
 
-        for filename in tpccFiles:
+        for filename in functionLogFiles:
             with open(filename, 'rb') as latencyLogFile:
                 latencyReader = csv.reader(latencyLogFile)
 
@@ -43,7 +44,7 @@ class LatencyAggregator:
                     if len(row) == 5:
                         functionIndex = int(row[0])
                         threadID = row[1]
-                        semIntervalID = int(row[2])
+                        semIntervalID = row[2]
                         startTime = nanotime(int(row[3]))
                         endTime = nanotime(int(row[4]))
 
@@ -52,17 +53,18 @@ class LatencyAggregator:
 
                         self.semanticIntervals[semIntervalID][functionIndex].append(FunctionRecord(startTime, endTime, threadID))
 
-    def __AggregateSemanticIntervalWaitTime(self, timeSeries):
-        self.functionLatencies[-1].append(0)
+    def __AggregateSemanticIntervalWaitTime(self, criticalPath):
         prevInterval = None
 
-        for interval in timeSeries:
+        for interval in sorted(criticalPath):
             if prevInterval != None:
-                self.functionLatencies[-1][-1] = interval.begin - prevInterval.end
+                self.functionLatencies[-2][-1] = interval.begin - prevInterval.end
 
             prevInterval = interval
 
     def __AggregateForSemanticInterval(self, semanticIntervalID, functionInstances):
+        if len(functionInstances[0]) == 0:
+            functionInstances[0] = list(functionInstances[-1])
         semIntervalInfo = functionInstances[0][0]
         criticalPath = self.criticalPathBuilder.Build(semIntervalInfo.startTime, \
                                                       semIntervalInfo.endTime,   \
@@ -76,32 +78,36 @@ class LatencyAggregator:
 
         # Holy nesting, batman.  Don't see another way to do this though.
         for functionID in range(len(functionInstances)):
+            haveAppended = False
             for functionInstance in functionInstances[functionID]:
-                haveAppended = False
                 for interval in criticalPath.search(functionInstance.startTime, functionInstance.endTime):
-                    if interval.data == functionInstance.threadID:
-                        execIntervalStartTime = max(interval.begin, functionInstance.startTime)
-                        execIntervalEndTime = min(interval.end, functionInstance.endTime)
+                    if interval.data != functionInstance.threadID:
+                        continue
+                    execIntervalStartTime = max(interval.begin, functionInstance.startTime)
+                    execIntervalEndTime = min(interval.end, functionInstance.endTime)
 
-                        timeSeriesTuples.append((execIntervalStartTime, execIntervalEndTime))
+                    timeSeriesTuples.append((execIntervalStartTime, execIntervalEndTime))
 
-                        latency = execIntervalEndTime - execIntervalStartTime
+                    latency = execIntervalEndTime - execIntervalStartTime
 
-                        if not haveAppended:
-                            self.functionLatencies[functionID].append(latency)
-                        # What was this supposed to do?
-                        else:
-                            # I think this is wrong! Shouldn't it be:
-                            # self.functionLatencies[len(self.functionLatencies) - 1][-1] += latency
-                            self.functionLatencies[functionID][-1] += latency
+                    if not haveAppended:
+                        self.functionLatencies[functionID].append(latency)
+                        haveAppended = True
+                    # What was this supposed to do?
+                    else:
+                        # I think this is wrong! Shouldn't it be:
+                        # self.functionLatencies[len(self.functionLatencies) - 1][-1] += latency
+                        self.functionLatencies[functionID][-1] += latency
+            if len(self.functionLatencies[functionID]) < len(self.functionLatencies[0]):
+                self.functionLatencies[functionID].append(0)
 
-        semIntTimeSeries = IntervalTree.from_tuples(timeSeriesTuples)
+        # semIntTimeSeries = IntervalTree.from_tuples(timeSeriesTuples)
 
-        self.__AggregateSemanticIntervalWaitTime(timeSeriesTuples)
+        self.__AggregateSemanticIntervalWaitTime(criticalPath)
 
     def GetLatencies(self, pathPrefix, numFunctions):
         self.__Parse(pathPrefix, numFunctions)
-        self.functionLatencies = [[] for x in range(numFunctions)]
+        self.functionLatencies = [[] for _ in range(numFunctions)]
 
         for semanticIntervalID, functionInstances in self.semanticIntervals.items():
             self.__AggregateForSemanticInterval(semanticIntervalID, functionInstances)
