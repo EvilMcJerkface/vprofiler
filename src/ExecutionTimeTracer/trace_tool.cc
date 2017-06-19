@@ -121,136 +121,34 @@ class FunctionLog {
         timespec functionEnd;
 };
 
-static int TARGET_PATH_COUNT = 0;
-static thread_local int pathCount = 0;
-static thread_local timespec function_start;
-static thread_local timespec function_end;
-static thread_local timespec call_start;
-static thread_local timespec call_end;
-
 class FunctionTracer {
 public:
-    static FunctionTracer *getInstance() {
-        if (singleton == nullptr) {
-            singletonMutex.lock();
-            if (singleton == nullptr) {
-                singleton = std::unique_ptr<FunctionTracer>(new FunctionTracer());
-            }
-            singletonMutex.unlock();
-        }
-        return singleton.get();
-    }
+    static FunctionTracer *getInstance();
 
-    FunctionTracer() {
-        Filesystem::CreateDirIfNotExists("latency");
-        logFile.open("latency/FunctionLog_" + std::to_string(::getpid()), std::ios_base::trunc);
-        shouldStop = false;
-        writerThread = std::thread(writeLogs);
-        lastPID = ::getpid();
-    }
+    FunctionTracer();
 
-    ~FunctionTracer() {
-        shouldStop = true;
-        writerThread.join();
-    }
+    ~FunctionTracer();
 
-    std::string getCurrentSIID() {
-        return currentSIID;
-    }
+    std::string getCurrentSIID();
 
-    void startSI(std::string SIID) {
-        currentSIID = SIID;
-        timespec transStart = get_time();
-        siStartMutex.lock();
-        siStarts[SIID] = transStart;
-        siStartMutex.unlock();
-    }
+    void startSI(std::string SIID);
 
-    void switchSI(std::string SIID) {
-        currentSIID = SIID;
-    }
+    void switchSI(std::string SIID);
 
-    void endSI(bool successful) {
-        timespec transStart;
-        siStartMutex.lock();
-        transStart = siStarts[currentSIID];
-        siStarts.erase(currentSIID);
-        siStartMutex.unlock();
+    void endSI(bool successful);
 
-        timespec transEnd = get_time();
-        FunctionLog log(currentSIID, transStart, transEnd);
-        localFunctionLogs.back().push_back(log);
-        commitStatusMutex.lock();
-        commitStatus[currentSIID] = successful;
-        commitStatusMutex.unlock();
-        submitToWriterThread();
-    }
+    void addRecord(int functionIndex, timespec &start, timespec &end);
 
-    void addRecord(int functionIndex, timespec &start, timespec &end) {
-        FunctionLog log(currentSIID, start, end);
-        localFunctionLogs[functionIndex].push_back(log);
-    }
-
-    void expandNumFuncs(int numFuncs) {
-        std::vector<FunctionLog> tempVector;
-        while (localFunctionLogs.size() < numFuncs + 2) {
-            localFunctionLogs.push_back(tempVector);
-        }
-    }
+    void expandNumFuncs(int numFuncs);
 
 private:
     static void writeLogs();
 
-    static bool haveForkedSinceLastOp() {
-        pid_t currPID = ::getpid();
-        bool retVal = currPID != lastPID;
-        lastPID = currPID;
+    static bool haveForkedSinceLastOp();
+    static void refreshStateAfterFork();
 
-        return retVal;
-    }
-    static void refreshStateAfterFork() {
-        singleton->logFile.close();
-        Filesystem::CreateDirIfNotExists("latency");
-        singleton->logFile.open("latency/FunctionLog_" + std::to_string(::getpid()), std::ios_base::trunc);
-        singleton->shouldStop = false;
-        singleton->committedLogs.clear();
-        singleton->writerThread.detach();
-        singleton->writerThread = std::thread(writeLogs);
-    }
-
-    timespec get_time() {
-        timespec now;
-        clock_gettime(CLOCK_REALTIME, &now);
-        return now;
-    }
-    void submitToWriterThread() {
-        std::vector<std::vector<FunctionLog>> newLocalLogs;
-        std::vector<FunctionLog> tempVector;
-        for (size_t i = 0; i < localFunctionLogs.size(); ++i) {
-            newLocalLogs.push_back(tempVector);
-        }
-        dataMutex.lock();
-        commitStatusMutex.lock();
-        while (committedLogs.size() < localFunctionLogs.size()) {
-            committedLogs.push_back(tempVector);
-        }
-        for (size_t i = 0; i < localFunctionLogs.size(); ++i) {
-            for (size_t j = 0; j < localFunctionLogs[i].size(); ++j) {
-                FunctionLog log = localFunctionLogs[i][j];
-                auto it = singleton->commitStatus.find(log.semIntervalID);
-                // Not committed yet.
-                if (it == singleton->commitStatus.end()) {
-                    newLocalLogs[i].push_back(log);
-                } else if (it->second) {
-                    // Successfully committed
-                    committedLogs[i].push_back(log);
-                }
-            }
-        }
-        commitStatusMutex.unlock();
-        dataMutex.unlock();
-        localFunctionLogs = newLocalLogs;
-    }
+    timespec get_time();
+    void submitToWriterThread();
 
     static std::unique_ptr<FunctionTracer> singleton;
     static std::mutex singletonMutex;
@@ -274,103 +172,6 @@ private:
     std::thread writerThread;
     bool shouldStop;
 };
-
-std::unique_ptr<FunctionTracer> FunctionTracer::singleton;
-std::mutex FunctionTracer::singletonMutex;
-pid_t FunctionTracer::lastPID;
-thread_local std::vector<std::vector<FunctionLog>> FunctionTracer::localFunctionLogs;
-thread_local std::string FunctionTracer::currentSIID;
-
-void FunctionTracer::writeLogs() {
-    while (!singleton->shouldStop) {
-        std::cout << "[Writer] Sleeping for 5s" << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(5));
-        if (haveForkedSinceLastOp()) {
-            refreshStateAfterFork();
-        }
-        std::vector<std::vector<FunctionLog>> logsToWrite;
-        singleton->dataMutex.lock();
-        logsToWrite.swap(singleton->committedLogs);
-        singleton->dataMutex.unlock();
-        
-        if (logsToWrite.size() == 0) {
-            std::cout << "[Writer] No log entry found." << std::endl;
-            continue;
-        }
-        
-        int count = 0;
-        for (size_t i = 0; i < logsToWrite.size(); ++i) {
-            for (size_t j = 0; j < logsToWrite[i].size(); ++j) {
-                count++;
-                singleton->logFile << i << "," << logsToWrite[i][j] << std::endl;
-            }
-        }
-        std::cout << "[Writer] " << count << " entries written" << std::endl;
-    }
-    std::cout << "[Writer] Exiting" << std::endl;
-    singleton->logFile.close();
-}
-
-void TARGET_PATH_SET(int pathCount) {
-    TARGET_PATH_COUNT = pathCount;
-}
-
-void PATH_INC(int expectedCount) {
-    if (pathCount == expectedCount) {
-        pathCount++;
-    }
-}
-
-void PATH_DEC(int expectedCount) {
-    if (pathCount == expectedCount + 1) {
-        pathCount--;
-    }
-}
-
-int PATH_GET() {
-    return pathCount;
-}
-
-void SESSION_START(const char *SIID) {
-    FunctionTracer::getInstance()->startSI(std::string(SIID));
-}
-
-void SWITCH_SI(const char *SIID) {
-    FunctionTracer::getInstance()->switchSI(std::string(SIID));
-}
-
-void SESSION_END(int successful) {
-    FunctionTracer::getInstance()->endSI(successful);
-}
-
-void TRACE_FUNCTION_START(int numFuncs) {
-    FunctionTracer::getInstance()->expandNumFuncs(numFuncs);
-    if (pathCount == TARGET_PATH_COUNT) {
-        clock_gettime(CLOCK_REALTIME, &function_start);
-    }
-}
-
-void TRACE_FUNCTION_END() {
-    if (pathCount == TARGET_PATH_COUNT) {
-        clock_gettime(CLOCK_REALTIME, &function_end);
-        FunctionTracer::getInstance()->addRecord(0, function_start, function_end);
-    }
-}
-
-int TRACE_START() {
-    if (pathCount == TARGET_PATH_COUNT) {
-        clock_gettime(CLOCK_REALTIME, &call_start);
-    }
-    return 0;
-}
-
-int TRACE_END(int index) {
-    if (pathCount == TARGET_PATH_COUNT) {
-        clock_gettime(CLOCK_REALTIME, &call_end);
-        FunctionTracer::getInstance()->addRecord(index, call_start, call_end);
-    }
-    return 0;
-}
 
 class OperationLog {
     public:
@@ -420,6 +221,8 @@ class SynchronizationTraceTool {
         static void SynchronizationCallStart(Operation op, void* obj);
         static void SynchronizationCallEnd();
         static SynchronizationTraceTool *GetInstance();
+
+        void addOperation(OperationLog opLog, FunctionLog funcLog);
         
         void AddFIFOName(const char *path);
         void OnOpen(const char *path, int fd);
@@ -487,6 +290,243 @@ class SynchronizationTraceTool {
         static void writeLogs(std::vector<OperationLog> *opLogs,
                               std::vector<FunctionLog> *funcLogs);
 };
+
+static int TARGET_PATH_COUNT = 0;
+static thread_local int pathCount = 0;
+static thread_local timespec function_start;
+static thread_local timespec function_end;
+static thread_local timespec call_start;
+static thread_local timespec call_end;
+std::unique_ptr<FunctionTracer> FunctionTracer::singleton;
+std::mutex FunctionTracer::singletonMutex;
+pid_t FunctionTracer::lastPID;
+thread_local std::vector<std::vector<FunctionLog>> FunctionTracer::localFunctionLogs;
+thread_local std::string FunctionTracer::currentSIID;
+
+FunctionTracer *FunctionTracer::getInstance() {
+    if (singleton == nullptr) {
+        singletonMutex.lock();
+        if (singleton == nullptr) {
+            singleton = std::unique_ptr<FunctionTracer>(new FunctionTracer());
+        }
+        singletonMutex.unlock();
+    }
+    return singleton.get();
+}
+
+FunctionTracer::FunctionTracer() {
+    Filesystem::CreateDirIfNotExists("latency");
+    logFile.open("latency/FunctionLog_" + std::to_string(::getpid()), std::ios_base::trunc);
+    shouldStop = false;
+    writerThread = std::thread(writeLogs);
+    lastPID = ::getpid();
+}
+
+FunctionTracer::~FunctionTracer() {
+    shouldStop = true;
+    writerThread.join();
+}
+
+std::string FunctionTracer::getCurrentSIID() {
+    return currentSIID;
+}
+
+void FunctionTracer::startSI(std::string SIID) {
+    currentSIID = SIID;
+    timespec transStart = get_time();
+    siStartMutex.lock();
+    siStarts[SIID] = transStart;
+    siStartMutex.unlock();
+}
+
+void FunctionTracer::switchSI(std::string SIID) {
+    std::string originalSIID = currentSIID;
+    FunctionLog funcLog(SIID);
+    funcLog.start();
+    currentSIID = SIID;
+    funcLog.end();
+    SynchronizationTraceTool::GetInstance()->addOperation(
+        OperationLog(originalSIID, SI_SWITCH), funcLog);
+}
+
+void FunctionTracer::endSI(bool successful) {
+    timespec transStart;
+    siStartMutex.lock();
+    transStart = siStarts[currentSIID];
+    siStarts.erase(currentSIID);
+    siStartMutex.unlock();
+
+    timespec transEnd = get_time();
+    FunctionLog log(currentSIID, transStart, transEnd);
+    localFunctionLogs[0].push_back(log);
+    commitStatusMutex.lock();
+    commitStatus[currentSIID] = successful;
+    commitStatusMutex.unlock();
+    submitToWriterThread();
+}
+
+void FunctionTracer::addRecord(int functionIndex, timespec &start, timespec &end) {
+    FunctionLog log(currentSIID, start, end);
+    if (functionIndex == -1) {
+        localFunctionLogs.back().push_back(log);
+    } else {
+        localFunctionLogs[functionIndex].push_back(log);
+    }
+}
+
+void FunctionTracer::expandNumFuncs(int numFuncs) {
+    std::vector<FunctionLog> tempVector;
+    while (localFunctionLogs.size() < numFuncs + 2) {
+        localFunctionLogs.push_back(tempVector);
+    }
+}
+
+void FunctionTracer::writeLogs() {
+    while (!singleton->shouldStop) {
+        std::cout << "[Writer] Sleeping for 5s" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        if (haveForkedSinceLastOp()) {
+            refreshStateAfterFork();
+        }
+        std::vector<std::vector<FunctionLog>> logsToWrite;
+        singleton->dataMutex.lock();
+        logsToWrite.swap(singleton->committedLogs);
+        singleton->dataMutex.unlock();
+        
+        if (logsToWrite.size() == 0) {
+            std::cout << "[Writer] No log entry found." << std::endl;
+            continue;
+        }
+        
+        int count = 0;
+        for (size_t i = 0; i < logsToWrite.size(); ++i) {
+            for (size_t j = 0; j < logsToWrite[i].size(); ++j) {
+                count++;
+                singleton->logFile << i << "," << logsToWrite[i][j] << std::endl;
+            }
+        }
+        std::cout << "[Writer] " << count << " entries written" << std::endl;
+    }
+    std::cout << "[Writer] Exiting" << std::endl;
+    singleton->logFile.close();
+}
+
+bool FunctionTracer::haveForkedSinceLastOp() {
+    pid_t currPID = ::getpid();
+    bool retVal = currPID != lastPID;
+    lastPID = currPID;
+
+    return retVal;
+}
+void FunctionTracer::refreshStateAfterFork() {
+    singleton->logFile.close();
+    Filesystem::CreateDirIfNotExists("latency");
+    singleton->logFile.open("latency/FunctionLog_" + std::to_string(::getpid()), std::ios_base::trunc);
+    singleton->shouldStop = false;
+    singleton->committedLogs.clear();
+    singleton->writerThread.detach();
+    singleton->writerThread = std::thread(writeLogs);
+}
+
+timespec FunctionTracer::get_time() {
+    timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    return now;
+}
+void FunctionTracer::submitToWriterThread() {
+    std::vector<std::vector<FunctionLog>> newLocalLogs;
+    std::vector<FunctionLog> tempVector;
+    for (size_t i = 0; i < localFunctionLogs.size(); ++i) {
+        newLocalLogs.push_back(tempVector);
+    }
+    dataMutex.lock();
+    commitStatusMutex.lock();
+    while (committedLogs.size() < localFunctionLogs.size()) {
+        committedLogs.push_back(tempVector);
+    }
+    for (size_t i = 0; i < localFunctionLogs.size(); ++i) {
+        for (size_t j = 0; j < localFunctionLogs[i].size(); ++j) {
+            FunctionLog log = localFunctionLogs[i][j];
+            auto it = singleton->commitStatus.find(log.semIntervalID);
+            // Not committed yet.
+            if (it == singleton->commitStatus.end()) {
+                newLocalLogs[i].push_back(log);
+            } else if (it->second) {
+                // Successfully committed
+                committedLogs[i].push_back(log);
+            }
+        }
+    }
+    commitStatusMutex.unlock();
+    dataMutex.unlock();
+    localFunctionLogs = newLocalLogs;
+}
+
+void TARGET_PATH_SET(int pathCount) {
+    TARGET_PATH_COUNT = pathCount;
+}
+
+void NUM_FUNCS_SET(int numFuncs) {
+    FunctionTracer::getInstance()->expandNumFuncs(numFuncs);
+}
+
+void PATH_INC(int expectedCount) {
+    if (pathCount == expectedCount) {
+        pathCount++;
+    }
+}
+
+void PATH_DEC(int expectedCount) {
+    if (pathCount == expectedCount + 1) {
+        pathCount--;
+    }
+}
+
+int PATH_GET() {
+    return pathCount;
+}
+
+void SESSION_START(const char *SIID) {
+    FunctionTracer::getInstance()->startSI(std::string(SIID));
+}
+
+void SWITCH_SI(const char *SIID) {
+    FunctionTracer::getInstance()->switchSI(std::string(SIID));
+}
+
+void SESSION_END(int successful) {
+    FunctionTracer::getInstance()->endSI(successful);
+}
+
+void TRACE_FUNCTION_START(int numFuncs) {
+    FunctionTracer::getInstance()->expandNumFuncs(numFuncs);
+    if (pathCount == TARGET_PATH_COUNT) {
+        clock_gettime(CLOCK_REALTIME, &function_start);
+    }
+}
+
+void TRACE_FUNCTION_END() {
+    if (pathCount == TARGET_PATH_COUNT) {
+        clock_gettime(CLOCK_REALTIME, &function_end);
+        FunctionTracer::getInstance()->addRecord(-1, function_start, function_end);
+    }
+}
+
+int TRACE_START() {
+    if (pathCount == TARGET_PATH_COUNT) {
+        clock_gettime(CLOCK_REALTIME, &call_start);
+    }
+    return 0;
+}
+
+int TRACE_END(int index) {
+    if (pathCount == TARGET_PATH_COUNT) {
+        clock_gettime(CLOCK_REALTIME, &call_end);
+        FunctionTracer::getInstance()->addRecord(index, call_start, call_end);
+    }
+    return 0;
+}
+
 int SynchronizationTraceTool::numThingsLogged = 0;
 thread_local OperationLog SynchronizationTraceTool::currOpLog;
 thread_local FunctionLog SynchronizationTraceTool::currFuncLog;
@@ -578,6 +618,16 @@ void SynchronizationTraceTool::maybeCreateInstance() {
     }
 
     singletonMutex.unlock();
+}
+void SynchronizationTraceTool::addOperation(OperationLog opLog, FunctionLog funcLog) {
+    if (instance == nullptr) {
+        maybeCreateInstance();
+    }
+
+    dataMutex.lock();
+    pushToVec(*instance->opLogs, opLog);
+    pushToVec(*instance->funcLogs, funcLog);
+    dataMutex.unlock();
 }
 
 template <typename T>

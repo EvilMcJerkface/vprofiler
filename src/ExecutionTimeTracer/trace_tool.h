@@ -13,7 +13,8 @@ enum Operation  { MUTEX_LOCK,
                   QUEUE_ENQUEUE,
                   QUEUE_DEQUEUE,
                   MESSAGE_SEND,
-                  MESSAGE_RECEIVE };
+                  MESSAGE_RECEIVE,
+                  SI_SWITCH };
 
 typedef struct timespec timespec;
 typedef enum Operation Operation;
@@ -23,6 +24,8 @@ extern "C" {
 #endif
 
 void TARGET_PATH_SET(int pathCount);
+
+void NUM_FUNCS_SET(int numFuncs);
 
 void SESSION_START(const char *SIID);
 
