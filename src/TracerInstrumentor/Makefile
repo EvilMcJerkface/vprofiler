@@ -41,8 +41,11 @@ CLANG_LIBS := \
 
 all: TracerInstrumentor
 
-TracerInstrumentor: CallerInstrumentorVisitor.o  TracerInstrumentorVisitor.o ReturnInstrumentorVisitor.o FileFinder.o Utils.o TracerInstrumentor.cc
+TracerInstrumentor: NonTargetTracerInstrumentorVisitor.o CallerInstrumentorVisitor.o  TracerInstrumentorVisitor.o ReturnInstrumentorVisitor.o FileFinder.o Utils.o TracerInstrumentor.cc
 	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) $^ $(CLANG_LIBS) $(LLVM_LDFLAGS) -o TracerInstrumentor
+
+NonTargetTracerInstrumentorVisitor.o: NonTargetTracerInstrumentorVisitor.cc
+	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ -o $@
 
 CallerInstrumentorVisitor.o: CallerInstrumentorVisitor.cc
 	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES) -c $^ -o $@
