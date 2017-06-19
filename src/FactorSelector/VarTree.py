@@ -76,6 +76,10 @@ class Tree(object):
     def root(self):
         return self._root
 
+    @root.setter
+    def root(self, root):
+        self._root = root
+
     def getLeaves(self):
         leaves = []
         nodesToLookAt = [self._root]

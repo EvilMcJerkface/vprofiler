@@ -27,30 +27,52 @@ def cov(var1, var2):
 def collectExecTime(functionFile, dataDir):
     """ Read function execution time data from file """
     functions = open(functionFile, 'r')
+    # Order of function names:
+    # 0: parent function
+    # 1 to n - 1: child functions
     funcNames = [function.strip() for function in functions]
 
     latencyAggregator = LatencyAggregator(dataDir)
+    # Order of exec time data:
+    # 0: latency
+    # 1 to n - 1: child functions
+    # n: parent function
     funcExecTime = latencyAggregator.GetLatencies(dataDir, len(funcNames) + 2)
 
-    funcNames.append('synchronization wait time')
-    funcNames.append('latency')
+    # Reorder function names
+    funcNames.append('SyncWaitTime')
+    funcNames.append(funcNames[0])
+    funcNames[0] = 'latency'
     return funcNames, funcExecTime
+
+def collectExecTimeNontarget(functionFile, dataDir):
+    latencyAggregator = LatencyAggregator(dataDir)
+    funcExecTime, funcNames = latencyAggregator.GetLatenciesNonTarget(dataDir, functionFile)
+    return funcNames, funcExecTime
+
 
 def breakDown(functionFile, dataDir, nodeToBreak):
     """ Break down variance into variances and covariances """
-    funcNames, funcExecTime = collectExecTime(functionFile, dataDir)
+    if nodeToBreak.func is None:
+        funcNames, funcExecTime = collectExecTimeNontarget(functionFile, dataDir)
+        names = funcNames[-1].split('_')
+        nodeToBreak.func = names[1]
+        nodeToBreak.func.parent = VarTree.VarNode(names[0], None, 0, 100)
+    else:
+        funcNames, funcExecTime = collectExecTime(functionFile, dataDir)
+
     # print len(funcNames)
     # print len(funcExecTime)
     # index = 0
     # for execTime in funcExecTime:
-    #     print str(index) + ',' + str(len(execTime)) + ':' + str(execTime[:10])
+    #     print funcNames[index] + ',' + str(len(execTime)) + ':' + str(execTime[:10])
     #     index += 1
     # print ''
-    caller = funcNames[0]
-    funcNames[0] = 'img_' + funcNames[0]
+    caller = funcNames[-1]
+    funcNames[-1] = 'img_' + funcNames[-1]
 
-    latencyData = funcExecTime[-1]
-    imaginaryRecords = funcExecTime[0]
+    latencyData = funcExecTime[0]
+    imaginaryRecords = funcExecTime[-1]
     varLatency = np.var(latencyData)
     size = len(imaginaryRecords)
     for index in range(size):
@@ -71,8 +93,8 @@ def breakDown(functionFile, dataDir, nodeToBreak):
         nodeToBreak.perct = 100
 
     length = len(funcNames)
-    for index1 in range(length - 1):
-        for index2 in range(index1 + 1):
+    for index1 in range(1, length):
+        for index2 in range(1, index1 + 1):
             funcName1 = funcNames[index1]
             funcName2 = funcNames[index2]
             if index1 == index2:

@@ -1,11 +1,12 @@
 from abc import ABCMeta, abstractmethod
+from OperationEnum import Operation
 
 # Abstract base class for synchronization objects
 class SynchronizationObject:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def GetDependenceRelation(obj):
+    def GetDependenceRelation(self, obj):
         pass
 
 class OwnershipTimeInterval:
@@ -88,7 +89,7 @@ class QueueObject(SynchronizationObject):
     def GetDependenceRelation(self, operation):
         result = self.eventCreationRelationships.get(operation)
 
-        if result == None:
-            result = (None, None)
+        if result is None:
+            return None, None
 
         return result.endTime, result.threadID

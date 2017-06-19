@@ -10,6 +10,7 @@ class Operation(Enum):
     QUEUE_DEQUEUE   = 6
     MESSAGE_SEND    = 7
     MESSAGE_RECEIVE = 8
+    SWITCH_SI       = 9
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:

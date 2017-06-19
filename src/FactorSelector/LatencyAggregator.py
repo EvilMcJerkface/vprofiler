@@ -3,6 +3,7 @@ import sys
 from nanotime import nanotime
 from intervaltree import IntervalTree
 from os import listdir
+from NonTargetCriticalPathBreaker import NonTargetCriticalPathBreak
 
 sys.path.append('CriticalPathBuilder/')
 from CriticalPathBuilder import CriticalPathBuilder
@@ -53,14 +54,28 @@ class LatencyAggregator:
 
                         self.semanticIntervals[semIntervalID][functionIndex].append(FunctionRecord(startTime, endTime, threadID))
 
-    def __AggregateSemanticIntervalWaitTime(self, criticalPath):
-        prevInterval = None
+    def __GetCriticalPaths(self, pathPrefix):
+        criticalPaths = {}
+        pathPrefix += '/' if pathPrefix[-1] != '/' else ''
+        functionLogFiles = [pathPrefix + f for f in listdir(pathPrefix) if 'FunctionLog' in f]
 
-        for interval in sorted(criticalPath):
-            if prevInterval != None:
-                self.functionLatencies[-2][-1] = interval.begin - prevInterval.end
+        for filename in functionLogFiles:
+            with open(filename, 'rb') as latencyLogFile:
+                latencyReader = csv.reader(latencyLogFile)
 
-            prevInterval = interval
+                for row in latencyReader:
+                    if len(row) == 5:
+                        functionIndex = int(row[0])
+                        # Done with all semantic interval latencies
+                        if functionIndex > 0:
+                            break
+
+                        threadID = row[1]
+                        semIntervalID = row[2]
+                        startTime = nanotime(int(row[3]))
+                        endTime = nanotime(int(row[4]))
+                        criticalPath = self.criticalPathBuilder.Build(startTime, endTime, threadID)
+                        criticalPaths[semIntervalID] = criticalPath
 
     def __AggregateForSemanticInterval(self, semanticIntervalID, functionInstances):
         if len(functionInstances[0]) == 0:
@@ -103,8 +118,6 @@ class LatencyAggregator:
 
         # semIntTimeSeries = IntervalTree.from_tuples(timeSeriesTuples)
 
-        self.__AggregateSemanticIntervalWaitTime(criticalPath)
-
     def GetLatencies(self, pathPrefix, numFunctions):
         self.__Parse(pathPrefix, numFunctions)
         self.functionLatencies = [[] for _ in range(numFunctions)]
@@ -114,3 +127,6 @@ class LatencyAggregator:
 
         return [[int(latency) for latency in latencies] for latencies in self.functionLatencies]
 
+    def GetLatenciesNonTarget(self, pathPrefix, funcNamesFile):
+        criticalPaths = self.__GetCriticalPaths(pathPrefix)
+        return NonTargetCriticalPathBreak(criticalPaths, pathPrefix, funcNamesFile)
