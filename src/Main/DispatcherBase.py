@@ -1,8 +1,9 @@
 import subprocess
 
 class Dispatcher(object):
-    def __init__(self, disallowedOptions, requiredOptions):
+    def __init__(self, disallowedOptions, optionalOptions, requiredOptions):
         self.disallowedOptions = disallowedOptions
+        self.optionalOptions = optionalOptions
         self.requiredOptions = requiredOptions
 
     def ParseOptions(self, options):
@@ -16,6 +17,9 @@ class Dispatcher(object):
             if not self.requiredOptions[reqOpt]:
                 print 'Required opt ' + reqOpt + " not found"
                 return False
+
+        for optionalOpt, _ in self.optionalOptions.iteritems():
+            self.optionalOptions[optionalOpt] = getattr(options, optionalOpt)
 
         return True
 

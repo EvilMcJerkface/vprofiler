@@ -8,10 +8,8 @@ class Breakdown(Dispatcher):
     def __init__(self):
         self.disallowedOptions = { 'annotate': True,
                                    'restore':  True  }
-
-        self.requiredOptions = { 'heights_file':  None,
-                                 'num_factors':   None,
-                                 'root_fxn':      None }
+        self.optionalOptions = {}
+        self.requiredOptions = { 'num_factors':   None }
         # cwd = os.path.dirname(os.path.realpath(__file__))
         # self.installPrefix = cwd[:cwd.rfind('Main')]
 

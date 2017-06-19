@@ -11,12 +11,12 @@ from RestoreDispatcher import Restore
 class Full(Dispatcher):
     def __init__(self):
         self.disallowedOptions = {}
+        self.optionalOptions = {'target_fxn': None}
         self.requiredOptions = { 'build_script': None,
-                                 'run_script':   None,
-                                 'target_fxn': None  }
+                                 'run_script':   None  }
 
 
-        super(Full, self).__init__(self.disallowedOptions, self.requiredOptions)
+        super(Full, self).__init__(self.disallowedOptions, self.optionalOptions, self.requiredOptions)
 
         self.annotator = Annotator()
         self.breakdown = Breakdown()
@@ -84,7 +84,7 @@ class Full(Dispatcher):
         backup = '/tmp/vprof/backup'
         funcNamesFile = '/tmp/vprof/funcNames'
         dataDir = "/tmp/vprof/"
-        varTree = VarTree.Tree(self.requiredOptions['target_fxn'])
+        varTree = VarTree.Tree(self.optionalOptions['target_fxn'])
         selectedNode = varTree.root
 
         while True:

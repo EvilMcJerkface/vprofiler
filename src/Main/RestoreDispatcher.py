@@ -5,6 +5,7 @@ from DispatcherBase import Dispatcher
 class Restore(Dispatcher):
     def __init__(self):
         self.disallowedOptions = {}
+        self.optionalOptions = {}
         self.requiredOptions = {}
 
     def RestoreFromBackup(self, backup):

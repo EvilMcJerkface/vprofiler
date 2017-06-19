@@ -75,9 +75,6 @@ parser.add_argument('-r', '--root_fxn', help='Take the subtree of the call graph
                                        'interval.  root_fxn is the root of this '  \
                                        'subtree')
 
-parser.add_argument('-x', '--selected_fxns', help='The functions you\'d like to be ' \
-                                            'instrumented')
-
 ##################################
 # Set command line options end   #
 ##################################

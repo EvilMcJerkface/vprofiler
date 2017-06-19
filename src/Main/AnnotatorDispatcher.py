@@ -7,7 +7,7 @@ class Annotator(Dispatcher):
     def __init__(self):
         self.disallowedOptions = { 'breakdown': True,
                                    'restore':   True  }
-
+        self.optionalOptions = {}
         self.requiredOptions = { 'source_dir': None,
                                  'parallelism_functions': None,
                                  'compilation_db': None }
@@ -31,19 +31,47 @@ class Annotator(Dispatcher):
             sourceDir += '/'
         return sourceDir
 
-    def AnnotateSynchro(self):
-        print 'Instrumenting synchronization APIs...'
-        subprocess.call(['EventAnnotator -s %s -f %s -b %s %s' % (self.getSourceDir(), self.requiredOptions['parallelism_functions'],
-                        self.syncbackup, self.requiredOptions['compilation_db'])], stderr=self.errorLog, shell=True)
+    def getFuncNameAndTypes(self, nodeString):
+        nodeString = nodeString.split(' [')[0]
+        nodeString = nodeString.replace('"', '')
+        nodeString = nodeString.replace(',', '|')
+        if '()' in nodeString:
+            nodeString = nodeString.replace('()', '')
+        else:
+            nodeString = nodeString.replace('(', '|')
+            nodeString = nodeString.replace(')', '')
+        return nodeString
+
+    def findRoots(self, callGraph):
+        graphFile = open(callGraph)
+        allFuncs = {}
+        for line in graphFile:
+            if ' -> ' in line:
+                parts = line.split(' -> ')
+                caller = self.getFuncNameAndTypes(parts[0])
+                callee = self.getFuncNameAndTypes(parts[1])
+                allFuncs[callee] = False
+                if caller not in allFuncs:
+                    allFuncs[caller] = True
+        roots = []
+        for funcName, isRoot in allFuncs.iteritems():
+            if isRoot:
+                roots.append(funcName)
+        return ','.join(roots)
+
+    def AnnotateWithoutTarget(self, callGraph, funcNamesFile, backup):
+        funcFile = open(funcNamesFile, 'w')
+        funcFile.close()
+        print 'Instrumenting thread entry functions...'
+        subprocess.call(['TracerInstrumentor -s %s -b %s -n %s -r %s %s' %
+                         (self.getSourceDir(), backup, funcNamesFile,
+                          self.findRoots(callGraph), self.requiredOptions['compilation_db'])],
+                        stderr=self.errorLog, shell=True)
         print 'Instrumentation done.'
 
     def AnnotateTargetFunc(self, selectedNode, funcNamesFile, backup, callerbackup):
         print 'Instrumenting target function ' + selectedNode.func + '...'
         if selectedNode.parent:
-            # print ['TracerInstrumentor -s %s -f %s -c %s -t %d -b %s -e %s -n %s %s' %
-            #        (self.getSourceDir(), selectedNode.func, selectedNode.parent.func,
-            #         selectedNode.depth, backup, callerbackup, funcNamesFile,
-            #         self.requiredOptions['compilation_db'])]
             subprocess.call(['TracerInstrumentor -s %s -f %s -c %s -t %d -b %s -e %s -n %s %s' %
                              (self.getSourceDir(), selectedNode.func, selectedNode.parent.func,
                               selectedNode.depth, backup, callerbackup, funcNamesFile,

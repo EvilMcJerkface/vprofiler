@@ -3,4 +3,3 @@ intervaltree
 enum
 progressbar
 bisect
-pydot
