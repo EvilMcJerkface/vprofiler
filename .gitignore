@@ -44,3 +44,8 @@ CMakeLists.txt
 /Debug/
 /Release/
 /tmp_install/
+
+# Binary files
+src/SynchronizationInstrumentor/EventAnnotator
+src/TracerInstrumentor/TracerInstrumentor
+
