@@ -71,9 +71,9 @@ parser.add_argument('-k', '--num_factors', help='The number of factors to be sel
 
 parser.add_argument('-r', '--root_funcs', help='List of root functions of all threads')
 
-##################################
-# Set command line options end   #
-##################################
+################################
+# Set command line options end #
+################################
 
 dispatchers = { 'Annotator': Annotator(),
                 'Breakdown': Breakdown(),
