@@ -90,13 +90,8 @@ class CriticalPathBuilder:
                 self.blockedEdgeStack.popleft()
 
         # We're blocked by some other thread
-        else:
-            if precedingRequest.timeEnd != segmentEndTime:
-                timeSeries.appendleft((precedingRequest.timeEnd, segmentEndTime, currThreadID))
-
-            if leftTimeBound is None or nextThreadID is None:
-                leftTimeBound = requestTime
-                nextThreadID = currThreadID
+        elif precedingRequest.timeEnd != segmentEndTime:
+            timeSeries.appendleft((precedingRequest.timeEnd, segmentEndTime, currThreadID))
 
         return self.__BuildHelper(leftTimeBound, nextThreadID, timeSeries)
 
