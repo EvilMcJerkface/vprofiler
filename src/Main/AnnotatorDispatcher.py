@@ -7,7 +7,7 @@ class Annotator(Dispatcher):
     def __init__(self):
         self.disallowedOptions = { 'breakdown': True,
                                    'restore':   True  }
-        self.optionalOptions = {}
+        self.optionalOptions = { 'root_funcs': None }
         self.requiredOptions = { 'source_dir': None,
                                  'parallelism_functions': None,
                                  'compilation_db': None }
@@ -42,30 +42,13 @@ class Annotator(Dispatcher):
             nodeString = nodeString.replace(')', '')
         return nodeString
 
-    def findRoots(self, callGraph):
-        graphFile = open(callGraph)
-        allFuncs = {}
-        for line in graphFile:
-            if ' -> ' in line:
-                parts = line.split(' -> ')
-                caller = self.getFuncNameAndTypes(parts[0])
-                callee = self.getFuncNameAndTypes(parts[1])
-                allFuncs[callee] = False
-                if caller not in allFuncs:
-                    allFuncs[caller] = True
-        roots = []
-        for funcName, isRoot in allFuncs.iteritems():
-            if isRoot:
-                roots.append(funcName)
-        return ','.join(roots)
-
     def AnnotateWithoutTarget(self, callGraph, funcNamesFile, backup):
         funcFile = open(funcNamesFile, 'w')
         funcFile.close()
         print 'Instrumenting thread entry functions...'
         subprocess.call(['TracerInstrumentor -s %s -b %s -n %s -r %s %s' %
                          (self.getSourceDir(), backup, funcNamesFile,
-                          self.findRoots(callGraph), self.requiredOptions['compilation_db'])],
+                          self.optionalOptions['root_funcs'], self.requiredOptions['compilation_db'])],
                         stderr=self.errorLog, shell=True)
         print 'Instrumentation done.'
 
@@ -85,7 +68,7 @@ class Annotator(Dispatcher):
 
         print 'Instrumentation done.'
 
-    def Dispatch(self, instrumentSynchro=True, targetFxn=''):
+    def Dispatch(self, instrumentSynchro=True, targetFunc=''):
         print 'Instrumenting synchronization APIs...'
         subprocess.call(['EventAnnotator -s %s -f %s -b %s %s' % (self.getSourceDir(), self.requiredOptions['parallelism_functions'],
                         self.syncbackup, self.requiredOptions['compilation_db'])], stderr=self.errorLog, shell=True)

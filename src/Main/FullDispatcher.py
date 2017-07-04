@@ -11,7 +11,7 @@ from RestoreDispatcher import Restore
 class Full(Dispatcher):
     def __init__(self):
         self.disallowedOptions = {}
-        self.optionalOptions = {'target_fxn': None}
+        self.optionalOptions = {'target_func': None}
         self.requiredOptions = { 'build_script': None,
                                  'run_script':   None  }
 
@@ -42,7 +42,7 @@ class Full(Dispatcher):
 
         return True if inVal.lower() == 'y' else False
 
-    def __GetNextTargetFxn(self, selectedFunctions):
+    def __GetNextTargetFunc(self, selectedFunctions):
         funcNames = []
 
         for selectedFunction in selectedFunctions:
@@ -84,7 +84,7 @@ class Full(Dispatcher):
         backup = '/tmp/vprof/backup'
         funcNamesFile = '/tmp/vprof/funcNames'
         dataDir = "/tmp/vprof/"
-        varTree = VarTree.Tree(self.optionalOptions['target_fxn'])
+        varTree = VarTree.Tree(self.optionalOptions['target_func'])
         selectedNode = varTree.root
 
         while True:
@@ -104,7 +104,7 @@ class Full(Dispatcher):
             else:
                 # instrumentSynchro = False
                 # self.restore.Run(restoreTracer = True, restoreSynchro = False)
-                selectedNode = self.__GetNextTargetFxn(selectedFunctions)
+                selectedNode = self.__GetNextTargetFunc(selectedFunctions)
                 self.restore.RestoreFromBackup(backup)
 
         print 'Restoring annotated files...'

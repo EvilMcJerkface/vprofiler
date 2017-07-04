@@ -26,7 +26,7 @@ class Breakdown(Dispatcher):
         # selectedOut = subprocess.check_output(['java', '-cp', self.installPrefix,'FactorSelector',
         #                                       self.varTree, self.requiredOptions['heights_file'],
         #                                       self.requiredOptions['num_factors'],
-        #                                       self.requiredOptions['root_fxn']],
+        #                                       self.requiredOptions['root_func']],
         #                                       stderr=subprocess.STDOUT)
         # print selectedOut
         # selectedFunctions = []

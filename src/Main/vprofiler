@@ -54,7 +54,7 @@ parser.add_argument('-p', '--parallelism_functions',
 parser.add_argument('-c', '--compilation_db',
                     help='The compilation database vprofiler will use when instrumenting source code.')
 
-parser.add_argument('-t', '--target_fxn',
+parser.add_argument('-t', '--target_func',
                     help='The name of the top level function in which the semantic interval begins')
 
 # For finding path to trace_tool.cc, maybe make some dir like /lib/vprof/ and put trace_tool
@@ -69,11 +69,7 @@ parser.add_argument('-i', '--heights_file',
 
 parser.add_argument('-k', '--num_factors', help='The number of factors to be selected')
 
-parser.add_argument('-r', '--root_fxn', help='Take the subtree of the call graph where ' \
-                                       'each node of the subtree has part of its ' \
-                                       'execution contained in a target semantic ' \
-                                       'interval.  root_fxn is the root of this '  \
-                                       'subtree')
+parser.add_argument('-r', '--root_funcs', help='List of root functions of all threads')
 
 ##################################
 # Set command line options end   #
