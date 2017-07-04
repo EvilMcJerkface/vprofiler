@@ -124,7 +124,8 @@ class FunctionLog {
 
 class FunctionTracer {
 public:
-    static FunctionTracer *getInstance();
+    static FunctionTracer *GetInstance();
+    static void Delete();
 
     FunctionTracer();
 
@@ -143,14 +144,6 @@ public:
     void expandNumFuncs(int numFuncs);
 
 private:
-    static void writeLogs();
-
-    static bool haveForkedSinceLastOp();
-    static void refreshStateAfterFork();
-
-    timespec get_time();
-    void submitToWriterThread();
-
     static std::unique_ptr<FunctionTracer> singleton;
     static std::mutex singletonMutex;
 
@@ -172,6 +165,13 @@ private:
 
     std::thread writerThread;
     bool shouldStop;
+    static void writeLogs();
+
+    static bool haveForkedSinceLastOp();
+    static void refreshStateAfterFork();
+
+    timespec get_time();
+    void submitToWriterThread();
 };
 
 class OperationLog {
@@ -184,7 +184,7 @@ class OperationLog {
         OperationLog(const void* _obj, Operation _op): OperationLog(objToString(_obj), _op) {}
 
         OperationLog(string id, Operation _op):
-        semIntervalID(FunctionTracer::getInstance()->getCurrentSIID()), objID(id), 
+        semIntervalID(FunctionTracer::GetInstance()->getCurrentSIID()), objID(id), 
         op(_op), entityID(std::to_string(pthread_self()) + "_" + 
                           std::to_string(::getpid())) {}
 
@@ -222,6 +222,7 @@ class SynchronizationTraceTool {
         static void SynchronizationCallStart(Operation op, void* obj);
         static void SynchronizationCallEnd();
         static SynchronizationTraceTool *GetInstance();
+        static void Delete();
 
         void addOperation(OperationLog opLog, FunctionLog funcLog);
         
@@ -290,9 +291,13 @@ class SynchronizationTraceTool {
         static void writeLogWorker();
         static void writeLogs(std::vector<OperationLog> *opLogs,
                               std::vector<FunctionLog> *funcLogs);
-
-        static void exitWriter();
 };
+
+static void exitHook() {
+    std::cout << "Exit hook" << std::endl;
+    FunctionTracer::Delete();
+    SynchronizationTraceTool::Delete();
+}
 
 static int TARGET_PATH_COUNT = 0;
 static thread_local int pathCount = 0;
@@ -306,7 +311,7 @@ pid_t FunctionTracer::lastPID;
 thread_local std::vector<std::vector<FunctionLog>> FunctionTracer::localFunctionLogs;
 thread_local std::string FunctionTracer::currentSIID;
 
-FunctionTracer *FunctionTracer::getInstance() {
+FunctionTracer *FunctionTracer::GetInstance() {
     if (singleton == nullptr) {
         singletonMutex.lock();
         if (singleton == nullptr) {
@@ -316,6 +321,9 @@ FunctionTracer *FunctionTracer::getInstance() {
     }
     return singleton.get();
 }
+void FunctionTracer::Delete() {
+    singleton.reset();
+}
 
 FunctionTracer::FunctionTracer() {
     Filesystem::CreateDirIfNotExists("latency");
@@ -324,15 +332,21 @@ FunctionTracer::FunctionTracer() {
     writerThread = std::thread(writeLogs);
     lastPID = ::getpid();
 
-    if (!atexit(writeLogs)) {
-        cout << "WARNING: Could not register writer thread with atexit. "
-                "Some logs may not be recorded.\n";
+    if (!atexit(exitHook)) {
+        std::cout << "WARNING: Could not register writer thread with atexit. "
+                "Some function logs may not be recorded." << std::endl;;
     }
 }
 
 FunctionTracer::~FunctionTracer() {
+    std::cout << "Deleting Functiontracer" << std::endl;
     shouldStop = true;
-    writerThread.join();
+    if (writerThread.joinable()) {
+        std::cout << "Deleting Functiontracer" << std::endl;
+        writerThread.join();
+    } else {
+        std::cout << "Not joinable" << std::endl;
+    }
 }
 
 std::string FunctionTracer::getCurrentSIID() {
@@ -475,7 +489,7 @@ void TARGET_PATH_SET(int pathCount) {
 }
 
 void NUM_FUNCS_SET(int numFuncs) {
-    FunctionTracer::getInstance()->expandNumFuncs(numFuncs);
+    FunctionTracer::GetInstance()->expandNumFuncs(numFuncs);
 }
 
 void PATH_INC(int expectedCount) {
@@ -495,19 +509,19 @@ int PATH_GET() {
 }
 
 void SESSION_START(const char *SIID) {
-    FunctionTracer::getInstance()->startSI(std::string(SIID));
+    FunctionTracer::GetInstance()->startSI(std::string(SIID));
 }
 
 void SWITCH_SI(const char *SIID) {
-    FunctionTracer::getInstance()->switchSI(std::string(SIID));
+    FunctionTracer::GetInstance()->switchSI(std::string(SIID));
 }
 
 void SESSION_END(int successful) {
-    FunctionTracer::getInstance()->endSI(successful);
+    FunctionTracer::GetInstance()->endSI(successful);
 }
 
 void TRACE_FUNCTION_START(int numFuncs) {
-    FunctionTracer::getInstance()->expandNumFuncs(numFuncs);
+    FunctionTracer::GetInstance()->expandNumFuncs(numFuncs);
     if (pathCount == TARGET_PATH_COUNT) {
         clock_gettime(CLOCK_REALTIME, &function_start);
     }
@@ -516,7 +530,7 @@ void TRACE_FUNCTION_START(int numFuncs) {
 void TRACE_FUNCTION_END() {
     if (pathCount == TARGET_PATH_COUNT) {
         clock_gettime(CLOCK_REALTIME, &function_end);
-        FunctionTracer::getInstance()->addRecord(-1, function_start, function_end);
+        FunctionTracer::GetInstance()->addRecord(-1, function_start, function_end);
     }
 }
 
@@ -530,7 +544,7 @@ int TRACE_START() {
 int TRACE_END(int index) {
     if (pathCount == TARGET_PATH_COUNT) {
         clock_gettime(CLOCK_REALTIME, &call_end);
-        FunctionTracer::getInstance()->addRecord(index, call_start, call_end);
+        FunctionTracer::GetInstance()->addRecord(index, call_start, call_end);
     }
     return 0;
 }
@@ -579,22 +593,20 @@ SynchronizationTraceTool::SynchronizationTraceTool() {
     logFile.open("latency/SynchronizationLog_" + std::to_string(lastPID), std::ios_base::trunc);
 
     writerThread = thread(writeLogWorker);
-    if (!atexit(exitWriter)) {
-        cout << "WARNING: Could not register writer thread with atexit. "
-                "Some logs may not be recorded.\n";
+    if (!atexit(exitHook)) {
+        std::cout << "WARNING: Could not register writer thread with atexit. "
+                "Some operation logs may not be recorded." << std::endl;
     }
 }
 
-void SynchronizationTraceTool::exitWriter() {
+SynchronizationTraceTool::~SynchronizationTraceTool() {
     dataMutex.lock();
     doneWriting = true;
     dataMutex.unlock();
 
-    writerThread.join();
-}
-
-SynchronizationTraceTool::~SynchronizationTraceTool() {
-    exitWriter();
+    if (writerThread.joinable()) {
+        writerThread.join();
+    }
 }
 
 void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj) {
@@ -603,7 +615,7 @@ void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj)
     }
 
     dataMutex.lock();
-    currFuncLog = FunctionLog(FunctionTracer::getInstance()->getCurrentSIID());
+    currFuncLog = FunctionLog(FunctionTracer::GetInstance()->getCurrentSIID());
 
     pushToVec(*instance->opLogs, OperationLog(obj, op));
     dataMutex.unlock();
@@ -624,6 +636,9 @@ SynchronizationTraceTool* SynchronizationTraceTool::GetInstance() {
         maybeCreateInstance();
     }
     return instance.get();
+}
+void SynchronizationTraceTool::Delete() {
+    instance.reset();
 }
 
 void SynchronizationTraceTool::maybeCreateInstance() {
@@ -811,7 +826,7 @@ size_t SynchronizationTraceTool::OnRead(int fd, void *buf, size_t nbytes) {
         mutexToLock->lock();
         dataMutex.lock();
         pushToVec(*instance->opLogs, OperationLog(ID, MESSAGE_RECEIVE));
-        currFuncLog = FunctionLog(FunctionTracer::getInstance()->getCurrentSIID());
+        currFuncLog = FunctionLog(FunctionTracer::GetInstance()->getCurrentSIID());
         dataMutex.unlock();
         currFuncLog.start();
         result = read(fd, buf, nbytes);
@@ -851,7 +866,7 @@ size_t SynchronizationTraceTool::OnWrite(int fd, const void *buf, size_t nbytes)
         dataMutex.lock();
         pushToVec(*instance->opLogs, OperationLog(ID, MESSAGE_SEND));
         dataMutex.unlock();
-        currFuncLog = FunctionLog(FunctionTracer::getInstance()->getCurrentSIID());
+        currFuncLog = FunctionLog(FunctionTracer::GetInstance()->getCurrentSIID());
         currFuncLog.start();
         result = write(fd, buf, nbytes);
         mutexToLock->unlock();
@@ -910,7 +925,7 @@ int SynchronizationTraceTool::OnMsgSnd(int msqid, const void *msgp, size_t msgsz
     pushToVec(*instance->opLogs, OperationLog(ID, MESSAGE_SEND));
     dataMutex.unlock();
 
-    currFuncLog = FunctionLog(FunctionTracer::getInstance()->getCurrentSIID());
+    currFuncLog = FunctionLog(FunctionTracer::GetInstance()->getCurrentSIID());
     currFuncLog.start();
     int result = msgsnd(msqid, msgp, msgsz, msgflg);
     mutexToLock->unlock();
@@ -939,7 +954,7 @@ ssize_t SynchronizationTraceTool::OnMsgRcv(int msqid, void *msgp, size_t msgsz, 
     pushToVec(*instance->opLogs, OperationLog(ID, MESSAGE_RECEIVE));
     dataMutex.unlock();
 
-    currFuncLog = FunctionLog(FunctionTracer::getInstance()->getCurrentSIID());
+    currFuncLog = FunctionLog(FunctionTracer::GetInstance()->getCurrentSIID());
     currFuncLog.start();
     int result = msgrcv(msqid, msgp, msgsz, msgtyp, msgflg);
     mutexToLock->unlock();
