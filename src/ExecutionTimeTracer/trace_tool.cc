@@ -125,7 +125,6 @@ class FunctionLog {
 class FunctionTracer {
 public:
     static FunctionTracer *GetInstance();
-    static void Delete();
 
     FunctionTracer();
 
@@ -222,7 +221,6 @@ class SynchronizationTraceTool {
         static void SynchronizationCallStart(Operation op, void* obj);
         static void SynchronizationCallEnd();
         static SynchronizationTraceTool *GetInstance();
-        static void Delete();
 
         void addOperation(OperationLog opLog, FunctionLog funcLog);
         
@@ -293,12 +291,6 @@ class SynchronizationTraceTool {
                               std::vector<FunctionLog> *funcLogs);
 };
 
-static void exitHook() {
-    std::cout << "Exit hook" << std::endl;
-    FunctionTracer::Delete();
-    SynchronizationTraceTool::Delete();
-}
-
 static int TARGET_PATH_COUNT = 0;
 static thread_local int pathCount = 0;
 static thread_local timespec function_start;
@@ -321,9 +313,6 @@ FunctionTracer *FunctionTracer::GetInstance() {
     }
     return singleton.get();
 }
-void FunctionTracer::Delete() {
-    singleton.reset();
-}
 
 FunctionTracer::FunctionTracer() {
     Filesystem::CreateDirIfNotExists("latency");
@@ -331,21 +320,12 @@ FunctionTracer::FunctionTracer() {
     shouldStop = false;
     writerThread = std::thread(writeLogs);
     lastPID = ::getpid();
-
-    if (!atexit(exitHook)) {
-        std::cout << "WARNING: Could not register writer thread with atexit. "
-                "Some function logs may not be recorded." << std::endl;;
-    }
 }
 
 FunctionTracer::~FunctionTracer() {
-    std::cout << "Deleting Functiontracer" << std::endl;
     shouldStop = true;
     if (writerThread.joinable()) {
-        std::cout << "Deleting Functiontracer" << std::endl;
         writerThread.join();
-    } else {
-        std::cout << "Not joinable" << std::endl;
     }
 }
 
@@ -593,10 +573,6 @@ SynchronizationTraceTool::SynchronizationTraceTool() {
     logFile.open("latency/SynchronizationLog_" + std::to_string(lastPID), std::ios_base::trunc);
 
     writerThread = thread(writeLogWorker);
-    if (!atexit(exitHook)) {
-        std::cout << "WARNING: Could not register writer thread with atexit. "
-                "Some operation logs may not be recorded." << std::endl;
-    }
 }
 
 SynchronizationTraceTool::~SynchronizationTraceTool() {
@@ -636,9 +612,6 @@ SynchronizationTraceTool* SynchronizationTraceTool::GetInstance() {
         maybeCreateInstance();
     }
     return instance.get();
-}
-void SynchronizationTraceTool::Delete() {
-    instance.reset();
 }
 
 void SynchronizationTraceTool::maybeCreateInstance() {
