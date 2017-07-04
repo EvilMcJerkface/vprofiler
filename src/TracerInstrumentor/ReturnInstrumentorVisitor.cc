@@ -65,10 +65,16 @@ bool ReturnInstrumentorVisitor::VisitReturnStmt(const clang::ReturnStmt *stmt) {
         return true;
     }
 
-    std::string endInstru = "resVprof = " + exprToString(returnValue) + ";\n";
-    endInstru += "\tTRACE_FUNCTION_END();\n";
-    endInstru += "\treturn resVprof";
-    rewriter->ReplaceText(stmt->getSourceRange(), endInstru);
+    std::string returnType = stmt->getRetValue()->getType().getAsString();
+    std::string endInstru = "{\n\t\t";
+    endInstru += returnType +  " resVprof = " + exprToString(returnValue) + ";\n";
+    endInstru += "\t\tTRACE_FUNCTION_END();\n";
+    endInstru += "\t\treturn resVprof;\n";
+    endInstru += "\t}";
+    clang::SourceLocation stmtStart = stmt->getLocStart();
+    // Move past the semicolon;
+    clang::SourceLocation stmtEnd = stmt->getLocEnd().getLocWithOffset(1);
+    rewriter->ReplaceText(clang::SourceRange(stmtStart, stmtEnd), endInstru);
 
     return true;
 }

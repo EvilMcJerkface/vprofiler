@@ -40,7 +40,7 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
 
         std::shared_ptr<std::pair<clang::SourceLocation, std::string>> wrapperImplLoc;
 
-        std::shared_ptr<std::tuple<clang::SourceLocation, std::string, int>> tracerHeaderInfo;
+        std::shared_ptr<std::pair<clang::SourceLocation, int>> tracerHeaderInfo;
 
         std::string functionNamesFile;
 
@@ -89,7 +89,7 @@ class TracerInstrumentorVisitor : public clang::RecursiveASTVisitor<TracerInstru
                               std::string _targetFunctionNameAndArgs,
                               std::shared_ptr<bool> _shouldFlush,
                               std::shared_ptr<std::pair<clang::SourceLocation, std::string>> _wrapperImplLoc,
-                              std::shared_ptr<std::tuple<clang::SourceLocation, std::string, int>> tracerHeaderInfo,
+                              std::shared_ptr<std::pair<clang::SourceLocation, int>> tracerHeaderInfo,
                               std::string _functionNamesFile);
 
         ~TracerInstrumentorVisitor();

@@ -13,7 +13,7 @@ std::string TracerInstrumentorVisitor::functionNameToWrapperName(std::string fun
     for (size_t i = 0; i < nameParts.size() - 1; i++) {
         wrapperName += nameParts[i] + '_';
     }
-    wrapperName += nameParts.back() + std::to_string(std::get<2>(*tracerHeaderInfo)) + "_vprofiler";
+    wrapperName += nameParts.back() + std::to_string(tracerHeaderInfo->second) + "_vprofiler";
     return wrapperName;
 }
 
@@ -92,7 +92,7 @@ void TracerInstrumentorVisitor::createNewPrototype(const FunctionDecl *decl,
                                       bool isMemberFunc) {
     FunctionPrototype newPrototype;
 
-    std::string functionNameInFile = decl->getQualifiedNameAsString() + '-' + std::to_string(std::get<2>(*tracerHeaderInfo));
+    std::string functionNameInFile = decl->getQualifiedNameAsString() + '-' + std::to_string(tracerHeaderInfo->second);
 
     newPrototype.filename = getContainingFilename(decl);
 
@@ -160,13 +160,13 @@ bool TracerInstrumentorVisitor::inTargetFunction(const Stmt *stmt) {
 std::string TracerInstrumentorVisitor::generateWrapperImpl(FunctionPrototype prototype) {
     std::string implementation;
     implementation += prototype.functionPrototype + " {\n\t";
-    if (prototype.returnType != "void") {
-        implementation += prototype.returnType + " result;\n\n\t";
-    }
+    // if (prototype.returnType != "void") {
+    //     implementation += prototype.returnType + " result;\n\n\t";
+    // }
 
     implementation += "TRACE_START();\n\t";
     if (prototype.returnType != "void") {
-        implementation += "result = ";
+        implementation += prototype.returnType + " result = ";
     }
 
     implementation += prototype.innerCallPrefix + "(";
@@ -181,7 +181,7 @@ std::string TracerInstrumentorVisitor::generateWrapperImpl(FunctionPrototype pro
 
     implementation += ");\n\t";
 
-    implementation += "TRACE_END(" + std::to_string(std::get<2>(*tracerHeaderInfo)) + ");\n";
+    implementation += "TRACE_END(" + std::to_string(tracerHeaderInfo->second) + ");\n";
 
     if (prototype.returnType != "void") {
         implementation += "\treturn result;\n";
@@ -238,7 +238,7 @@ bool TracerInstrumentorVisitor::VisitCallExpr(const CallExpr *call) {
 
     createNewPrototype(decl, functionName, false);
 
-    std::get<2>(*tracerHeaderInfo)++;
+    tracerHeaderInfo->second++;
 
     return true;
 }
@@ -255,7 +255,7 @@ bool TracerInstrumentorVisitor::VisitCXXMemberCallExpr(const clang::CXXMemberCal
 
     createNewPrototype(call->getMethodDecl(), functionName, true);
 
-    std::get<2>(*tracerHeaderInfo)++;
+    tracerHeaderInfo->second++;
 
     return true;
 }
@@ -335,7 +335,7 @@ void TracerInstrumentorVisitor::initForInstru(const clang::FunctionDecl *decl) {
     }
 
     *shouldFlush = true;
-    std::get<2>(*tracerHeaderInfo) = 1;
+    tracerHeaderInfo->second = 1;
     functionNamesStream.open(functionNamesFile);
     functionNamesStream << targetFunctionNameString << std::endl;
     functionNamesStream.flush();
@@ -343,8 +343,7 @@ void TracerInstrumentorVisitor::initForInstru(const clang::FunctionDecl *decl) {
     wrapperImplLoc->first = targetFunctionRange.getBegin();
 
     std::string returnType = decl->getReturnType().getAsString();
-    std::get<0>(*tracerHeaderInfo) = decl->getBody()->getLocStart().getLocWithOffset(1);
-    std::get<1>(*tracerHeaderInfo) = returnType;
+    tracerHeaderInfo->first = decl->getBody()->getLocStart().getLocWithOffset(1);
 
     if (returnType == "void") {
         clang::SourceLocation functionEnd = decl->getBody()->getLocEnd();
@@ -367,9 +366,9 @@ TracerInstrumentorVisitor::TracerInstrumentorVisitor(CompilerInstance &ci,
                             std::string _targetFunctionName,
                             std::shared_ptr<bool> _shouldFlush,
                             std::shared_ptr<std::pair<clang::SourceLocation, std::string>> _wrapperImplLoc,
-                            std::shared_ptr<std::tuple<clang::SourceLocation, std::string, int>> _tracerHeaderInfo,
+                            std::shared_ptr<std::pair<clang::SourceLocation, int>> _tracerHeaderInfo,
                             std::string _functionNamesFile):
-                            astContext(&ci.getASTContext()), 
+                            astContext(&ci.getASTContext()),
                             rewriter(_rewriter),
                             targetFunctionNameString(_targetFunctionName),
                             targetFunctionNameAndArgs(SplitString(_targetFunctionName, '|')),

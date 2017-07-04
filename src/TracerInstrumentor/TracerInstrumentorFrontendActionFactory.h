@@ -20,7 +20,7 @@ class TracerInstrumentorASTConsumer : public clang::ASTConsumer {
                                 std::string _targetFunctionName,
                                 std::shared_ptr<bool> _shouldFlush,
                                 std::shared_ptr<std::pair<clang::SourceLocation, std::string>> _wrapperImplLoc,
-                                std::shared_ptr<std::tuple<clang::SourceLocation, std::string, int>> _tracerHeaderInfo,
+                                std::shared_ptr<std::pair<clang::SourceLocation, int>> _tracerHeaderInfo,
                                 std::string _functionNamesFile) {
             
             visitor = std::unique_ptr<TracerInstrumentorVisitor>(new TracerInstrumentorVisitor(ci, 
@@ -64,7 +64,7 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
 
         std::shared_ptr<std::pair<clang::SourceLocation, std::string>> wrapperImplLoc;
 
-        std::shared_ptr<std::tuple<clang::SourceLocation, std::string, int>> tracerHeaderInfo;
+        std::shared_ptr<std::pair<clang::SourceLocation, int>> tracerHeaderInfo;
 
     public:
         TracerInstrumentorFrontendAction(std::string _targetFunctionName,
@@ -77,8 +77,8 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
                                             functionNamesFile(_functionNamesFile),
                                             shouldFlush(std::make_shared<bool>(false)),
                                             wrapperImplLoc(std::make_shared<std::pair<clang::SourceLocation, std::string>>(std::make_pair(clang::SourceLocation(), ""))),
-                                            tracerHeaderInfo(std::make_shared<std::tuple<clang::SourceLocation, std::string, int>>(
-                                                    std::make_tuple(clang::SourceLocation(), "", 0))) {}
+                                            tracerHeaderInfo(std::make_shared<std::pair<clang::SourceLocation, int>>(
+                                                    std::make_pair(clang::SourceLocation(), 0))) {}
 
         ~TracerInstrumentorFrontendAction() {}
 
@@ -124,12 +124,8 @@ class TracerInstrumentorFrontendAction : public clang::ASTFrontendAction {
 
         void insertHeader() {
             std::string startInstru = "\n\tTARGET_PATH_SET(" + std::to_string(targetPathCount) + ");\n";
-            startInstru += "\tTRACE_FUNCTION_START(" + std::to_string(std::get<2>(*tracerHeaderInfo)) + ");\n";
-            std::string returnType = std::get<1>(*tracerHeaderInfo);
-            if (returnType != "void") {
-                startInstru += "\t" + returnType + " resVprof;\n";
-            }
-            rewriter->InsertText(std::get<0>(*tracerHeaderInfo), startInstru, true);
+            startInstru += "\tTRACE_FUNCTION_START(" + std::to_string(tracerHeaderInfo->second) + ");\n";
+            rewriter->InsertText(tracerHeaderInfo->first, startInstru, true);
         }
 
         void EndSourceFileAction() override {
