@@ -12,6 +12,7 @@
 #include <time.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <cstdlib>
 
 // C++ headers
 #include <algorithm>
@@ -289,6 +290,8 @@ class SynchronizationTraceTool {
         static void writeLogWorker();
         static void writeLogs(std::vector<OperationLog> *opLogs,
                               std::vector<FunctionLog> *funcLogs);
+
+        static void exitWriter();
 };
 
 static int TARGET_PATH_COUNT = 0;
@@ -320,6 +323,11 @@ FunctionTracer::FunctionTracer() {
     shouldStop = false;
     writerThread = std::thread(writeLogs);
     lastPID = ::getpid();
+
+    if (!atexit(writeLogs)) {
+        cout << "WARNING: Could not register writer thread with atexit. "
+                "Some logs may not be recorded.\n";
+    }
 }
 
 FunctionTracer::~FunctionTracer() {
@@ -571,14 +579,22 @@ SynchronizationTraceTool::SynchronizationTraceTool() {
     logFile.open("latency/SynchronizationLog_" + std::to_string(lastPID), std::ios_base::trunc);
 
     writerThread = thread(writeLogWorker);
+    if (!atexit(exitWriter)) {
+        cout << "WARNING: Could not register writer thread with atexit. "
+                "Some logs may not be recorded.\n";
+    }
 }
 
-SynchronizationTraceTool::~SynchronizationTraceTool() {
+void SynchronizationTraceTool::exitWriter() {
     dataMutex.lock();
     doneWriting = true;
     dataMutex.unlock();
 
     writerThread.join();
+}
+
+SynchronizationTraceTool::~SynchronizationTraceTool() {
+    exitWriter();
 }
 
 void SynchronizationTraceTool::SynchronizationCallStart(Operation op, void *obj) {
