@@ -63,9 +63,9 @@ parser.add_argument('-t', '--target_func',
 # parser.add_argument('-d', '--data_dir',
 #                     help='Directory containing the data files created by vprofiler')
 
-parser.add_argument('-i', '--heights_file',
-                    help='File containing each function in the call graph and its ' \
-                         'corresponding height in the graph')
+# parser.add_argument('-i', '--heights_file',
+#                     help='File containing each function in the call graph and its ' \
+#                          'corresponding height in the graph')
 
 parser.add_argument('-k', '--num_factors', help='The number of factors to be selected')
 

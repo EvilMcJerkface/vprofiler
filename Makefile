@@ -9,3 +9,4 @@ install: all
 .PHONY: clean
 clean:
 	make -C src clean
+
