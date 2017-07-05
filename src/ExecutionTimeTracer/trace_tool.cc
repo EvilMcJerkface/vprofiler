@@ -385,7 +385,6 @@ void FunctionTracer::expandNumFuncs(int numFuncs) {
 
 void FunctionTracer::writeLogs() {
     while (!singleton->shouldStop) {
-        std::cout << "[Writer] Sleeping for 5s" << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(5));
         if (haveForkedSinceLastOp()) {
             refreshStateAfterFork();
@@ -395,11 +394,6 @@ void FunctionTracer::writeLogs() {
         logsToWrite.swap(singleton->committedLogs);
         singleton->dataMutex.unlock();
         
-        if (logsToWrite.size() == 0) {
-            std::cout << "[Writer] No log entry found." << std::endl;
-            continue;
-        }
-        
         int count = 0;
         for (size_t i = 0; i < logsToWrite.size(); ++i) {
             for (size_t j = 0; j < logsToWrite[i].size(); ++j) {
@@ -407,9 +401,7 @@ void FunctionTracer::writeLogs() {
                 singleton->logFile << i << "," << logsToWrite[i][j] << std::endl;
             }
         }
-        std::cout << "[Writer] " << count << " entries written" << std::endl;
     }
-    std::cout << "[Writer] Exiting" << std::endl;
     singleton->logFile.close();
 }
 
