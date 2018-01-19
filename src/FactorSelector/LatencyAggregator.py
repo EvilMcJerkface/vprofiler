@@ -76,6 +76,7 @@ class LatencyAggregator:
                         endTime = nanotime(int(row[4]))
                         criticalPath = self.criticalPathBuilder.Build(startTime, endTime, threadID)
                         criticalPaths[semIntervalID] = criticalPath
+        return criticalPaths
 
     def __AggregateForSemanticInterval(self, semanticIntervalID, functionInstances):
         if len(functionInstances[0]) == 0:

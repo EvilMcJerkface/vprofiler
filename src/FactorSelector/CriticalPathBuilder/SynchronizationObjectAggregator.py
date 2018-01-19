@@ -11,8 +11,8 @@ class SynchronizationObjectAggregator:
     def AddOperation(self, threadID, operation):
         objID = operation.objID
         # These values represent mutexes and condition variables
-        if objID <= Operation.CV_SIGNAL:
-            opID = operation.opID
+        opID = operation.opID
+        if opID <= Operation.CV_SIGNAL:
             operationTimeStart = operation.timeStart
             operationTimeEnd = operation.timeEnd
 
