@@ -57,7 +57,7 @@ def breakDown(functionFile, dataDir, nodeToBreak):
         funcNames, funcExecTime = collectExecTimeNontarget(functionFile, dataDir)
         names = funcNames[-1].split('_')
         nodeToBreak.func = names[1]
-        nodeToBreak.func.parent = VarTree.VarNode(names[0], None, 0, 100)
+        nodeToBreak.parent = VarTree.VarNode(names[0], None, 0, 100)
     else:
         funcNames, funcExecTime = collectExecTime(functionFile, dataDir)
 

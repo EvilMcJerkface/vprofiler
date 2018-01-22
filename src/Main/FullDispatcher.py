@@ -88,7 +88,10 @@ class Full(Dispatcher):
         selectedNode = varTree.root
 
         while True:
-            self.annotator.AnnotateTargetFunc(selectedNode, funcNamesFile, backup, callerbackup)
+            if selectedNode.func is None:
+                self.annotator.AnnotateWithoutTarget(selectedNode,funcNamesFile,backup)
+            else:
+                self.annotator.AnnotateTargetFunc(selectedNode, funcNamesFile, backup, callerbackup)
 
             subprocess.call([self.requiredOptions['build_script']])
 
