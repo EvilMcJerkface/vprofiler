@@ -50,9 +50,14 @@ class LatencyAggregator:
                         endTime = nanotime(int(row[4]))
 
                         if semIntervalID not in self.semanticIntervals:
-                            self.semanticIntervals[semIntervalID] = [[] for x in range(numFunctions)]
+                            self.semanticIntervals[semIntervalID] = \
+                                [[] for x in range(numFunctions)]
 
-                        self.semanticIntervals[semIntervalID][functionIndex].append(FunctionRecord(startTime, endTime, threadID))
+                        (
+                            self
+                            .semanticIntervals[semIntervalID][functionIndex]
+                            .append(FunctionRecord(startTime, endTime, threadID))
+                        )
 
     def __GetCriticalPaths(self, pathPrefix):
         criticalPaths = {}
