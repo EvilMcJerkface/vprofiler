@@ -1,6 +1,10 @@
 import csv
 import os
 import re
+import numpy as np
+
+def mtxTranspose(mtx):
+    return [list(item) for item in zip(*mtx)]
 
 def mtxTranspose(mtx):
     return [list(item) for item in zip(*mtx)]
