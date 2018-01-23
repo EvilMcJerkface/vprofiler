@@ -1,6 +1,10 @@
 import csv
 import os
 import re
+import numpy as np
+
+def mtxTranspose(mtx):
+    return [list(item) for item in zip(*mtx)]
 
 # Input:
 # criticalPaths: a dictionary mapping transaction IDs to critical paths
@@ -105,5 +109,5 @@ def NonTargetCriticalPathBreak(criticalPaths, functionLog_dir, functionName_path
 
     functionNames.append('virtual_parent')
 
-    return resultArr, functionNames
+    return mtxTranspose(resultArr), functionNames
 
