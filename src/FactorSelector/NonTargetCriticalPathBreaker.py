@@ -2,6 +2,9 @@ import csv
 import os
 import re
 
+def mtxTranspose(mtx):
+    return [list(item) for item in zip(*mtx)]
+
 # Input:
 # criticalPaths: a dictionary mapping transaction IDs to critical paths
 # functionLog_dir: a string denoting the directory holding all function log files
@@ -105,5 +108,5 @@ def NonTargetCriticalPathBreak(criticalPaths, functionLog_dir, functionName_path
 
     functionNames.append('virtual_parent')
 
-    return resultArr, functionNames
+    return mtxTranspose(resultArr), functionNames
 
