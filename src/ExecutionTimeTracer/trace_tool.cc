@@ -384,6 +384,9 @@ void FunctionTracer::expandNumFuncs(int numFuncs) {
 }
 
 void FunctionTracer::writeLogs() {
+    while(singleton == nullptr){
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
     while (!singleton->shouldStop) {
         std::this_thread::sleep_for(std::chrono::seconds(5));
         if (haveForkedSinceLastOp()) {
